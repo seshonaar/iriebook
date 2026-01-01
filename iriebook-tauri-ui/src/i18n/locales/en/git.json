@@ -1,0 +1,49 @@
+{
+  "auth": {
+    "title": "Authentication",
+    "connected": "Connected to GitHub",
+    "notConnected": "Not connected to GitHub",
+    "connect": "Connect GitHub",
+    "disconnect": "Disconnect",
+    "authenticating": "Authenticating...",
+    "deviceFlow": {
+      "enterCode": "Enter this code in your browser:",
+      "waiting": "Waiting for authorization...",
+      "prompt": "✓ Authentication successful!\n\nEnter your GitHub repository URL to clone:\n\n(e.g., https://github.com/user/repo.git)"
+    }
+  },
+  "sync": {
+    "title": "Repository Sync",
+    "connectFirst": "Please connect to GitHub first",
+    "status": {
+      "clean": "Up to date",
+      "modified": "{{count}} change",
+      "modified_plural": "{{count}} changes",
+      "uninitialized": "Not a git repository",
+      "needsPush": "Needs push",
+      "needsPull": "Needs pull",
+      "dirty": "Uncommitted changes",
+      "unknown": "Unknown status"
+    },
+    "actions": {
+      "sync": "Get Latest from Github",
+      "syncing": "Syncing...",
+      "clone": "Clone Repository",
+      "saveToCloud": "Save to GitHub",
+      "saveToCloudGithub": "Save to Cloud (Github)",
+      "enterRevision": "Enter revision description..."
+    },
+    "messages": {
+      "cloneSuccess": "Repository cloned successfully!",
+      "cloneCancelled": "Clone cancelled",
+      "syncSuccess": "Sync successful",
+      "saveSuccess": "Save successful"
+    }
+  },
+  "history": {
+    "title": "Recent Commits",
+    "refresh": "Refresh History",
+    "noHistory": "No commits yet",
+    "showChanges": "Show Changes"
+  }
+}

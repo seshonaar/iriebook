@@ -1,0 +1,26 @@
+{
+  "boundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred",
+    "reload": "Reload Application"
+  },
+  "validation": {
+    "required": "{{field}} is required",
+    "invalid": "{{field}} is invalid"
+  },
+  "operations": {
+    "selectFolder": "Failed to select folder",
+    "scanBooks": "Failed to scan books",
+    "loadMetadata": "Failed to load book metadata",
+    "saveMetadata": "Failed to save metadata",
+    "deleteBook": "Failed to delete book",
+    "replaceCover": "Failed to replace cover",
+    "openWorkspace": "Failed to open workspace",
+    "startProcessing": "Failed to start processing",
+    "gitOperation": "Git operation failed",
+    "refreshBooks": "Failed to refresh books",
+    "loadSession": "Failed to load session",
+    "viewBook": "Failed to launch ebook viewer",
+    "generateEpub": "Failed to generate EPUB"
+  }
+}

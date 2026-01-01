@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "iriebook-tauri-ui",
+  "version": "0.1.9",
+  "identifier": "com.seshonaar.iriebook-tauri-ui",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Irie Book",
+        "width": 1280,
+        "height": 800,
+        "maximized": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": [
+      "appimage"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "dangerousInsecureTransportProtocol": true,
+      "endpoints": [
+        "http://drogon3.local:8000/update.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE5MUU5QTI1NzExRTE0QzIKUldUQ0ZCNXhKWm9lcVpJMFRjdi9qc2JVTUlxN0hnbm05UlE1MVZFTmpocEJac2RRcFRvL3JOczgK"
+    }
+  }
+}

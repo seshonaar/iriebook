@@ -1,0 +1,32 @@
+{
+  "panel": {
+    "options": {
+      "publish": "Publish (EPUB/Kindle)",
+      "wordStats": "Word Statistics"
+    },
+    "status": {
+      "selected": "{{count}} book(s) selected",
+      "currentBook": "Current book: {{name}}",
+      "publishEnabled": "Publishing enabled",
+      "wordStatsEnabled": "Word stats enabled",
+      "publishing": "Publishing {{count}} book(s)...",
+      "analyzing": "Analyzing {{count}} book(s)..."
+    },
+    "button": {
+      "process": "Process {{count}} Book",
+      "process_plural": "Process {{count}} Books",
+      "processing": "Processing...",
+      "publish": "Generate ebook",
+      "analyze": "Analyze"
+    },
+    "validation": {
+      "selectBook": "Select at least one book",
+      "viewBook": "Click a book to view it",
+      "enableOption": "Enable at least one processing option"
+    },
+    "progress": {
+      "currentBook": "Current book:",
+      "bookCount": "{{current}} of {{total}}"
+    }
+  }
+}

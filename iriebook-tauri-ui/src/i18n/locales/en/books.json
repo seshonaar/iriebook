@@ -1,0 +1,41 @@
+{
+  "list": {
+    "title": "Books",
+    "count": "Books ({{count}})",
+    "selectAll": "Select All",
+    "selectedCount": "{{count}} book selected for processing",
+    "selectedCount_plural": "{{count}} books selected for processing",
+    "noBooks": "No books found in this folder.",
+    "addBook": "Add Book",
+    "gitChanged": "Modified",
+    "refresh": "Refresh List",
+    "currentBookMode": "Current Book",
+    "multiSelectMode": "Multi-select",
+    "currentBookStatus": "Current book: {{name}}",
+    "noBookViewed": "No book selected - click a book to view"
+  },
+  "viewer": {
+    "loading": "Loading book details...",
+    "editMetadata": "Edit Metadata",
+    "viewMetadata": "View Metadata",
+    "viewBook": "View Book",
+    "replaceCover": "Click to replace cover",
+    "noCover": "No cover image available",
+    "coverNotFound": "Cover not found",
+    "noCoverImage": "No cover image",
+    "clickToAdd": "Click to add one",
+    "coverAlt": "Book cover"
+  },
+  "delete": {
+    "confirmTitle": "Delete Book",
+    "confirmDescription": "Are you sure you want to delete \"{{bookName}}\"? This action cannot be undone.",
+    "deleting": "Deleting...",
+    "success": "Book deleted successfully",
+    "error": "Failed to delete book"
+  },
+  "duplicate": {
+    "title": "Duplicate Book Found",
+    "description": "A book named \"{{bookName}}\" already exists. Do you want to replace it with the new version?",
+    "replace": "Replace"
+  }
+}

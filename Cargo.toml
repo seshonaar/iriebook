@@ -1,0 +1,36 @@
+[workspace]
+members = [
+    "iriebook",
+    "iriebook-ui-common",
+    "iriebook-tauri-ui/src-tauri",
+]
+resolver = "2"
+
+[workspace.dependencies]
+anyhow = "1.0"
+thiserror = "2.0"
+
+[workspace.dependencies.serde]
+version = "1.0"
+features = ["derive"]
+
+[workspace.dependencies.tokio]
+version = "1.42"
+features = ["full"]
+
+# Logging
+[workspace.dependencies.tracing]
+version = "0.1"
+
+[workspace.dependencies.tracing-subscriber]
+version = "0.3"
+features = ["env-filter", "json"]
+
+[workspace.dependencies.tracing-appender]
+version = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

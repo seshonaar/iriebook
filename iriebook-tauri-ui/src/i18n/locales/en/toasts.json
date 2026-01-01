@@ -1,0 +1,19 @@
+{
+  "success": {
+    "workspaceOpened": "Opened workspace in file manager",
+    "bookUpdated": "Book updated",
+    "coverReplaced": "Cover replaced successfully",
+    "metadataSaved": "Metadata saved successfully",
+    "changesSaved": "Changes saved",
+    "viewerLaunched": "Ebook viewer launched successfully"
+  },
+  "info": {
+    "noWorkspace": "No workspace selected",
+    "replacingCover": "Replacing cover image...",
+    "generatingEpub": "Generating EPUB...",
+    "launchingViewer": "Launching ebook viewer..."
+  },
+  "error": {
+    "generic": "An error occurred"
+  }
+}

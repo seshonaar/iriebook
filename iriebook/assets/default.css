@@ -1,0 +1,117 @@
+@charset "utf-8";
+
+/* --- 1. GLOBAL SETTINGS --- */
+body {
+    margin: 5% 7%;
+    line-height: 1.6;
+    font-family: "Bookerly", "Georgia", "Palatino", "Palatino Linotype", "Times New Roman", serif;
+    color: #1a1a1a;
+    text-align: justify;
+    adobe-hyphenate: none;
+    hyphens: auto;
+}
+
+/* --- 2. CHAPTER HEADERS (ToC Visible) --- */
+h1:not(.unnumbered), h2 {
+    page-break-before: always;
+    -webkit-column-break-before: always;
+    break-before: page;
+    text-align: center;
+    margin-top: 3em;
+    margin-bottom: 1em;
+    font-size: 1.8em;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+/* --- 4. SUBTITLE LOGIC (ToC Invisible) --- */
+/* Matches <p class="subtitle"> from your Rust tool */
+.subtitle {
+    display: block;
+    text-align: center;
+    margin-top: -0.8em !important; /* Pulls it up under h1/h2 */
+    margin-bottom: 2em;
+    font-size: 1.1em;
+    font-style: italic;
+    font-weight: normal;
+    text-indent: 0 !important;
+}
+
+/* --- 5. SCENE BREAKS --- */
+.scene-break {
+    display: block;
+    height: 2.5em;
+    margin: 1em 0;
+    text-align: center;
+}
+
+.scene-break::after {
+    content: "❦";
+    font-family: 'DejaVu Sans', 'Segoe UI Symbol', 'Arial Unicode MS', 'Apple Symbols', sans-serif;
+    font-size: 1.2em;
+    color: #888;
+}
+
+/* Hide symbol and reduce space at chapter starts */
+h1 + .scene-break::after,
+h2 + .scene-break::after,
+h3 + .scene-break::after,
+.subtitle + .scene-break::after {
+    content: "" !important;
+}
+
+h1 + .scene-break,
+h2 + .scene-break,
+h3 + .scene-break,
+.subtitle + .scene-break {
+    height: 1em !important;
+}
+
+/* --- 6. PARAGRAPHS & INDENTATION --- */
+p {
+    margin: 0;
+    text-indent: 1.5em; /* Default indent for the whole book */
+}
+
+/* --- 7. OTHER ELEMENTS --- */
+blockquote {
+    margin: 1.5em 10%;
+    padding: 0.5em 1em;
+    font-style: italic;
+    border-left: 2px solid #ccc;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 2em auto;
+}
+
+/* --- 8. DEDICATION PAGE (Italic H3) --- */
+/* Hidden H1 used to force Pandoc section split */
+h1.dedication-page {
+    display: none;
+    height: 0;
+    margin: 0;
+    padding: 0;
+}
+
+/* Centered on its own page, after title */
+.dedication {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 85vh;
+    text-align: center;
+}
+
+.dedication p {
+    font-size: 1.2em;
+    font-style: italic;
+    font-weight: normal;
+    margin: 0;
+    padding: 2em;
+    line-height: 1.8;
+    text-indent: 0;
+}

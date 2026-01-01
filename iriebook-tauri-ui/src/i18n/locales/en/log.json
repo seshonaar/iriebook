@@ -1,0 +1,26 @@
+{
+  "title": "Log",
+  "empty": "Process some books to see results here",
+  "openOutputFolder": "Open Output Folder",
+  "statusBar": {
+    "noActivity": "No activity yet",
+    "showLog": "Show Log"
+  },
+  "processing": {
+    "started": "Processing started",
+    "completed": "Processing completed",
+    "bookStarted": "Processing: {{bookName}}...",
+    "bookCompleted": "Completed: {{bookName}}",
+    "allDone": "✓ All processing complete!",
+    "mostUsedWords": "Most used words:"
+  },
+  "update": {
+    "checking": "Checking for updates...",
+    "noUpdate": "✓ You're running the latest version!",
+    "available": "Update available: v{{version}}",
+    "downloading": "Downloading update... {{percent}}%",
+    "installing": "Installing update...",
+    "done": "✓ Update installed! Restarting...",
+    "error": "✗ Update check failed: {{message}}"
+  }
+}

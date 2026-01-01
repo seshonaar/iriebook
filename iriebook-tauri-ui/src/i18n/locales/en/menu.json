@@ -1,0 +1,17 @@
+{
+  "file": {
+    "title": "File",
+    "changeWorkspace": "Change Workspace",
+    "openWorkspaceFolder": "Open Workspace Folder",
+    "exit": "Exit"
+  },
+  "help": {
+    "title": "Help",
+    "checkForUpdates": "Check for Updates",
+    "about": "About IrieBook"
+  },
+  "shortcuts": {
+    "changeWorkspace": "Ctrl+O",
+    "exit": "Ctrl+Q"
+  }
+}

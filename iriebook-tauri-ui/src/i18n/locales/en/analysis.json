@@ -1,0 +1,53 @@
+{
+  "title": "Analysis Results",
+  "empty": {
+    "title": "No Analysis Results",
+    "description": "Analyze books to see word frequency statistics here",
+    "noBooks": "Add books to your library to analyze them"
+  },
+  "tabs": {
+    "selectBook": "Select a book to view its analysis"
+  },
+  "header": {
+    "selectBook": "Select a book"
+  },
+  "bookList": {
+    "title": "Books",
+    "noBooks": "No books available"
+  },
+  "cache": {
+    "freshAnalysis": "Just analyzed",
+    "justNow": "Analyzed just now",
+    "minutesAgo": "Analyzed {{count}} min ago",
+    "hoursAgo": "Analyzed {{count}}h ago",
+    "daysAgo": "Analyzed {{count}}d ago"
+  },
+  "actions": {
+    "refresh": "Refresh"
+  },
+  "loading": "Analyzing book...",
+  "error": {
+    "title": "Analysis failed"
+  },
+  "stats": {
+    "totalWords": "Total Words",
+    "uniqueWords": "Unique Words",
+    "vocabularyRichness": "Vocabulary Richness",
+    "stopwordsExcluded": "Stopwords Excluded"
+  },
+  "chart": {
+    "title": "Top 20 Most Frequent Words",
+    "wordCount": "Count"
+  },
+  "table": {
+    "title": "Word Frequency Table",
+    "search": "Search words...",
+    "columns": {
+      "rank": "Rank",
+      "word": "Word",
+      "count": "Count",
+      "percentage": "% of Total"
+    },
+    "showing": "Showing {{count}} of {{total}} words"
+  }
+}

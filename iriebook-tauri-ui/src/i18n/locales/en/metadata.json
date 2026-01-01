@@ -1,0 +1,28 @@
+{
+  "display": {
+    "title": "Metadata",
+    "author": "Author",
+    "series": "Series",
+    "position": "Position",
+    "language": "Language",
+    "rights": "Rights",
+    "noMetadata": "No metadata available",
+    "changeFile": "Change file",
+    "viewChanges": "View processing changes"
+  },
+  "editor": {
+    "title": "Edit Metadata",
+    "fields": {
+      "title": "Title",
+      "author": "Author",
+      "collection": "Series/Collection",
+      "position": "Position in Series",
+      "positionPlaceholder": "Optional (e.g., 1, 2, 3)"
+    },
+    "validation": {
+      "titleRequired": "Title is required",
+      "authorRequired": "Author is required",
+      "positionInvalid": "Position must be a number"
+    }
+  }
+}

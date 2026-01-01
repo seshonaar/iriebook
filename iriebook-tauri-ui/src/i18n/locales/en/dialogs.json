@@ -1,0 +1,17 @@
+{
+  "about": {
+    "title": "IrieBook",
+    "subtitle": "Ebook Publication Pipeline",
+    "version": "Version",
+    "description": "Description",
+    "descriptionText": "A comprehensive ebook publication pipeline for converting manuscripts into professional ebooks.",
+    "license": "License",
+    "repository": "Repository",
+    "repositoryLink": "View on GitHub",
+    "builtWith": "Built with Rust, Tauri, React, and TypeScript"
+  },
+  "confirm": {
+    "defaultConfirm": "Confirm",
+    "defaultCancel": "Cancel"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "auth": {
+    "title": "Google Docs",
+    "connected": "Connected to Google Docs",
+    "notConnected": "Not connected to Google Docs",
+    "connect": "Connect Google Docs",
+    "disconnect": "Disconnect",
+    "authenticating": "Authenticating...",
+    "deviceFlow": {
+      "enterCode": "Enter this code in your browser:",
+      "waiting": "Waiting for authorization..."
+    }
+  },
+  "sync": {
+    "button": {
+      "link": "Link to Google Doc",
+      "sync": "Sync from Google Docs",
+      "unlink": "Unlink from Google Docs",
+      "synced": "Synced - click to sync again",
+      "syncFailed": "Sync failed - click to retry",
+      "neverSynced": "Click to sync from Google Docs",
+      "syncSelected": "Get latest from Google Docs"
+    },
+    "tooltips": {
+      "syncSelected": "Sync {{count}} selected linked books from Google Docs"
+    },
+    "actions": {
+      "syncing": "Syncing...",
+      "linking": "Linking..."
+    },
+    "messages": {
+      "syncSuccess": "Synced successfully",
+      "syncSuccessDesc": "{{name}} synced from Google Docs",
+      "syncFailed": "Sync failed",
+      "linkSuccess": "Linked successfully",
+      "linkSuccessDesc": "{{bookName}} linked to \"{{docName}}\"",
+      "linkFailed": "Link failed",
+      "unlinkSuccess": "Unlinked",
+      "unlinkSuccessDesc": "{{name}} unlinked from Google Docs",
+      "unlinkFailed": "Unlink failed",
+      "startingBulkSync": "Starting sync for {{count}} books...",
+      "bulkSyncSuccess": "Successfully synced {{count}} books",
+      "bulkSyncPartialFail": "Failed to sync {{count}} books"
+    }
+  },
+  "dialog": {
+    "title": "Link to Google Doc",
+    "description": "Select a Google Doc to link with \"{{bookName}}\"",
+    "search": "Search documents...",
+    "loading": "Loading documents...",
+    "noDocuments": "No Google Docs found",
+    "noMatches": "No documents match your search",
+    "modified": "Modified {{date}}",
+    "actions": {
+      "link": "Link"
+    },
+    "errors": {
+      "loadFailed": "Failed to load documents"
+    }
+  },
+  "errors": {
+    "generic": "Error",
+    "notAuthenticated": "Not authenticated"
+  }
+}

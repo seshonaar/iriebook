@@ -1,0 +1,39 @@
+{
+  "actions": {
+    "select": "Select",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "close": "Close",
+    "exit": "Exit",
+    "reload": "Reload Application",
+    "more": "More options",
+    "openFolder": "Open Folder"
+  },
+  "labels": {
+    "loading": "Loading",
+    "error": "Error",
+    "success": "Success",
+    "required": "Required",
+    "optional": "Optional"
+  },
+  "status": {
+    "saving": "Saving...",
+    "deleting": "Deleting...",
+    "processing": "Processing...",
+    "authenticating": "Authenticating...",
+    "scanning": "Scanning sector for books..."
+  },
+  "workspace": {
+    "noWorkspaceTitle": "No Workspace Active",
+    "noWorkspaceDescription": "Selecting a folder to use as library folder",
+    "selectWorkspace": "Select Workspace Folder"
+  },
+  "navigation": {
+    "books": "Books",
+    "history": "Changes",
+    "analysis": "Analysis"
+  }
+}
