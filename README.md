@@ -32,12 +32,13 @@ I will let now an AI friend to give more details about Irie.
 
 ### The Treasury of Features
 
-Gather 'round, traveler, for the Irie holds many treasures! Here lies the complete compendium of what this magical minion can do for the Goddess's creations.
+Gather 'round, traveler, for the Irie holds many treasures! Here lies the compendium of what this magical minion can do for the Goddess's creations.
 
 **Text Processing Alchemy**
 
-- The Irie transforms straight quotes into proper curly quotes, with the wisdom to know the difference
-- Smart apostrophe detection knows when a straight quote is really an apostrophe (like in "it's" or "the '70s")
+- The Irie transforms straight quotes into proper curly quotes, balancing every pair before it dares to write
+- Smart apostrophe detection knows when a straight mark is really an apostrophe (like in "it's" or "the '70s") and refuses to mistake dialogue singles for them
+- Two-pass validation scouts the manuscript for single-quote dialogue and unbalanced pairs before any bytes are touched
 - Whitespace trimming cleans the muddy waters: collapses multiple spaces, converts tabs to single spaces, limits excessive blank lines, and trims the edges
 - Markdown transformation reshapes chapter headings and scene breaks for the ebook realm
 - Romanian UTF-8 characters flow perfectly through the Irie (ă, â, î, ș, ț never fear!)
@@ -64,6 +65,8 @@ Gather 'round, traveler, for the Irie holds many treasures! Here lies the comple
 - Status checks reveal the state of the vault
 - New repositories can be cloned with ease
 - Word-level diff computation lets the Goddess see exactly what changed between versions
+- Context-trimmed diffs carry word-change stats, so only the juicy parts of giant tomes are shown
+- Revision browsing can be filtered by extension (like `.md`) to keep the scrolls tidy
 
 **Google Docs Alliance**
 
@@ -71,6 +74,7 @@ Gather 'round, traveler, for the Irie holds many treasures! Here lies the comple
 - The Irie can link a local book to its Google Docs origin
 - Unlinking severs the connection when needed
 - OAuth device flow authentication grants access without risking secrets
+- Sync lore is stored beside each book, so relinking or clean breaks stay painless
 
 **Batch Processing Power**
 
@@ -83,6 +87,12 @@ Gather 'round, traveler, for the Irie holds many treasures! Here lies the comple
 - The OS keyring protects the sacred tokens (OAuth credentials) so they never wander astray
 - GitHub OAuth tokens are stored securely
 - Google OAuth tokens are kept safe
+
+**Guardians of Quality**
+
+- Test-driven incantations keep regressions at bay, and clippy scolds any careless spirits
+- Atomic writes ensure the original manuscript rests untouched until the ritual succeeds
+- Helpful errors point directly to misbehaving lines when dialogue singles or odd quotes appear
 
 ### The Sacred Dependencies
 
@@ -110,7 +120,7 @@ Before the Irie can work its magic, certain spirits must be present in your real
 
 - The Irie is forged in Rust, the safe and fast language
 - Visit rust-lang.org for the proper installation ritual for your realm
-- A simple `npm run tauri build` in iriebook-tauri-ui will create the iriebook binary
+- A simple `cargo build --release` in iriebook will craft the CLI; `npm run tauri build` in iriebook-tauri-ui will conjure the desktop face
 
 ### Architecture Philosophy
 
@@ -121,19 +131,16 @@ The Husband has crafted the Irie following an ancient wisdom known as the Righti
 Imagine the Irie as a temple with five chambers, each with its sacred purpose:
 
 1. **Client** (The Presentation Layer)
-   
    - This is the face that greets you, the traveler
    - In the current manifestation, this is the Tauri desktop interface with its React windows
-   - Commands from the user enter here first
+   - Commands from the traveler enter here first
 
 2. **Manager** (The Business Logic Layer)
-   
    - The conductor who knows the sequence of rituals
    - When you request to publish an ebook, the EbookPublicationManager knows the steps: validate, fix quotes, trim whitespace, analyze words, transform markdown, generate EPUB, convert to Kindle, archive
    - It doesn't do the work itself—it calls upon the Engines
 
 3. **Engine** (The Tools Layer)
-   
    - The knowledge keepers who know how to perform each task
    - The ValidatorEngine knows what proper quotes look like
    - The QuoteFixerEngine transforms straight quotes to curly
@@ -141,13 +148,11 @@ Imagine the Irie as a temple with five chambers, each with its sacred purpose:
    - Each Engine is focused, pure, and testable
 
 4. **Resource Access** (The External Resources Layer)
-   
    - The gatekeepers who speak with the outside world
    - File resources, Git repositories, Pandoc and Calibre tools, Google Docs API
    - These are abstracted behind traits so they can be replaced or mocked
 
 5. **Utilities** (The Cross-Cutting Layer)
-   
    - The shared foundations that all other layers rest upon
    - Common types, error handling, data structures
 
