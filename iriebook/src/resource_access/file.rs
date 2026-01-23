@@ -2,12 +2,12 @@
 //!
 //! Handles reading input files and writing output files safely
 
+use crate::utilities::types::{BookMetadata, GoogleDocsSyncInfo};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
-use crate::utilities::types::{BookMetadata, GoogleDocsSyncInfo};
 
 /// Cached analysis data stored in irie/analysis.json
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,8 +106,12 @@ pub fn get_css_path() -> Result<String, anyhow::Error> {
     // Write embedded CSS to temp file (atomic write pattern)
     let temp_path = temp_dir.join("iriebook-default.css.tmp");
 
-    let mut file = fs::File::create(&temp_path)
-        .with_context(|| format!("Failed to create temporary CSS file: {}", temp_path.display()))?;
+    let mut file = fs::File::create(&temp_path).with_context(|| {
+        format!(
+            "Failed to create temporary CSS file: {}",
+            temp_path.display()
+        )
+    })?;
 
     file.write_all(EMBEDDED_CSS.as_bytes())
         .with_context(|| "Failed to write CSS content to temporary file")?;
@@ -118,8 +122,12 @@ pub fn get_css_path() -> Result<String, anyhow::Error> {
     drop(file);
 
     // Atomic rename to final location
-    fs::rename(&temp_path, &css_path)
-        .with_context(|| format!("Failed to move temporary CSS file to {}", css_path.display()))?;
+    fs::rename(&temp_path, &css_path).with_context(|| {
+        format!(
+            "Failed to move temporary CSS file to {}",
+            css_path.display()
+        )
+    })?;
 
     Ok(css_path.display().to_string())
 }
@@ -132,8 +140,7 @@ pub fn get_output_file_name(input_path: &Path) -> Result<PathBuf, anyhow::Error>
     let metadata_path = get_book_folder_file(input_path, "metadata.yaml")?;
 
     // Read and parse the metadata file
-    let metadata_content = read_file(&metadata_path)
-        .context("Failed to read metadata.yaml")?;
+    let metadata_content = read_file(&metadata_path).context("Failed to read metadata.yaml")?;
 
     // Strip YAML frontmatter delimiters (---) if present
     let yaml_content = metadata_content
@@ -142,8 +149,8 @@ pub fn get_output_file_name(input_path: &Path) -> Result<PathBuf, anyhow::Error>
         .collect::<Vec<_>>()
         .join("\n");
 
-    let metadata: BookMetadata = serde_yaml::from_str(&yaml_content)
-        .context("Failed to parse metadata.yaml")?;
+    let metadata: BookMetadata =
+        serde_yaml::from_str(&yaml_content).context("Failed to parse metadata.yaml")?;
 
     // Build the filename based on metadata
     let author = &metadata.author;
@@ -151,16 +158,16 @@ pub fn get_output_file_name(input_path: &Path) -> Result<PathBuf, anyhow::Error>
 
     let filename = match (&metadata.belongs_to_collection, metadata.group_position) {
         (Some(series), Some(position)) => {
-            format!("{}-{}-{}-{}.epub",
+            format!(
+                "{}-{}-{}-{}.epub",
                 slugify(author),
                 slugify(title),
                 get_short_series_name_by_length(series),
-                position)
+                position
+            )
         }
         _ => {
-            format!("{}-{}.epub",
-                slugify(author),
-                slugify(title))
+            format!("{}-{}.epub", slugify(author), slugify(title))
         }
     };
 
@@ -235,7 +242,11 @@ pub fn get_output_folder_file(input_path: &Path, file: &str) -> Result<PathBuf, 
             // Create output directory if it doesn't exist
             if !output_dir.exists() {
                 fs::create_dir(&output_dir).with_context(|| {
-                    format!("Failed to create {} directory: {}", OUTPUT_DIR_NAME, output_dir.display())
+                    format!(
+                        "Failed to create {} directory: {}",
+                        OUTPUT_DIR_NAME,
+                        output_dir.display()
+                    )
                 })?;
             }
 
@@ -283,20 +294,12 @@ pub fn write_file(path: &Path, content: &str) -> Result<()> {
     // Write to temporary file first
     let temp_path = path.with_extension("tmp");
 
-    fs::write(&temp_path, content).with_context(|| {
-        format!(
-            "Failed to write temporary file: {}",
-            temp_path.display()
-        )
-    })?;
+    fs::write(&temp_path, content)
+        .with_context(|| format!("Failed to write temporary file: {}", temp_path.display()))?;
 
     // Atomic rename
-    fs::rename(&temp_path, path).with_context(|| {
-        format!(
-            "Failed to move file to final location: {}",
-            path.display()
-        )
-    })?;
+    fs::rename(&temp_path, path)
+        .with_context(|| format!("Failed to move file to final location: {}", path.display()))?;
 
     Ok(())
 }
@@ -310,8 +313,9 @@ pub fn load_metadata(book_path: &Path) -> Result<Option<BookMetadata>> {
     match metadata_path.exists() {
         false => Ok(None),
         true => {
-            let content = read_file(&metadata_path)
-                .with_context(|| format!("Failed to read metadata file: {}", metadata_path.display()))?;
+            let content = read_file(&metadata_path).with_context(|| {
+                format!("Failed to read metadata file: {}", metadata_path.display())
+            })?;
 
             // Strip YAML frontmatter delimiters (---) if present
             let yaml_content = content
@@ -333,7 +337,8 @@ pub fn load_metadata(book_path: &Path) -> Result<Option<BookMetadata>> {
 /// Validates before saving, uses atomic write pattern
 pub fn save_metadata(book_path: &Path, metadata: &BookMetadata) -> Result<()> {
     // Validate first
-    metadata.validate()
+    metadata
+        .validate()
         .map_err(|e| anyhow::anyhow!("Validation failed: {}", e))?;
 
     let metadata_path = get_book_folder_file(book_path, "metadata.yaml")?;
@@ -358,8 +363,12 @@ pub fn load_google_docs_sync_info(book_path: &Path) -> Result<Option<GoogleDocsS
     match sync_info_path.exists() {
         false => Ok(None),
         true => {
-            let content = read_file(&sync_info_path)
-                .with_context(|| format!("Failed to read sync info file: {}", sync_info_path.display()))?;
+            let content = read_file(&sync_info_path).with_context(|| {
+                format!(
+                    "Failed to read sync info file: {}",
+                    sync_info_path.display()
+                )
+            })?;
 
             // Strip YAML frontmatter delimiters (---) if present
             let yaml_content = content
@@ -397,8 +406,12 @@ pub fn delete_google_docs_sync_info(book_path: &Path) -> Result<()> {
     let sync_info_path = get_book_folder_file(book_path, "google-docs-sync.yaml")?;
 
     if sync_info_path.exists() {
-        std::fs::remove_file(&sync_info_path)
-            .with_context(|| format!("Failed to delete sync info file: {}", sync_info_path.display()))?;
+        std::fs::remove_file(&sync_info_path).with_context(|| {
+            format!(
+                "Failed to delete sync info file: {}",
+                sync_info_path.display()
+            )
+        })?;
     }
 
     Ok(())
@@ -417,8 +430,8 @@ pub fn load_analysis_cache(book_path: &Path) -> Result<Option<CachedAnalysis>> {
     let content = read_file(&cache_path)
         .with_context(|| format!("Failed to read analysis cache: {}", cache_path.display()))?;
 
-    let cache: CachedAnalysis = serde_json::from_str(&content)
-        .with_context(|| "Failed to parse analysis cache JSON")?;
+    let cache: CachedAnalysis =
+        serde_json::from_str(&content).with_context(|| "Failed to parse analysis cache JSON")?;
 
     Ok(Some(cache))
 }
@@ -440,10 +453,12 @@ pub fn get_file_modified_timestamp(path: &Path) -> Result<u64> {
     let metadata = fs::metadata(path)
         .with_context(|| format!("Failed to get metadata for: {}", path.display()))?;
 
-    let modified = metadata.modified()
+    let modified = metadata
+        .modified()
         .with_context(|| format!("Failed to get modification time for: {}", path.display()))?;
 
-    let duration = modified.duration_since(UNIX_EPOCH)
+    let duration = modified
+        .duration_since(UNIX_EPOCH)
         .with_context(|| "System time before Unix epoch")?;
 
     Ok(duration.as_secs())
@@ -475,7 +490,12 @@ pub fn replace_cover_image(book_path: &Path, source_image: &Path) -> Result<Path
     let _ = image::ImageReader::open(source_image)
         .with_context(|| format!("Failed to open source image: {}", source_image.display()))?
         .decode()
-        .with_context(|| format!("Source file is not a valid image: {}", source_image.display()))?;
+        .with_context(|| {
+            format!(
+                "Source file is not a valid image: {}",
+                source_image.display()
+            )
+        })?;
 
     // 3. Get root folder cover.jpg path
     let cover_path = get_book_folder_file(book_path, "cover.jpg")?;
@@ -484,15 +504,17 @@ pub fn replace_cover_image(book_path: &Path, source_image: &Path) -> Result<Path
     if cover_path.exists() {
         let backup_path = get_irie_folder_file(book_path, "cover.jpg.bak")?;
         fs::copy(&cover_path, &backup_path).with_context(|| {
-            format!("Failed to backup existing cover to {}", backup_path.display())
+            format!(
+                "Failed to backup existing cover to {}",
+                backup_path.display()
+            )
         })?;
     }
 
     // 5. Copy to temp file (.tmp extension)
     let temp_path = cover_path.with_extension("jpg.tmp");
-    fs::copy(source_image, &temp_path).with_context(|| {
-        format!("Failed to copy source image to {}", temp_path.display())
-    })?;
+    fs::copy(source_image, &temp_path)
+        .with_context(|| format!("Failed to copy source image to {}", temp_path.display()))?;
 
     // 6. Validate temp file is a valid image (guess format since extension is .tmp)
     let _ = image::ImageReader::open(&temp_path)
@@ -504,7 +526,10 @@ pub fn replace_cover_image(book_path: &Path, source_image: &Path) -> Result<Path
 
     // 7. Atomic rename temp -> cover.jpg
     fs::rename(&temp_path, &cover_path).with_context(|| {
-        format!("Failed to move file to final location: {}", cover_path.display())
+        format!(
+            "Failed to move file to final location: {}",
+            cover_path.display()
+        )
     })?;
 
     // 8. Invalidate thumbnail cache if it exists (thumbnail is in irie/)
@@ -524,7 +549,12 @@ fn extract_folder_name(md_path: &Path) -> Result<String> {
     let folder_name = md_path
         .file_stem()
         .and_then(|s| s.to_str())
-        .with_context(|| format!("Failed to extract folder name from path: {}", md_path.display()))?;
+        .with_context(|| {
+            format!(
+                "Failed to extract folder name from path: {}",
+                md_path.display()
+            )
+        })?;
 
     if folder_name.is_empty() {
         anyhow::bail!("Folder name cannot be empty");
@@ -541,10 +571,7 @@ fn extract_folder_name(md_path: &Path) -> Result<String> {
 /// Returns: (book_path, is_duplicate)
 /// - book_path: Path to the created book file
 /// - is_duplicate: true if folder already existed (updated existing book)
-pub fn add_book_to_workspace(
-    workspace_root: &Path,
-    source_md: &Path,
-) -> Result<(PathBuf, bool)> {
+pub fn add_book_to_workspace(workspace_root: &Path, source_md: &Path) -> Result<(PathBuf, bool)> {
     // 1. Validate source_md exists
     if !source_md.exists() {
         anyhow::bail!("Source file does not exist: {}", source_md.display());
@@ -570,9 +597,8 @@ pub fn add_book_to_workspace(
 
     // 5. Create folder if doesn't exist
     if !is_duplicate {
-        fs::create_dir_all(&book_folder).with_context(|| {
-            format!("Failed to create book folder: {}", book_folder.display())
-        })?;
+        fs::create_dir_all(&book_folder)
+            .with_context(|| format!("Failed to create book folder: {}", book_folder.display()))?;
     }
 
     // 6. Copy source to <folder_name>/<filename>.md using atomic pattern
@@ -581,19 +607,26 @@ pub fn add_book_to_workspace(
 
     // Copy to temp file
     fs::copy(source_md, &temp_path).with_context(|| {
-        format!("Failed to copy {} to {}", source_md.display(), temp_path.display())
+        format!(
+            "Failed to copy {} to {}",
+            source_md.display(),
+            temp_path.display()
+        )
     })?;
 
     // Atomic rename
     fs::rename(&temp_path, &book_path).with_context(|| {
-        format!("Failed to move {} to {}", temp_path.display(), book_path.display())
+        format!(
+            "Failed to move {} to {}",
+            temp_path.display(),
+            book_path.display()
+        )
     })?;
 
     // 7. Create irie/ subfolder if needed
     let irie_folder = book_folder.join("irie");
-    fs::create_dir_all(&irie_folder).with_context(|| {
-        format!("Failed to create irie folder: {}", irie_folder.display())
-    })?;
+    fs::create_dir_all(&irie_folder)
+        .with_context(|| format!("Failed to create irie folder: {}", irie_folder.display()))?;
 
     // 8. Generate default metadata.yaml if doesn't exist (don't overwrite on duplicate)
     let metadata_path = book_folder.join("metadata.yaml");
@@ -626,7 +659,10 @@ pub fn change_book_file(book_path: &Path, new_source_md: &Path) -> Result<PathBu
 
     // 2. Validate new_source_md is .md file
     if new_source_md.extension().and_then(|s| s.to_str()) != Some("md") {
-        anyhow::bail!("Source file must be a .md file: {}", new_source_md.display());
+        anyhow::bail!(
+            "Source file must be a .md file: {}",
+            new_source_md.display()
+        );
     }
 
     // 3. Copy new_source_md to book_path using atomic pattern (temp + rename)
@@ -634,12 +670,20 @@ pub fn change_book_file(book_path: &Path, new_source_md: &Path) -> Result<PathBu
 
     // Copy to temp file
     fs::copy(new_source_md, &temp_path).with_context(|| {
-        format!("Failed to copy {} to {}", new_source_md.display(), temp_path.display())
+        format!(
+            "Failed to copy {} to {}",
+            new_source_md.display(),
+            temp_path.display()
+        )
     })?;
 
     // Atomic rename
     fs::rename(&temp_path, book_path).with_context(|| {
-        format!("Failed to move {} to {}", temp_path.display(), book_path.display())
+        format!(
+            "Failed to move {} to {}",
+            temp_path.display(),
+            book_path.display()
+        )
     })?;
 
     // irie/ folder is automatically preserved (we only replace the .md file)
@@ -672,9 +716,8 @@ pub fn delete_book_folder(book_path: &Path) -> Result<()> {
         anyhow::bail!("Cannot delete empty parent path");
     }
 
-    fs::remove_dir_all(parent_dir).with_context(|| {
-        format!("Failed to delete book folder: {}", parent_dir.display())
-    })?;
+    fs::remove_dir_all(parent_dir)
+        .with_context(|| format!("Failed to delete book folder: {}", parent_dir.display()))?;
 
     Ok(())
 }
@@ -689,12 +732,12 @@ mod tests {
     fn reads_utf8_file() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let file_path = temp_dir.path().join("test.md");
-        
+
         fs::write(&file_path, "Hello, world!")?;
-        
+
         let content = read_file(&file_path)?;
         assert_eq!(content, "Hello, world!");
-        
+
         Ok(())
     }
 
@@ -702,13 +745,13 @@ mod tests {
     fn reads_romanian_utf8() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let file_path = temp_dir.path().join("test.md");
-        
+
         fs::write(&file_path, "Bună ziua! Ăsta e un test.")?;
-        
+
         let content = read_file(&file_path)?;
         assert!(content.contains("ă"));
         assert!(content.contains("Ă"));
-        
+
         Ok(())
     }
 
@@ -759,20 +802,20 @@ mod tests {
     fn writes_file_atomically() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let file_path = temp_dir.path().join("output.md");
-        
+
         write_file(&file_path, "Test content")?;
-        
+
         // File should exist
         assert!(file_path.exists());
-        
+
         // Content should match
         let content = fs::read_to_string(&file_path)?;
         assert_eq!(content, "Test content");
-        
+
         // Temp file should be gone
         let temp_path = file_path.with_extension("tmp");
         assert!(!temp_path.exists());
-        
+
         Ok(())
     }
 
@@ -780,15 +823,15 @@ mod tests {
     fn overwrites_existing_file() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let file_path = temp_dir.path().join("output.md");
-        
+
         // Write first time
         write_file(&file_path, "First")?;
         assert_eq!(fs::read_to_string(&file_path)?, "First");
-        
+
         // Overwrite
         write_file(&file_path, "Second")?;
         assert_eq!(fs::read_to_string(&file_path)?, "Second");
-        
+
         Ok(())
     }
 
@@ -1011,7 +1054,13 @@ mod tests {
                 assert_eq!(metadata.language, Some("ro-RO".to_string()));
                 assert_eq!(metadata.cover_image, Some("cover.jpg".to_string()));
                 assert!(metadata.rights.is_some());
-                assert!(metadata.rights.as_ref().unwrap().contains("All Rights Reserved"));
+                assert!(
+                    metadata
+                        .rights
+                        .as_ref()
+                        .unwrap()
+                        .contains("All Rights Reserved")
+                );
             }
             None => panic!("Expected metadata to be loaded"),
         }
@@ -1276,15 +1325,13 @@ mod tests {
         let book_folder = workspace_root.join("atomic_test");
         let tmp_files: Vec<_> = fs::read_dir(&book_folder)?
             .filter_map(|entry| entry.ok())
-            .filter(|entry| {
-                entry
-                    .file_name()
-                    .to_string_lossy()
-                    .ends_with(".tmp")
-            })
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".tmp"))
             .collect();
 
-        assert!(tmp_files.is_empty(), "No .tmp files should remain after operation");
+        assert!(
+            tmp_files.is_empty(),
+            "No .tmp files should remain after operation"
+        );
 
         Ok(())
     }
@@ -1410,15 +1457,13 @@ mod tests {
         let book_folder = book_path.parent().unwrap();
         let tmp_files: Vec<_> = fs::read_dir(book_folder)?
             .filter_map(|entry| entry.ok())
-            .filter(|entry| {
-                entry
-                    .file_name()
-                    .to_string_lossy()
-                    .ends_with(".tmp")
-            })
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".tmp"))
             .collect();
 
-        assert!(tmp_files.is_empty(), "No .tmp files should remain after operation");
+        assert!(
+            tmp_files.is_empty(),
+            "No .tmp files should remain after operation"
+        );
 
         Ok(())
     }
@@ -1588,7 +1633,10 @@ mod tests {
         let _ = replace_cover_image(&book_path, &source_image)?;
 
         // Thumbnail should have been deleted
-        assert!(!thumbnail_path.exists(), "Thumbnail should be invalidated (deleted)");
+        assert!(
+            !thumbnail_path.exists(),
+            "Thumbnail should be invalidated (deleted)"
+        );
 
         Ok(())
     }
@@ -1727,6 +1775,6 @@ mod tests {
         assert!(!EMBEDDED_CSS.is_empty());
         assert!(EMBEDDED_CSS.contains("@charset"));
         assert!(EMBEDDED_CSS.contains("body"));
-        assert!(EMBEDDED_CSS.contains("h1, h2"));
+        assert!(EMBEDDED_CSS.contains("h1:not(.unnumbered), h2"));
     }
 }
