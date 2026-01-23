@@ -98,7 +98,7 @@ export function GitSyncPanel() {
 
       pollForToken(flowInfo.deviceCode);
     } catch (err) {
-      setAuthError(err as string);
+      setAuthError(err instanceof Error ? err.message : String(err));
       setIsAuthenticating(false);
     }
   };
@@ -124,7 +124,7 @@ export function GitSyncPanel() {
       // Check if we need to clone (auto-prompt logic from old AuthPanel)
       await checkAndPromptForClone();
     } catch (err) {
-      setAuthError(err as string);
+      setAuthError(err instanceof Error ? err.message : String(err));
       dispatch(deviceFlowCompleted({ success: false }));
       setIsAuthenticating(false);
     }
@@ -169,7 +169,7 @@ export function GitSyncPanel() {
       }
       dispatch(setGitAuthStatus({ status: "NotAuthenticated" }));
     } catch (err) {
-      setAuthError(err as string);
+      setAuthError(err instanceof Error ? err.message : String(err));
     }
   };
 

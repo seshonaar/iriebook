@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppContext } from "../contexts/AppContext";
 import {
@@ -12,6 +12,9 @@ import {
 import { commands, type SessionData, type BookPath } from "../bindings";
 import { sortBooks } from "../lib/utils";
 
+// Default debounce delay for session save (can be overridden for testing)
+export const SESSION_SAVE_DEBOUNCE_MS = 500;
+
 /**
  * Hook to manage session persistence
  * Automatically saves session whenever relevant state changes
@@ -19,6 +22,11 @@ import { sortBooks } from "../lib/utils";
 export function useSession() {
   const { t } = useTranslation();
   const { state, dispatch } = useAppContext();
+
+  // Track whether initial load has completed (to avoid saving during load)
+  const isInitialLoadRef = useRef(true);
+  // Track the save timeout for cleanup
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load session on mount
   useEffect(() => {
@@ -71,6 +79,10 @@ export function useSession() {
         dispatch(setError(`${t('errors.operations.loadSession')}: ${error}`));
       } finally {
         dispatch(setLoading(false));
+        // Mark initial load as complete after a tick to let React batch updates
+        setTimeout(() => {
+          isInitialLoadRef.current = false;
+        }, 0);
       }
     }
 
@@ -79,9 +91,14 @@ export function useSession() {
 
   // Auto-save session whenever relevant state changes
   useEffect(() => {
-    // Only save if we have a valid session
-    if (!state.selectedFolder) {
+    // Don't save during initial load or if no folder selected
+    if (isInitialLoadRef.current || !state.selectedFolder) {
       return;
+    }
+
+    // Clear any pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
 
     const sessionData: SessionData = {
@@ -93,14 +110,18 @@ export function useSession() {
     };
 
     // Debounce save to avoid too many writes
-    const timeoutId = setTimeout(async () => {
+    saveTimeoutRef.current = setTimeout(async () => {
       const result = await commands.saveSession(sessionData);
       if (result.status === "error") {
         console.error("Failed to save session:", result.error);
       }
-    }, 500);
+    }, SESSION_SAVE_DEBOUNCE_MS);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [
     state.selectedFolder,
     state.books,

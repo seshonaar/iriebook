@@ -71,8 +71,8 @@ export interface AppState {
   lastActiveStaticTab: string; // "books", "history", "analysis" - to restore when closing diff tabs
 }
 
-// Initial state
-const initialState: AppState = {
+// Initial state (exported for testing)
+export const initialState: AppState = {
   session: null,
   books: [],
   selectedFolder: null,
@@ -96,8 +96,8 @@ const initialState: AppState = {
   lastActiveStaticTab: "books",
 };
 
-// Reducer
-function appReducer(state: AppState, action: AppAction): AppState {
+// Reducer (exported for testing)
+export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "SET_SESSION":
       return {
