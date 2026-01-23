@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { events, commands } from "../bindings";
 import { useAppContext } from "../contexts/AppContext";
+import { useCoverImage } from "./useCoverImage";
 import {
   addLogEntry,
   setProcessingProgress,
@@ -18,6 +19,7 @@ import {
 export function useProcessingEvents() {
   const { t } = useTranslation();
   const { state, dispatch } = useAppContext();
+  const { clearCache } = useCoverImage();
 
   // Use refs to access latest state inside event listeners without re-subscribing
   const booksRef = useRef(state.books);
@@ -117,6 +119,9 @@ export function useProcessingEvents() {
 
     // Set up book list changed listener
     const unlistenBookListPromise = events.bookListChangedEvent.listen(async () => {
+      // Clear cover cache to force reload with updated images
+      clearCache();
+
       const currentFolder = folderRef.current;
       const currentBooks = booksRef.current;
 
@@ -152,5 +157,5 @@ export function useProcessingEvents() {
       unlistenBookListPromise.then((unlisten) => unlisten());
       unlistenUpdatePromise.then((unlisten) => unlisten());
     };
-  }, [dispatch, t]);
+  }, [dispatch, t, clearCache]);
 }

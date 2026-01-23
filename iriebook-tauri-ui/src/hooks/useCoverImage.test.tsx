@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useCoverImage } from "./useCoverImage";
 import { commands } from "../bindings";
+import { clearGlobalCoverCache } from "./coverCache";
 
 // Get the mocked commands
 const mockedCommands = vi.mocked(commands);
@@ -9,6 +10,8 @@ const mockedCommands = vi.mocked(commands);
 describe("useCoverImage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear global cache before each test
+    clearGlobalCoverCache();
   });
 
   it("should return null from getCachedCover when cover is not in cache", () => {

@@ -204,23 +204,6 @@ function AppContent() {
                                 }
                               }
                             }}
-                            onBookChanged={async () => {
-                              // Rescan books to get updated cover_image_path
-                              if (state.selectedFolder) {
-                                try {
-                                  const result = await commands.scanBooks(state.selectedFolder);
-                                  if (result.status === "error") {
-                                    throw new Error(result.error);
-                                  }
-                                  dispatch(setBooks(result.data));
-                                  toast.success(t('toasts.success.coverReplaced'));
-                                } catch (err) {
-                                  toast.error(t('errors.operations.refreshBooks'), {
-                                    description: String(err),
-                                  });
-                                }
-                              }
-                            }}
                           />
                         )}
                     </div>

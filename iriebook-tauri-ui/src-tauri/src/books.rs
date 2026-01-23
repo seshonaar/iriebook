@@ -4,11 +4,11 @@ use crate::state::AppStateHolder;
 use iriebook::utilities::types::BookMetadata;
 use iriebook_ui_common::ui_state::{BookInfo, PublishEnabled, WordStatsEnabled};
 use iriebook_ui_common::{
-    AddBookResult, AnalysisResponse, BatchProcessor, ChangeBookResult, CoverImageData,
-    ProcessingUpdateEvent, add_book_with_rescan, book_scanner, change_book_with_rescan,
-    check_for_duplicate, collect_distinct_authors, collect_distinct_series,
-    delete_book_with_rescan, get_or_compute_analysis, load_cover_as_data_url, load_metadata,
-    save_metadata,
+    AddBookResult, AnalysisResponse, BatchProcessor, BookListChangedEvent, ChangeBookResult,
+    CoverImageData, ProcessingUpdateEvent, add_book_with_rescan, book_scanner,
+    change_book_with_rescan, check_for_duplicate, collect_distinct_authors,
+    collect_distinct_series, delete_book_with_rescan, get_or_compute_analysis,
+    load_cover_as_data_url, load_metadata, save_metadata,
 };
 use std::path::PathBuf;
 use tauri::State;
@@ -49,12 +49,19 @@ pub fn load_cover_image(cover_path: Option<String>) -> Result<CoverImageData, St
 
 #[tauri::command]
 #[specta::specta]
-pub fn replace_cover_image(book_path: String, new_cover_path: String) -> Result<(), String> {
+pub fn replace_cover_image(
+    book_path: String,
+    new_cover_path: String,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
     let book_path_buf = PathBuf::from(&book_path);
     let new_cover_path_buf = PathBuf::from(&new_cover_path);
 
     iriebook::resource_access::file::replace_cover_image(&book_path_buf, &new_cover_path_buf)
         .map_err(|e| e.to_string())?;
+
+    // Emit event to signal UI to refresh (cover image path changed)
+    let _ = BookListChangedEvent {}.emit(&app);
 
     Ok(())
 }

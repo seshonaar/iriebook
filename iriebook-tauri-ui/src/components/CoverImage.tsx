@@ -7,13 +7,11 @@ import { toast } from "sonner";
 interface CoverImageProps {
   bookPath: string;
   coverImagePath: string | null;
-  onCoverReplaced?: () => void;
 }
 
 export function CoverImage({
   bookPath,
   coverImagePath,
-  onCoverReplaced,
 }: CoverImageProps) {
   const { t } = useTranslation();
   const { loadCover, getCachedCover, isLoadingCover } =
@@ -79,13 +77,8 @@ export function CoverImage({
         toast.dismiss(loadingToast);
 
         // Success toast
+        // Note: Cover cache is automatically cleared via BookListChangedEvent
         toast.success(t('toasts.success.coverReplaced'));
-
-        // Notify parent component to rescan books
-        // This will update the coverImagePath prop with the new path
-        if (onCoverReplaced) {
-          onCoverReplaced();
-        }
       } catch (err) {
         toast.dismiss(loadingToast);
         throw err;

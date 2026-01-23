@@ -10,7 +10,6 @@ interface BookViewerProps {
   allBooks: BookInfo[];
   workspaceRoot: string | null;
   onMetadataUpdated?: () => void;
-  onBookChanged?: () => void;
 }
 
 export function BookViewer({
@@ -18,7 +17,6 @@ export function BookViewer({
   allBooks,
   workspaceRoot,
   onMetadataUpdated,
-  onBookChanged,
 }: BookViewerProps) {
   const { t } = useTranslation();
   const [metadata, setMetadata] = useState<BookMetadata | null>(null);
@@ -62,13 +60,6 @@ export function BookViewer({
     setIsEditing(false);
   };
 
-  const handleCoverReplaced = async () => {
-    // Trigger a rescan to get updated cover_image_path
-    if (onBookChanged) {
-      onBookChanged();
-    }
-  };
-
   if (loading) {
     return (
       <div className="bg-card border border-border rounded-lg p-6">
@@ -103,7 +94,6 @@ export function BookViewer({
           <CoverImage
             bookPath={book.path}
             coverImagePath={book.cover_image_path}
-            onCoverReplaced={handleCoverReplaced}
           />
         </div>
 
@@ -123,11 +113,6 @@ export function BookViewer({
               workspaceRoot={workspaceRoot}
               metadata={metadata}
               onEdit={() => setIsEditing(true)}
-              onBookChanged={() => {
-                if (onBookChanged) {
-                  onBookChanged();
-                }
-              }}
             />
           )}
         </div>
