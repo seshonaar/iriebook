@@ -17,6 +17,7 @@ pub mod git_state;
 pub mod google_auth_operations;
 pub mod google_docs_operations;
 pub mod image_loading;
+pub mod managers;
 pub mod metadata_utils;
 pub mod processing;
 pub mod session;
@@ -47,12 +48,17 @@ pub use google_docs_operations::{link_document, sync_document, unlink_document};
 pub use image_loading::{
     load_cover_as_data_url, load_cover_data, CoverImageData, THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH,
 };
-pub use iriebook::resource_access::file::{load_metadata, save_metadata};
+pub use iriebook::resource_access::file::{load_metadata, replace_cover_image, save_metadata};
 pub use iriebook::utilities::types::BookMetadata;
 pub use metadata_utils::{collect_distinct_authors, collect_distinct_series, MetadataEditState};
+pub use managers::{
+    BookUIManager, CoverLoadingEngine, CoverStatus, DefaultCoverLoadingEngine, MockCoverLoadingEngine,
+    OnCoverLoaded,
+};
 pub use processing::{
-    process_single_book, BookListChangedEvent, BookProcessingQueue, GitOperationProgressEvent,
-    GoogleDocsProgressEvent, ProcessingEvent, ProcessingMessage, ProcessingUpdateEvent,
+    process_single_book, BookListChangedEvent, BookProcessingQueue, CoverReloadEvent,
+    GitOperationProgressEvent, GoogleDocsProgressEvent, ProcessingEvent, ProcessingMessage,
+    ProcessingUpdateEvent,
 };
 pub use session::{load_session, save_session, SessionData};
 pub use ui_state::{

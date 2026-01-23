@@ -1,3 +1,4 @@
+use crate::managers::BookUIManager;
 use iriebook::engines::analysis::word_analyzer::WordAnalyzer;
 use iriebook::engines::comparison::differ::Differ;
 use iriebook::engines::text_processing::markdown_transform::MarkdownTransformer;
@@ -15,18 +16,18 @@ use iriebook::resource_access::{
     google_docs::GoogleDocsClient, pandoc::PandocConverter,
 };
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// Centralized application state holding all managers
 ///
-/// AppState is the single source of truth for all manager instances.
+/// AppState is single source of truth for all manager instances.
 /// It caches managers to avoid repeated instantiation and ensures
-/// consistent dependencies across the application.
+/// consistent dependencies across application.
 ///
-/// Following the Volatility-Based Design principle:
+/// Following Volatility-Based Design principle:
 /// - UI layer (Tauri commands) should NEVER instantiate managers
 /// - All manager access goes through AppState getters
-/// - This makes the UI layer thin and replaceable
+/// - This makes UI layer thin and replaceable
 pub struct AppState {
     workspace_path: PathBuf,
     repository_manager: Arc<RepositoryManager>,
@@ -36,6 +37,7 @@ pub struct AppState {
     google_authenticator: Arc<GoogleAuthenticator>,
     google_docs_client: Arc<GoogleDocsClient>,
     ebook_publication_manager: Arc<EbookPublicationManager>,
+    book_ui_manager: Arc<Mutex<BookUIManager>>,
 }
 
 impl AppState {
@@ -73,6 +75,11 @@ impl AppState {
             Arc::new(ZipArchiver),
         ));
 
+        // Book UI Manager
+        let book_ui_manager = Arc::new(Mutex::new(BookUIManager::new(
+            cfg!(test), // Use mock engine in tests
+        )));
+
         Self {
             workspace_path,
             repository_manager,
@@ -82,6 +89,7 @@ impl AppState {
             google_authenticator,
             google_docs_client: docs_client,
             ebook_publication_manager,
+            book_ui_manager,
         }
     }
 
@@ -128,6 +136,11 @@ impl AppState {
     /// Get Calibre access for viewing ebooks
     pub fn calibre_access(&self) -> Arc<dyn CalibreAccess> {
         Arc::new(CalibreConverter)
+    }
+
+    /// Get book UI manager for cover loading and book operations
+    pub fn book_ui_manager(&self) -> Arc<Mutex<BookUIManager>> {
+        self.book_ui_manager.clone()
     }
 }
 

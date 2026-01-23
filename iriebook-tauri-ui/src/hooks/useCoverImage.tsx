@@ -1,82 +1,31 @@
-import { useState, useCallback, useRef, useEffect } from "react";
-import { commands } from "../bindings";
-import {
-  clearGlobalCoverCache,
-  deleteGlobalCoverCache,
-  getGlobalCoverCache,
-  hasGlobalCoverCache,
-  isLoadingGlobalCover,
-  removeGlobalLoadingCover,
-  setGlobalCoverCache,
-  addGlobalLoadingCover,
-} from "./coverCache";
+import { useCallback } from "react";
+import { useAppContext } from "../contexts/AppContext";
+import { setCoverStatus, clearCoverStatus } from "../contexts/actions";
 
-// Hook to load and cache cover images
+/**
+ * Hook for cover image operations.
+ *
+ * Most cover state is now managed in AppContext. This hook provides
+ * helper functions for invalidating covers (triggering reload).
+ */
 export function useCoverImage() {
-  const [, forceUpdate] = useState({});
-  const updateRef = useRef(() => {
-    forceUpdate({});
-  });
+  const { dispatch } = useAppContext();
 
-  const loadCover = useCallback(async (coverPath: string): Promise<string | null> => {
-    // Check cache first
-    if (hasGlobalCoverCache(coverPath)) {
-      return getGlobalCoverCache(coverPath);
-    }
-
-    // Check if already loading
-    if (isLoadingGlobalCover(coverPath)) {
-      return null;
-    }
-
-    // Mark as loading
-    addGlobalLoadingCover(coverPath);
-
-    try {
-      const result = await commands.loadCoverImage(coverPath);
-      if (result.status === "error") {
-        throw new Error(result.error);
-      }
-      const coverData = result.data;
-
-      // Update cache
-      setGlobalCoverCache(coverPath, coverData.data_url);
-
-      // Remove from loading set
-      removeGlobalLoadingCover(coverPath);
-
-      return coverData.data_url;
-    } catch (error) {
-      console.error("Failed to load cover for", coverPath, error);
-      // Remove from loading set
-      removeGlobalLoadingCover(coverPath);
-      return null;
-    }
-  }, []);
-
-  const getCachedCover = useCallback((bookPath: string): string | null => {
-    return getGlobalCoverCache(bookPath);
-  }, []);
-
-  const isLoadingCover = useCallback((bookPath: string): boolean => {
-    return isLoadingGlobalCover(bookPath);
-  }, []);
-
+  /**
+   * Clear all cover status from context, forcing all covers to reload
+   */
   const clearCache = useCallback(() => {
-    clearGlobalCoverCache();
-    // Force re-render of all components using this hook
-    updateRef.current();
-  }, []);
+    dispatch(clearCoverStatus());
+  }, [dispatch]);
 
-  const invalidateCover = useCallback((bookPath: string) => {
-    deleteGlobalCoverCache(bookPath);
-    updateRef.current();
-  }, []);
+  /**
+   * Invalidate a specific cover, triggering reload on next render
+   */
+  const invalidateCover = useCallback((coverPath: string) => {
+    dispatch(setCoverStatus(coverPath, { type: "not_started" }));
+  }, [dispatch]);
 
   return {
-    loadCover,
-    getCachedCover,
-    isLoadingCover,
     clearCache,
     invalidateCover,
   };

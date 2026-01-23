@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { commands } from "../bindings";
-import { useCoverImage } from "../hooks/useCoverImage";
+import { useAppContext } from "../contexts/AppContext";
+import { setCoverStatus } from "../contexts/actions";
 import { toast } from "sonner";
 
 interface CoverImageProps {
@@ -14,44 +15,32 @@ export function CoverImage({
   coverImagePath,
 }: CoverImageProps) {
   const { t } = useTranslation();
-  const { loadCover, getCachedCover, isLoadingCover } =
-    useCoverImage();
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { state, dispatch } = useAppContext();
 
-  // Load cover on mount or when coverImagePath changes
+  // Get the cover status from context
+  const status = coverImagePath ? state.coverStatus[coverImagePath] : undefined;
+
+  // Trigger initial load if not started
   useEffect(() => {
-    const loadCoverData = async () => {
-      if (!coverImagePath) {
-        setError(t('books.viewer.noCover'));
-        setDataUrl(null);
-        return;
-      }
+    if (!coverImagePath) return;
+    if (status) return; // Already have a status (loading, ready, or error)
 
-      const cachedCover = getCachedCover(coverImagePath);
-      if (cachedCover) {
-        setDataUrl(cachedCover);
-        setError(null);
+    // Start loading
+    dispatch(setCoverStatus(coverImagePath, { type: "loading" }));
+
+    commands.loadCoverImage(coverImagePath).then((result) => {
+      if (result.status === "ok") {
+        dispatch(setCoverStatus(coverImagePath, result.data));
       } else {
-        const url = await loadCover(coverImagePath);
-        if (url) {
-          setDataUrl(url);
-          setError(null);
-        } else {
-          setError(t('books.viewer.coverNotFound'));
-        }
+        dispatch(setCoverStatus(coverImagePath, { type: "error", message: result.error }));
       }
-    };
-
-    loadCoverData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coverImagePath]);
+    });
+  }, [coverImagePath, status, dispatch]);
 
   const handleClick = async () => {
     try {
-      // Open file dialog to select new cover
       const selectResult = await commands.selectFile(
-        "Select Cover Image",
+        t('books.viewer.selectCoverTitle'),
         [["Images", ["jpg", "jpeg", "png", "gif", "webp"]]]
       );
       if (selectResult.status === "error") {
@@ -60,25 +49,24 @@ export function CoverImage({
       const newCoverPath = selectResult.data;
 
       if (!newCoverPath) {
-        return; // User cancelled
+        return;
       }
 
-      // Show loading toast
       const loadingToast = toast.loading(t('toasts.info.replacingCover'));
 
       try {
-        // Replace the cover
         const result = await commands.replaceCoverImage(bookPath, newCoverPath);
         if (result.status === "error") {
           throw new Error(result.error);
         }
 
-        // Dismiss loading toast
         toast.dismiss(loadingToast);
-
-        // Success toast
-        // Note: Cover cache is automatically cleared via BookListChangedEvent
         toast.success(t('toasts.success.coverReplaced'));
+
+        // Invalidate the cover to trigger reload
+        if (coverImagePath) {
+          dispatch(setCoverStatus(coverImagePath, { type: "not_started" }));
+        }
       } catch (err) {
         toast.dismiss(loadingToast);
         throw err;
@@ -88,11 +76,15 @@ export function CoverImage({
       toast.error(t('errors.operations.replaceCover'), {
         description: String(error),
       });
-      setError(t('errors.operations.replaceCover'));
     }
   };
 
-  const loading = coverImagePath ? isLoadingCover(coverImagePath) : false;
+  // Determine loading state
+  const isLoading = !status || status.type === "loading" || status.type === "not_started";
+  const hasError = status?.type === "error";
+  const isReady = status?.type === "ready";
+  const dataUrl = isReady ? status.data_url : null;
+  const errorMessage = hasError ? status.message : (coverImagePath ? null : t('books.viewer.noCover'));
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -101,12 +93,12 @@ export function CoverImage({
         onClick={handleClick}
         title={t('books.viewer.replaceCover')}
       >
-        {loading && (
+        {isLoading && coverImagePath && (
           <div className="absolute inset-0 flex items-center justify-center bg-muted">
             <div className="text-muted-foreground">{t('common.labels.loading')}</div>
           </div>
         )}
-        {error && !loading && !dataUrl && (
+        {(errorMessage || !coverImagePath) && !isLoading && !dataUrl && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted p-4">
             <div className="text-muted-foreground text-center text-sm">
               {t('books.viewer.noCoverImage')}
@@ -116,7 +108,7 @@ export function CoverImage({
             </div>
           </div>
         )}
-        {dataUrl && !loading && (
+        {dataUrl && (
           <img
             src={dataUrl}
             alt={t('books.viewer.coverAlt')}

@@ -11,6 +11,7 @@ import {
   toggleBook,
   setViewedBook,
   setBooks,
+  clearCoverStatus,
 } from "../contexts/actions";
 import { useMemo } from "react";
 import { commands, type BookInfo, type AddBookResult } from "../bindings";
@@ -64,6 +65,9 @@ export function BookList() {
   };
 
   const handleBookUpdated = async () => {
+    // Clear cover status in context to trigger fresh loads
+    dispatch(clearCoverStatus());
+
     // Rescan books to pick up changes (e.g., Google Docs sync info)
     if (state.selectedFolder) {
       // Capture currently selected paths to preserve selection

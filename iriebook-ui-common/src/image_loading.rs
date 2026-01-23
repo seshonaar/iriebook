@@ -2,13 +2,49 @@ use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use image::imageops::FilterType;
 use image::{GenericImageView, ImageReader};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use specta::Type;
+use std::fs;
 use std::path::Path;
 
 /// Maximum dimensions for cover thumbnails
 pub const THUMBNAIL_WIDTH: u32 = 200;
 pub const THUMBNAIL_HEIGHT: u32 = 300;
+
+/// Thumbnail metadata for cache invalidation
+#[derive(Debug, Serialize, Deserialize)]
+struct ThumbnailMetadata {
+    /// Modification time of original cover.jpg
+    cover_mtime: u64,
+}
+
+/// Get modification time of file in seconds since Unix epoch
+fn get_file_mtime(path: &Path) -> Result<u64> {
+    let metadata = fs::metadata(path)?;
+    Ok(metadata
+        .modified()?
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_secs())
+}
+
+/// Read thumbnail metadata from disk
+fn read_thumbnail_metadata(thumb_dir: &Path) -> Option<ThumbnailMetadata> {
+    let metadata_path = thumb_dir.join("thumbnail.json");
+    if !metadata_path.exists() {
+        return None;
+    }
+
+    let content = fs::read_to_string(&metadata_path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+/// Write thumbnail metadata to disk
+fn write_thumbnail_metadata(thumb_dir: &Path, metadata: &ThumbnailMetadata) -> Result<()> {
+    let metadata_path = thumb_dir.join("thumbnail.json");
+    let content = serde_json::to_string_pretty(metadata)?;
+    fs::write(&metadata_path, content)?;
+    Ok(())
+}
 
 /// Cover image data for sending to frontend
 #[derive(Serialize, Type)]
@@ -67,48 +103,71 @@ pub fn load_cover_as_data_url(path: &Path) -> Result<CoverImageData> {
 ///
 /// Returns (pixels, width, height) tuple.
 pub fn load_cover_data(path: &Path) -> Result<(Vec<u8>, u32, u32)> {
+    let cover_mtime = get_file_mtime(path)?;
+
     // 1. Determine if we can use a cached thumbnail
-    let is_cover_jpg = path.file_name()
+    let is_cover_jpg = path
+        .file_name()
         .and_then(|f| f.to_str())
         .is_some_and(|s| s.to_lowercase() == "cover.jpg");
 
     let thumbnail_path = if is_cover_jpg {
         // Cover is in root, but thumbnail is cached in irie/ subfolder
-        path.parent()
-            .map(|parent| parent.join("irie").join("thumbnail.jpg"))
+        path.parent().map(|parent| parent.join("irie"))
     } else {
         None
     };
 
-    // 2. Try to load from cache
-    if let Some(cache_path) = &thumbnail_path
-        && cache_path.exists()
-            && let Ok(img) = ImageReader::open(cache_path)?.decode() {
+    // 2. Check if thumbnail is stale by comparing modification times
+    let should_regenerate = if let Some(thumb_dir) = &thumbnail_path {
+        let thumbnail_path = thumb_dir.join("thumbnail.jpg");
+
+        if thumbnail_path.exists() {
+            match read_thumbnail_metadata(thumb_dir) {
+                Some(metadata) => metadata.cover_mtime != cover_mtime,
+                None => true, // No metadata, regenerate
+            }
+        } else {
+            true // No thumbnail, need to generate
+        }
+    } else {
+        true // Not cover.jpg, always load directly
+    };
+
+    // 3. Try to load from cache if valid
+    if !should_regenerate {
+        if let Some(thumb_dir) = &thumbnail_path {
+            let thumbnail_path = thumb_dir.join("thumbnail.jpg");
+            if let Ok(img) = ImageReader::open(&thumbnail_path)?.decode() {
                 let rgba = img.to_rgba8();
                 let (width, height) = rgba.dimensions();
                 let pixels = rgba.into_raw();
                 return Ok((pixels, width, height));
             }
+        }
+    }
 
-    // 3. Load and resize original
+    // 4. Load and resize original
     let img = ImageReader::open(path)?.decode()?;
     let (width, height) = img.dimensions();
 
     let thumbnail = match (width > THUMBNAIL_WIDTH) || (height > THUMBNAIL_HEIGHT) {
-        true => {
-            img.resize(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, FilterType::Lanczos3)
-        }
+        true => img.resize(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, FilterType::Lanczos3),
         false => img,
     };
 
-    // 4. Save to cache if applicable
-    if let Some(cache_path) = &thumbnail_path {
+    // 5. Save to cache if applicable
+    if let Some(thumb_dir) = &thumbnail_path {
         // Ensure irie/ directory exists before saving
-        if let Some(parent) = cache_path.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        // We use JPEG with default settings for the cache
-        let _ = thumbnail.save(cache_path);
+        let thumbnail_path = thumb_dir.join("thumbnail.jpg");
+        let _ = std::fs::create_dir_all(thumb_dir);
+
+        // Save thumbnail
+        let _ = thumbnail.save(&thumbnail_path);
+
+        // Save metadata for cache invalidation
+        let metadata = ThumbnailMetadata { cover_mtime };
+        let _ = write_thumbnail_metadata(thumb_dir, &metadata);
     }
 
     let rgba = thumbnail.to_rgba8();
@@ -121,9 +180,9 @@ pub fn load_cover_data(path: &Path) -> Result<(Vec<u8>, u32, u32)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use image::{ImageBuffer, Rgb};
     use std::fs;
+    use tempfile::TempDir;
 
     fn create_test_image(path: &Path, color: [u8; 3]) -> Result<()> {
         let img = ImageBuffer::from_fn(100, 100, |_, _| Rgb(color));
@@ -145,7 +204,10 @@ mod tests {
         let _ = load_cover_data(&cover_path)?;
 
         // Thumbnail should now exist in irie/
-        assert!(thumbnail_path.exists(), "Thumbnail should be created automatically");
+        assert!(
+            thumbnail_path.exists(),
+            "Thumbnail should be created automatically"
+        );
 
         Ok(())
     }
@@ -156,12 +218,19 @@ mod tests {
         let cover_path = temp_dir.path().join("cover.jpg");
 
         // Thumbnail should be in irie/ subfolder
-        fs::create_dir(temp_dir.path().join("irie"))?;
-        let thumbnail_path = temp_dir.path().join("irie/thumbnail.jpg");
+        let irie_dir = temp_dir.path().join("irie");
+        fs::create_dir(&irie_dir)?;
+        let thumbnail_path = irie_dir.join("thumbnail.jpg");
 
         // Create a RED cover and a BLUE thumbnail
         create_test_image(&cover_path, [255, 0, 0])?; // Red
         create_test_image(&thumbnail_path, [0, 0, 255])?; // Blue
+
+        // Create thumbnail.json with matching mtime
+        let cover_mtime = get_file_mtime(&cover_path)?;
+        let metadata = ThumbnailMetadata { cover_mtime };
+        let metadata_path = irie_dir.join("thumbnail.json");
+        fs::write(&metadata_path, serde_json::to_string_pretty(&metadata)?)?;
 
         // Load
         let (pixels, _w, _h) = load_cover_data(&cover_path)?;
@@ -169,9 +238,21 @@ mod tests {
         // Check first pixel - should be Blue (from thumbnail), not Red (from cover)
         // RGB or RGBA? load_cover_data converts to RGBA
         // Allow for slight variation due to JPEG compression (e.g. 254 instead of 255)
-        assert!(pixels[0] < 10, "Red channel should be low (actual: {})", pixels[0]);
-        assert!(pixels[1] < 10, "Green channel should be low (actual: {})", pixels[1]);
-        assert!(pixels[2] > 240, "Blue channel should be high (actual: {})", pixels[2]);
+        assert!(
+            pixels[0] < 10,
+            "Red channel should be low (actual: {})",
+            pixels[0]
+        );
+        assert!(
+            pixels[1] < 10,
+            "Green channel should be low (actual: {})",
+            pixels[1]
+        );
+        assert!(
+            pixels[2] > 240,
+            "Blue channel should be high (actual: {})",
+            pixels[2]
+        );
         assert_eq!(pixels[3], 255); // Alpha should still be full
 
         Ok(())

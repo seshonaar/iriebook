@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import { useProcessingEvents } from "./useProcessingEvents";
-import { useCoverImage } from "./useCoverImage";
-import { getGlobalCoverCache, clearGlobalCoverCache } from "./coverCache";
+import { useAppContext } from "../contexts/AppContext";
+import { setCoverStatus } from "../contexts/actions";
 import { AppProvider } from "../contexts/AppContext";
 import { commands, events } from "../bindings";
 import React from "react";
@@ -10,31 +10,27 @@ import React from "react";
 const mockedCommands = vi.mocked(commands);
 const mockedEvents = vi.mocked(events);
 
-function createWrapper() {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return <AppProvider>{children}</AppProvider>;
-  };
-}
-
 describe("useProcessingEvents - Cover Cache Invalidation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    clearGlobalCoverCache();
   });
 
   afterEach(() => {
     cleanup();
-    clearGlobalCoverCache();
   });
 
-  it("clears global cover cache when BookListChangedEvent is received", async () => {
+  it("clears context cover status when BookListChangedEvent is received", async () => {
     // Set up mock to capture event callback
-    let eventCallback: any;
-    const originalListen = mockedEvents.bookListChangedEvent.listen;
+    let bookListChangedCallback: any;
     mockedEvents.bookListChangedEvent.listen = vi.fn((callback: any) => {
-      eventCallback = callback;
+      bookListChangedCallback = callback;
       return Promise.resolve(() => {});
     }) as any;
+
+    // Mock the cover reload event listener
+    mockedEvents.coverReloadEvent = {
+      listen: vi.fn(() => Promise.resolve(() => {})),
+    } as any;
 
     // Mock scanBooks to avoid network calls
     mockedCommands.scanBooks.mockResolvedValueOnce({
@@ -42,38 +38,42 @@ describe("useProcessingEvents - Cover Cache Invalidation", () => {
       data: [],
     });
 
-    const wrapper = createWrapper();
+    // Combined hook that uses both context and events
+    function useCombinedHook() {
+      const context = useAppContext();
+      useProcessingEvents();
+      return context;
+    }
 
-    // Render both hooks
-    const { result: coverResult } = renderHook(() => useCoverImage(), {
-      wrapper,
-    });
-    renderHook(() => useProcessingEvents(), {
-      wrapper,
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <AppProvider>{children}</AppProvider>
+    );
+
+    const { result } = renderHook(() => useCombinedHook(), { wrapper });
+
+    // Set a cover status in context
+    act(() => {
+      result.current.dispatch(
+        setCoverStatus("/books/book1/cover.jpg", {
+          type: "ready",
+          data_url: "data:image/png;base64,test",
+          width: 100,
+          height: 150,
+        })
+      );
     });
 
-    // Load a cover image (this caches it globally)
-    const mockDataUrl = "data:image/png;base64,test_cover";
-    mockedCommands.loadCoverImage.mockResolvedValueOnce({
-      status: "ok",
-      data: { data_url: mockDataUrl, width: 100, height: 150 },
-    });
-
-    await act(async () => {
-      await coverResult.current.loadCover("/books/book1/cover.jpg");
-    });
-
-    // Verify cover is in global cache
-    expect(getGlobalCoverCache("/books/book1/cover.jpg")).toBe(mockDataUrl);
+    // Verify cover is in context
+    expect(result.current.state.coverStatus["/books/book1/cover.jpg"]).toBeDefined();
 
     // Trigger BookListChangedEvent
     await act(async () => {
-      if (eventCallback) {
-        eventCallback({ payload: {} });
+      if (bookListChangedCallback) {
+        await bookListChangedCallback({ payload: {} });
       }
     });
 
-    // Assertion: Global cover cache should be cleared after BookListChangedEvent
-    expect(getGlobalCoverCache("/books/book1/cover.jpg")).toBeNull();
+    // Assertion: Cover status should be cleared after BookListChangedEvent
+    expect(result.current.state.coverStatus["/books/book1/cover.jpg"]).toBeUndefined();
   });
 });

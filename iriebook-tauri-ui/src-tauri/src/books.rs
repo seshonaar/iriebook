@@ -1,14 +1,13 @@
 //! Book-related commands: scanning, covers, metadata, processing, and CRUD operations
 
 use crate::state::AppStateHolder;
-use iriebook::utilities::types::BookMetadata;
 use iriebook_ui_common::ui_state::{BookInfo, PublishEnabled, WordStatsEnabled};
 use iriebook_ui_common::{
-    AddBookResult, AnalysisResponse, BatchProcessor, BookListChangedEvent, ChangeBookResult,
-    CoverImageData, ProcessingUpdateEvent, add_book_with_rescan, book_scanner,
+    AddBookResult, AnalysisResponse, BatchProcessor, BookMetadata, ChangeBookResult,
+    CoverReloadEvent, CoverStatus, ProcessingUpdateEvent, add_book_with_rescan, book_scanner,
     change_book_with_rescan, check_for_duplicate, collect_distinct_authors,
-    collect_distinct_series, delete_book_with_rescan, get_or_compute_analysis,
-    load_cover_as_data_url, load_metadata, save_metadata,
+    collect_distinct_series, delete_book_with_rescan, get_or_compute_analysis, load_metadata,
+    replace_cover_image as core_replace_cover_image, save_metadata,
 };
 use std::path::PathBuf;
 use tauri::State;
@@ -19,6 +18,7 @@ use tauri_specta::Event;
 #[tauri::command]
 #[specta::specta]
 pub fn scan_books(
+    app: tauri::AppHandle,
     path: String,
     app_state_holder: State<AppStateHolder>,
 ) -> Result<Vec<BookInfo>, String> {
@@ -27,6 +27,16 @@ pub fn scan_books(
     // Initialize AppState with this workspace path
     app_state_holder.initialize(path_buf.clone());
 
+    // Set up cover loaded callback to emit events
+    if let Some(app_state) = app_state_holder.get() {
+        let app_handle = app.clone();
+        let book_ui_manager = app_state.book_ui_manager();
+        let mut manager = book_ui_manager.lock().unwrap();
+        manager.set_on_cover_loaded(move |book_path| {
+            let _ = CoverReloadEvent { book_path }.emit(&app_handle);
+        });
+    }
+
     book_scanner::scan_for_books(&path_buf).map_err(|e| e.to_string())
 }
 
@@ -34,36 +44,28 @@ pub fn scan_books(
 
 #[tauri::command]
 #[specta::specta]
-pub fn load_cover_image(cover_path: Option<String>) -> Result<CoverImageData, String> {
-    match cover_path {
-        Some(path_str) => {
-            let path = PathBuf::from(&path_str);
-            if !path.exists() {
-                return Err("Cover image not found".to_string());
-            }
-            load_cover_as_data_url(&path).map_err(|e| e.to_string())
-        }
-        None => Err("No cover image available".to_string()),
+pub fn load_cover_image(
+    cover_path: Option<String>,
+    app_state_holder: State<AppStateHolder>,
+) -> Result<CoverStatus, String> {
+    let cover_path = cover_path.ok_or_else(|| "No cover path provided".to_string())?;
+    let path = PathBuf::from(&cover_path);
+
+    if !path.exists() {
+        return Ok(CoverStatus::Error {
+            message: "Cover image not found".to_string(),
+        });
     }
-}
 
-#[tauri::command]
-#[specta::specta]
-pub fn replace_cover_image(
-    book_path: String,
-    new_cover_path: String,
-    app: tauri::AppHandle,
-) -> Result<(), String> {
-    let book_path_buf = PathBuf::from(&book_path);
-    let new_cover_path_buf = PathBuf::from(&new_cover_path);
+    let app_state = app_state_holder
+        .get()
+        .ok_or_else(|| "App state not initialized".to_string())?;
 
-    iriebook::resource_access::file::replace_cover_image(&book_path_buf, &new_cover_path_buf)
-        .map_err(|e| e.to_string())?;
+    let manager = app_state.book_ui_manager();
+    let mut book_ui_manager = manager.lock().unwrap();
+    let status = book_ui_manager.get_thumbnail(&path, &path);
 
-    // Emit event to signal UI to refresh (cover image path changed)
-    let _ = BookListChangedEvent {}.emit(&app);
-
-    Ok(())
+    Ok(status)
 }
 
 // ============= METADATA =============
@@ -72,10 +74,9 @@ pub fn replace_cover_image(
 #[specta::specta]
 pub fn load_book_metadata(book_path: String) -> Result<BookMetadata, String> {
     let path = PathBuf::from(book_path);
-    match load_metadata(&path).map_err(|e| e.to_string())? {
-        Some(metadata) => Ok(metadata),
-        None => Err("Metadata not found".to_string()),
-    }
+    load_metadata(&path)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Metadata not found".to_string())
 }
 
 #[tauri::command]
@@ -87,14 +88,12 @@ pub fn save_book_metadata(book_path: String, metadata: BookMetadata) -> Result<(
 
 #[tauri::command]
 #[specta::specta]
-pub fn get_autocomplete_authors(books: Vec<BookInfo>) -> Result<Vec<String>, String> {
-    Ok(collect_distinct_authors(&books))
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn get_autocomplete_series(books: Vec<BookInfo>) -> Result<Vec<String>, String> {
-    Ok(collect_distinct_series(&books))
+pub fn replace_cover_image(book_path: String, new_cover_path: String) -> Result<(), String> {
+    let book = PathBuf::from(book_path);
+    let source = PathBuf::from(new_cover_path);
+    core_replace_cover_image(&book, &source)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 // ============= BOOK VIEWING =============
@@ -102,7 +101,7 @@ pub fn get_autocomplete_series(books: Vec<BookInfo>) -> Result<Vec<String>, Stri
 #[tauri::command]
 #[specta::specta]
 pub fn view_book(book_path: String, app_state_holder: State<AppStateHolder>) -> Result<(), String> {
-    let path = PathBuf::from(&book_path);
+    let path = PathBuf::from(book_path);
     let app_state = app_state_holder
         .get()
         .ok_or_else(|| "App state not initialized".to_string())?;
@@ -126,13 +125,12 @@ pub async fn start_processing(
     word_stats_enabled: bool,
 ) -> Result<(), String> {
     // Use BatchProcessor from ui-common - all orchestration logic is there
-    let app_handle = app.clone();
     BatchProcessor::process_books(
         books,
         PublishEnabled::new(publish_enabled),
         WordStatsEnabled::new(word_stats_enabled),
         move |event| {
-            let _ = ProcessingUpdateEvent(event).emit(&app_handle);
+            let _ = ProcessingUpdateEvent(event).emit(&app);
         },
     )
     .await
@@ -156,6 +154,7 @@ pub fn check_duplicate(
     md_filename: String,
 ) -> Result<Option<String>, String> {
     let workspace = PathBuf::from(workspace_root);
+
     check_for_duplicate(&workspace, &md_filename).map_err(|e| e.to_string())
 }
 
@@ -182,14 +181,25 @@ pub fn change_book_file(
     change_book_with_rescan(&book, &source, &workspace).map_err(|e| e.to_string())
 }
 
-// ============= ANALYSIS =============
-
 #[tauri::command]
 #[specta::specta]
 pub fn get_book_analysis(
     book_path: String,
     force_refresh: bool,
 ) -> Result<AnalysisResponse, String> {
-    let path = PathBuf::from(&book_path);
+    let path = PathBuf::from(book_path);
+
     get_or_compute_analysis(&path, force_refresh)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_autocomplete_authors(books: Vec<BookInfo>) -> Result<Vec<String>, String> {
+    Ok(collect_distinct_authors(&books))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_autocomplete_series(books: Vec<BookInfo>) -> Result<Vec<String>, String> {
+    Ok(collect_distinct_series(&books))
 }

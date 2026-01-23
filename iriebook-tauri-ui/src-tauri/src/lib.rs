@@ -55,7 +55,8 @@ fn init_tracing() {
 }
 
 use iriebook_ui_common::{
-    BookListChangedEvent, GitOperationProgressEvent, GoogleDocsProgressEvent, ProcessingUpdateEvent,
+    BookListChangedEvent, CoverReloadEvent, GitOperationProgressEvent, GoogleDocsProgressEvent,
+    ProcessingUpdateEvent,
 };
 use state::{AppStateHolder, GoogleAuthState};
 
@@ -124,6 +125,7 @@ pub fn run() {
             GitOperationProgressEvent,
             GoogleDocsProgressEvent,
             BookListChangedEvent,
+            CoverReloadEvent,
             updater::UpdateProgressEvent
         ]);
 

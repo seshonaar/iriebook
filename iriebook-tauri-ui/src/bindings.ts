@@ -61,7 +61,7 @@ async scanBooks(path: string) : Promise<Result<BookInfo[], string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async loadCoverImage(coverPath: string | null) : Promise<Result<CoverImageData, string>> {
+async loadCoverImage(coverPath: string | null) : Promise<Result<CoverStatus, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("load_cover_image", { coverPath }) };
 } catch (e) {
@@ -367,12 +367,14 @@ async checkForUpdates() : Promise<Result<null, string>> {
 
 export const events = __makeEvents__<{
 bookListChangedEvent: BookListChangedEvent,
+coverReloadEvent: CoverReloadEvent,
 gitOperationProgressEvent: GitOperationProgressEvent,
 googleDocsProgressEvent: GoogleDocsProgressEvent,
 processingUpdateEvent: ProcessingUpdateEvent,
 updateProgressEvent: UpdateProgressEvent
 }>({
 bookListChangedEvent: "book-list-changed-event",
+coverReloadEvent: "cover-reload-event",
 gitOperationProgressEvent: "git-operation-progress-event",
 googleDocsProgressEvent: "google-docs-progress-event",
 processingUpdateEvent: "processing-update-event",
@@ -431,21 +433,30 @@ export type BookPath = string
  */
 export type ChangeBookResult = { new_book_path: string; books: BookInfo[]; updated_book_index: number | null }
 /**
- * Cover image data for sending to frontend
+ * Event emitted when a cover should be reloaded
+ * The UI should query cover status after receiving this event
  */
-export type CoverImageData = { 
+export type CoverReloadEvent = { book_path: string }
 /**
- * Base64-encoded data URL (e.g., "data:image/png;base64,...")
+ * Status of cover loading operation
  */
-data_url: string; 
+export type CoverStatus = 
 /**
- * Image width in pixels
+ * Not started loading yet
  */
-width: number; 
+{ type: "not_started" } | 
 /**
- * Image height in pixels
+ * Currently loading thumbnail
  */
-height: number }
+{ type: "loading" } | 
+/**
+ * Thumbnail ready with data URL
+ */
+{ type: "ready"; data_url: string; width: number; height: number } | 
+/**
+ * Error during loading
+ */
+{ type: "error"; message: string }
 /**
  * GitHub Device Flow information for UI display
  */

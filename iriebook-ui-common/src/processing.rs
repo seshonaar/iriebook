@@ -130,6 +130,33 @@ pub struct GoogleDocsProgressEvent(pub String);
 #[derive(Debug, Clone, Serialize, Type, Event)]
 pub struct BookListChangedEvent {}
 
+/// Event emitted when a cover should be reloaded
+/// The UI should query cover status after receiving this event
+#[derive(Debug, Clone, Serialize, Type, Event)]
+pub struct CoverReloadEvent {
+    pub book_path: String,
+}
+
+/// Status of cover loading operation
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum CoverStatus {
+    /// Not started loading yet
+    NotStarted,
+    /// Currently loading thumbnail
+    Loading,
+    /// Thumbnail ready with data URL
+    Ready {
+        data_url: String,
+        #[specta(type = u32)]
+        width: u32,
+        #[specta(type = u32)]
+        height: u32,
+    },
+    /// Error during loading
+    Error { message: String },
+}
+
 /// Framework-agnostic state machine for processing multiple books sequentially
 ///
 /// This struct manages the processing queue and determines which book to process next.

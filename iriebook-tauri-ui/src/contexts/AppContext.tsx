@@ -6,6 +6,7 @@ import type {
   GitCommit,
   DeviceFlowInfo,
   DiffComparison,
+  CoverStatus,
 } from "../bindings";
 import type { LogEntryType } from "../bindings/LogEntryType";
 import type { ProcessingProgress } from "../bindings/ProcessingProgress";
@@ -69,6 +70,9 @@ export interface AppState {
   activeDiffTabId: string | null;
   activeTab: string; // "books", "history", "analysis", or a diff tab ID
   lastActiveStaticTab: string; // "books", "history", "analysis" - to restore when closing diff tabs
+
+  // Cover loading state (managed by events from Rust)
+  coverStatus: Record<string, CoverStatus>;
 }
 
 // Initial state (exported for testing)
@@ -94,6 +98,7 @@ export const initialState: AppState = {
   activeDiffTabId: null,
   activeTab: "books",
   lastActiveStaticTab: "books",
+  coverStatus: {},
 };
 
 // Reducer (exported for testing)
@@ -259,6 +264,21 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         lastActiveStaticTab: isStatic ? action.payload : state.lastActiveStaticTab
       };
     }
+
+    case "SET_COVER_STATUS":
+      return {
+        ...state,
+        coverStatus: {
+          ...state.coverStatus,
+          [action.payload.path]: action.payload.status,
+        },
+      };
+
+    case "CLEAR_COVER_STATUS":
+      return {
+        ...state,
+        coverStatus: {},
+      };
 
     default:
       return state;

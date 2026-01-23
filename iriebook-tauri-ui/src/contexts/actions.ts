@@ -5,6 +5,7 @@ import type {
   GitCommit,
   DeviceFlowInfo,
   DiffComparison,
+  CoverStatus,
 } from "../bindings";
 import type { LogEntryType } from "../bindings/LogEntryType";
 import type { ProcessingProgress } from "../bindings/ProcessingProgress";
@@ -165,6 +166,19 @@ export const closeDiffTab = (tabId: string) => ({
 });
 
 // ============================================================================
+// Cover Loading
+// ============================================================================
+
+export const setCoverStatus = (path: string, status: CoverStatus) => ({
+  type: "SET_COVER_STATUS" as const,
+  payload: { path, status },
+});
+
+export const clearCoverStatus = () => ({
+  type: "CLEAR_COVER_STATUS" as const,
+});
+
+// ============================================================================
 // Union type derived from all action creators
 // ============================================================================
 
@@ -193,4 +207,6 @@ export type AppAction =
   | ReturnType<typeof deviceFlowStarted>
   | ReturnType<typeof deviceFlowCompleted>
   | ReturnType<typeof openDiffTab>
-  | ReturnType<typeof closeDiffTab>;
+  | ReturnType<typeof closeDiffTab>
+  | ReturnType<typeof setCoverStatus>
+  | ReturnType<typeof clearCoverStatus>;

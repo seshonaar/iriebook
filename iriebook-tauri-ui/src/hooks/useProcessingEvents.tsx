@@ -10,6 +10,8 @@ import {
   setProcessingMode,
   clearProcessingProgress,
   setBooks,
+  setCoverStatus,
+  clearCoverStatus,
 } from "../contexts/actions";
 
 /**
@@ -121,6 +123,7 @@ export function useProcessingEvents() {
     const unlistenBookListPromise = events.bookListChangedEvent.listen(async () => {
       // Clear cover cache to force reload with updated images
       clearCache();
+      dispatch(clearCoverStatus());
 
       const currentFolder = folderRef.current;
       const currentBooks = booksRef.current;
@@ -149,6 +152,20 @@ export function useProcessingEvents() {
       }
     });
 
+    // Set up cover reload event listener
+    const unlistenCoverReloadPromise = events.coverReloadEvent.listen(async (event) => {
+      const { book_path: bookPath } = event.payload;
+
+      // Load the cover and dispatch the result to context
+      const result = await commands.loadCoverImage(bookPath);
+      if (result.status === "ok") {
+        dispatch(setCoverStatus(bookPath, result.data));
+      } else {
+        // Dispatch error status
+        dispatch(setCoverStatus(bookPath, { type: "error", message: result.error }));
+      }
+    });
+
     // Cleanup on unmount
     return () => {
       unlistenGitPromise.then((unlisten) => unlisten());
@@ -156,6 +173,7 @@ export function useProcessingEvents() {
       unlistenPromise.then((unlisten) => unlisten());
       unlistenBookListPromise.then((unlisten) => unlisten());
       unlistenUpdatePromise.then((unlisten) => unlisten());
+      unlistenCoverReloadPromise.then((unlisten) => unlisten());
     };
   }, [dispatch, t, clearCache]);
 }
