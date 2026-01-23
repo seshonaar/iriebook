@@ -3,7 +3,7 @@
 Welcome traveler! You found the home of the Irie Book! Is it a book that feels good? No. What then?
 Let me tell you the story and you will understand.
 
-It is about a mythical Goddess that loves to write books. She is known as The Wife. All is good in the world of Imagination.
+It is about a mythical Goddess that loves to write books. She is known as The Wife. All is good in the World of Imagination.
 
 But there is a small inconvenience. She writes in Google Docs. She applies formatting at will. She makes corrections with the magic wand.
 
@@ -21,7 +21,7 @@ Being a careful creature it then sends the markdown to the Github vault, where e
 
 And there's more! The changes can be scrutinized by Irie itself as well! using the Tome of Changes, The Wife can see the history of edits without traveling to the distant Github vault!
 
-Is that everything? No traveler, there's more. There is even a Tome of Analysis, where The Wife can check the well being of her Word Minions.
+Is that everything? No traveler, there's more. There is even a Tome of Analysis, where The Wife can check the well-being of her Word Minions.
 
 And of course, the EPUB. The sapphire diamond. Irie knows how to mold the Markdown clay into the EPUB diamond.
 And these diamonds are the keys for the world to join the Imagination World.
