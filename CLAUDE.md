@@ -37,6 +37,11 @@ This is a **Cargo workspace** with the following crates:
   - Uses specta for type-safe TypeScript bindings
   - REPHRAIN FROM ADDING BUSINESS LOGIC HERE THIS IS AN UI IMPLEMENTATION THAT IS HIGHLY VOLATILE. BUSINESS LOGIC BELONGS TO THE core or ui-common crates.
 
+## GIT operations
+
+git commit messages should follow the conventional commits standard. You may read docs/conventional-commits-cheatsheet.md
+please do not add coauthored by [AI/HUMAN]. It's pretty clear who writes the code nowdays.
+
 ## Common Commands
 
 ### Building
