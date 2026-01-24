@@ -181,6 +181,21 @@ impl GitAccess for GitClient {
             }
         }
 
+        // Safety net: remove any index entries whose files no longer exist.
+        // This covers rare cases where status iteration might miss deletions.
+        let mut missing_indices = Vec::new();
+        for (idx, entry) in index.entries().iter().enumerate() {
+            let path = entry.path(&index);
+            let full_path = repo_path.join(path.to_string());
+            if !full_path.exists() {
+                missing_indices.push(idx);
+            }
+        }
+
+        for idx in missing_indices.into_iter().rev() {
+            index.remove_entry_at_index(idx);
+        }
+
         // Sort entries to restore invariant after dangerous pushes
         index.sort_entries();
 
@@ -1168,7 +1183,21 @@ mod tests {
         git_client.commit(temp_dir.path(), "mixed changes").unwrap();
 
         // Should be clean
-        assert!(!git_client.has_uncommitted_changes(temp_dir.path()).unwrap());
+        if git_client.has_uncommitted_changes(temp_dir.path()).unwrap() {
+            use std::process::Command;
+
+            let status_output = Command::new("git")
+                .args(["status", "--short"])
+                .current_dir(temp_dir.path())
+                .output()
+                .expect("Failed to run git status");
+
+            let status = String::from_utf8_lossy(&status_output.stdout);
+            panic!(
+                "Repository not clean after mixed changes commit:\n{}",
+                status
+            );
+        }
     }
 
     #[test]
@@ -1366,7 +1395,10 @@ mod tests {
 
         // irie/ and output folders should NOT be tracked
         assert!(!tracked_files.contains("irie/"), "irie/ should be ignored");
-        assert!(!tracked_files.contains(&format!("{}/", OUTPUT_DIR_NAME)), "{OUTPUT_DIR_NAME}/ should be ignored");
+        assert!(
+            !tracked_files.contains(&format!("{}/", OUTPUT_DIR_NAME)),
+            "{OUTPUT_DIR_NAME}/ should be ignored"
+        );
         assert!(
             !tracked_files.contains("fixed.md"),
             "files in irie/ should be ignored"
@@ -1980,17 +2012,13 @@ mod tests {
         std::fs::write(&file1, "modified").unwrap();
 
         // book1 folder should have changes
-        assert!(
-            git_client
-                .get_folder_status(temp_dir.path(), &temp_dir.path().join("book1"))
-                .unwrap()
-        );
+        assert!(git_client
+            .get_folder_status(temp_dir.path(), &temp_dir.path().join("book1"))
+            .unwrap());
         // book2 folder should NOT have changes
-        assert!(
-            !git_client
-                .get_folder_status(temp_dir.path(), &temp_dir.path().join("book2"))
-                .unwrap()
-        );
+        assert!(!git_client
+            .get_folder_status(temp_dir.path(), &temp_dir.path().join("book2"))
+            .unwrap());
     }
 
     #[test]
@@ -2008,11 +2036,9 @@ mod tests {
         std::fs::write(&new_file, "content").unwrap();
 
         // Folder should show changes
-        assert!(
-            git_client
-                .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
-                .unwrap()
-        );
+        assert!(git_client
+            .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
+            .unwrap());
     }
 
     #[test]
@@ -2039,11 +2065,9 @@ mod tests {
         std::fs::write(&metadata, "title: Updated").unwrap();
 
         // Folder should show changes even though .md file wasn't modified
-        assert!(
-            git_client
-                .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
-                .unwrap()
-        );
+        assert!(git_client
+            .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
+            .unwrap());
     }
 
     #[test]
@@ -2061,11 +2085,9 @@ mod tests {
         git_client.commit(temp_dir.path(), "initial").unwrap();
 
         // Folder should have no changes
-        assert!(
-            !git_client
-                .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
-                .unwrap()
-        );
+        assert!(!git_client
+            .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
+            .unwrap());
     }
 
     #[test]
@@ -2078,11 +2100,9 @@ mod tests {
         std::fs::write(&file, "content").unwrap();
 
         // Should not panic, should return false
-        assert!(
-            !git_client
-                .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
-                .unwrap()
-        );
+        assert!(!git_client
+            .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
+            .unwrap());
     }
 
     #[test]
@@ -2095,11 +2115,9 @@ mod tests {
         let outside_folder = PathBuf::from("/tmp/outside");
 
         // Should not panic, should return false
-        assert!(
-            !git_client
-                .get_folder_status(temp_dir.path(), &outside_folder)
-                .unwrap()
-        );
+        assert!(!git_client
+            .get_folder_status(temp_dir.path(), &outside_folder)
+            .unwrap());
     }
 
     #[test]

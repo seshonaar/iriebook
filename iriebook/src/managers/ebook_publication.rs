@@ -14,7 +14,10 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::engines::traits::{MarkdownTransformEngine, QuoteFixerEngine, ValidatorEngine, WhitespaceTrimmerEngine, WordAnalyzerEngine};
+use crate::engines::traits::{
+    MarkdownTransformEngine, QuoteFixerEngine, ValidatorEngine, WhitespaceTrimmerEngine,
+    WordAnalyzerEngine,
+};
 use crate::resource_access::traits::{ArchiveAccess, CalibreAccess, PandocAccess};
 use crate::resource_access::{config, file};
 
@@ -131,10 +134,27 @@ impl EbookPublicationManager {
         let content = file::read_file(input_path)?;
         let bytes_read = content.len();
 
-        // Validate content - fail early if validation fails
-        self.validator.validate(&content)?;
-        let validation_passed = true;
-        let validation_error = None;
+        // Validate content - capture errors to display nicely instead of bubbling up
+        let (validation_passed, validation_error) = match self.validator.validate(&content) {
+            Ok(()) => (true, None),
+            Err(err) => {
+                return Ok(PublicationResult {
+                    bytes_read,
+                    validation_passed: false,
+                    validation_error: Some(err.to_string()),
+                    quotes_converted: 0,
+                    apostrophes_converted: 0,
+                    spaces_collapsed: 0,
+                    tabs_converted: 0,
+                    blank_lines_removed: 0,
+                    lines_trimmed: 0,
+                    word_analysis: None,
+                    output_path: None,
+                    summary_path: None,
+                    command_outputs: Vec::new(),
+                });
+            }
+        };
 
         // Stage 2: Content Processing
         let quote_result = self.quote_fixer.convert(&content)?;
@@ -147,13 +167,16 @@ impl EbookPublicationManager {
         // Conditionally analyze words based on enable_word_stats flag
         let word_analysis = match enable_word_stats {
             true => {
-                let analysis_result =
-                    self.word_analyzer.analyze(&trimming_result.content, &loaded_config.word_analysis)?;
+                let analysis_result = self
+                    .word_analyzer
+                    .analyze(&trimming_result.content, &loaded_config.word_analysis)?;
                 Some(WordAnalysisResult {
                     total_words: analysis_result.total_words,
                     unique_words: analysis_result.unique_words,
                     excluded_count: analysis_result.excluded_count,
-                    top_words: analysis_result.top_words.into_iter()
+                    top_words: analysis_result
+                        .top_words
+                        .into_iter()
                         .map(|(word, count)| (word, count.0))
                         .collect(),
                 })
@@ -173,7 +196,9 @@ impl EbookPublicationManager {
             };
 
             // Transform markdown structure
-            let formatted_text = self.markdown_transformer.transform(&trimming_result.content)?;
+            let formatted_text = self
+                .markdown_transformer
+                .transform(&trimming_result.content)?;
 
             // Write the fixed content
             file::write_file(&final_output_path, &formatted_text)?;
@@ -195,11 +220,17 @@ impl EbookPublicationManager {
             match file::get_output_file_name(input_path) {
                 Ok(output_epub) => {
                     // Pass original input path for metadata/cover lookup, fixed path for content
-                    let pandoc_output = self.pandoc_access.convert_to_epub(input_path, &final_output_path, &output_epub)?;
+                    let pandoc_output = self.pandoc_access.convert_to_epub(
+                        input_path,
+                        &final_output_path,
+                        &output_epub,
+                    )?;
                     command_outputs.push(format!("pandoc: {}", pandoc_output));
 
                     // Pass original input path for metadata lookup
-                    let calibre_output = self.calibre_access.convert_to_kindle(input_path, &output_epub)?;
+                    let calibre_output = self
+                        .calibre_access
+                        .convert_to_kindle(input_path, &output_epub)?;
                     command_outputs.push(format!("calibre: {}", calibre_output));
 
                     let archive_output = self.archive_access.create_book_archive(&output_epub)?;
@@ -278,15 +309,21 @@ mod tests {
         // Execute without publishing
         let result = manager.publish(
             &input_path,
-            None,      // No custom output path
-            false,     // enable_word_stats = false (default)
-            false,     // enable_publishing = false
+            None,  // No custom output path
+            false, // enable_word_stats = false (default)
+            false, // enable_publishing = false
         )?;
 
         // Verify result
         assert!(result.validation_passed, "Expected validation to pass");
-        assert!(result.quotes_converted > 0, "Expected quotes to be converted");
-        assert!(result.output_path.is_none(), "Expected no output path when publishing disabled");
+        assert!(
+            result.quotes_converted > 0,
+            "Expected quotes to be converted"
+        );
+        assert!(
+            result.output_path.is_none(),
+            "Expected no output path when publishing disabled"
+        );
 
         Ok(())
     }
@@ -308,15 +345,12 @@ mod tests {
         let result = manager.publish(
             &input_path,
             Some(&output_path),
-            false,     // enable_word_stats = false (default)
-            true,      // enable_publishing = true
+            false, // enable_word_stats = false (default)
+            true,  // enable_publishing = true
         )?;
 
         // Verify output file was created
-        assert!(
-            output_path.exists(),
-            "Expected output file to be created"
-        );
+        assert!(output_path.exists(), "Expected output file to be created");
 
         // Verify content has curly quotes
         let content = fs::read_to_string(&output_path)?;
@@ -476,7 +510,10 @@ mod tests {
         let result = manager.publish(&input_path, None, false, false)?;
 
         // Verify word analysis is None when disabled
-        assert!(result.word_analysis.is_none(), "Expected word analysis to be None when disabled");
+        assert!(
+            result.word_analysis.is_none(),
+            "Expected word analysis to be None when disabled"
+        );
         assert!(result.validation_passed, "Expected validation to pass");
 
         Ok(())
@@ -498,7 +535,10 @@ mod tests {
         let result = manager.publish(&input_path, None, true, true)?;
 
         // Verify word analysis is Some when enabled
-        assert!(result.word_analysis.is_some(), "Expected word analysis to be Some when enabled");
+        assert!(
+            result.word_analysis.is_some(),
+            "Expected word analysis to be Some when enabled"
+        );
 
         // Verify analysis contains expected data
         let analysis = result.word_analysis.unwrap();
@@ -524,12 +564,21 @@ mod tests {
         let result = manager.publish(&input_path, None, false, false)?;
 
         // Verify no output files were created
-        assert!(result.output_path.is_none(), "Expected no output path when publishing disabled");
-        assert!(result.summary_path.is_none(), "Expected no summary path when publishing disabled");
+        assert!(
+            result.output_path.is_none(),
+            "Expected no output path when publishing disabled"
+        );
+        assert!(
+            result.summary_path.is_none(),
+            "Expected no summary path when publishing disabled"
+        );
 
         // Verify processing still happened
         assert!(result.validation_passed, "Expected validation to pass");
-        assert!(result.quotes_converted > 0, "Expected quotes to be converted");
+        assert!(
+            result.quotes_converted > 0,
+            "Expected quotes to be converted"
+        );
 
         Ok(())
     }
@@ -552,12 +601,21 @@ mod tests {
 
         // Verify output file was created
         assert!(output_path.exists(), "Expected output file to be created");
-        assert!(result.output_path.is_some(), "Expected output path when publishing enabled");
+        assert!(
+            result.output_path.is_some(),
+            "Expected output path when publishing enabled"
+        );
 
         // Verify content has curly quotes
         let content = fs::read_to_string(&output_path)?;
-        assert!(content.contains('\u{201C}'), "Expected left curly quote in output");
-        assert!(content.contains('\u{201D}'), "Expected right curly quote in output");
+        assert!(
+            content.contains('\u{201C}'),
+            "Expected left curly quote in output"
+        );
+        assert!(
+            content.contains('\u{201D}'),
+            "Expected right curly quote in output"
+        );
 
         Ok(())
     }
@@ -578,11 +636,20 @@ mod tests {
         let result = manager.publish(&input_path, None, true, false)?;
 
         // Verify word analysis is Some
-        assert!(result.word_analysis.is_some(), "Expected word analysis when enabled");
+        assert!(
+            result.word_analysis.is_some(),
+            "Expected word analysis when enabled"
+        );
 
         // Verify no files written
-        assert!(result.output_path.is_none(), "Expected no output when publishing disabled");
-        assert!(result.summary_path.is_none(), "Expected no summary when publishing disabled");
+        assert!(
+            result.output_path.is_none(),
+            "Expected no output when publishing disabled"
+        );
+        assert!(
+            result.summary_path.is_none(),
+            "Expected no summary when publishing disabled"
+        );
 
         Ok(())
     }

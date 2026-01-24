@@ -134,8 +134,19 @@ The end.
     let pub_manager = app_state.ebook_publication_manager();
     let result = pub_manager.publish(&book.md_path, None, true, true);
 
-    // Publication should fail due to unbalanced quotes
-    assert!(result.is_err());
+    // Publication should return a validation failure result (not an outright error)
+    let result = result.expect("Publication should return structured validation failure");
+    assert!(
+        !result.validation_passed,
+        "Validation must fail for unbalanced quotes"
+    );
+    assert!(
+        result.validation_error
+            .as_ref()
+            .map(|msg| msg.contains("Unbalanced quotes"))
+            .unwrap_or(false),
+        "Validation error should mention unbalanced quotes"
+    );
 
     // Pandoc should NOT have been called (validation fails first)
     let pandoc_calls = mock_pandoc.get_calls();
