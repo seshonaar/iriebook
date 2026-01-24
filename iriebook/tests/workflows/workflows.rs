@@ -1,7 +1,7 @@
 //! E2E Workflow Tests
 //!
-//! This module contains comprehensive end-to-end tests that exercise
-//! complete user workflows through the application.
+//! This module contains headless workflow integration tests exercising
+//! complete user workflows through the application (mocked externals, no UI/Tauri).
 //!
 //! ## Available Workflow Tests
 //!

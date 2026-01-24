@@ -5,6 +5,10 @@ edition = "2024"
 authors = ["seshonaar"]
 description = "Framework-agnostic UI common utilities for IrieBook"
 
+[features]
+# E2E testing mocks (propagate to iriebook)
+e2e-mocks = ["iriebook/e2e-mocks"]
+
 [dependencies]
 # Core dependencies
 anyhow = { workspace = true }

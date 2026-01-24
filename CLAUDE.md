@@ -35,6 +35,7 @@ This is a **Cargo workspace** with the following crates:
   - `src/`: React/TypeScript frontend with i18n support
   - `src-tauri/src/`: Thin Rust backend layer (Tauri commands only)
   - Uses specta for type-safe TypeScript bindings
+  - Uses tauri-driver for e2e tests (os level install with `cargo install tauri-driver --locked` and `apt install webkit2gtk-driver`)
   - REPHRAIN FROM ADDING BUSINESS LOGIC HERE THIS IS AN UI IMPLEMENTATION THAT IS HIGHLY VOLATILE. BUSINESS LOGIC BELONGS TO THE core or ui-common crates.
 
 ## GIT operations

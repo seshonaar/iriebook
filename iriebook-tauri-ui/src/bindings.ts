@@ -21,6 +21,14 @@ async saveSession(session: SessionData) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async initMockState(workspacePath: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("init_mock_state", { workspacePath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async selectFolder() : Promise<Result<string | null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("select_folder") };

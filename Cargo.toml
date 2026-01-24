@@ -3,6 +3,7 @@ members = [
     "iriebook",
     "iriebook-ui-common",
     "iriebook-tauri-ui/src-tauri",
+    "iriebook-test-support",
 ]
 resolver = "2"
 

@@ -117,9 +117,20 @@ where
 /// # }
 /// ```
 pub async fn check_authenticated(authenticator: &GoogleAuthenticator) -> Result<bool, String> {
+    #[cfg(feature = "e2e-mocks")]
+    eprintln!("[E2E-UI-COMMON] 🔑 check_authenticated: Checking if user is authenticated");
+
     match authenticator.get_valid_token().await {
-        Ok(_) => Ok(true),
-        Err(_) => Ok(false),
+        Ok(_) => {
+            #[cfg(feature = "e2e-mocks")]
+            eprintln!("[E2E-UI-COMMON] ✅ check_authenticated: User IS authenticated");
+            Ok(true)
+        }
+        Err(_) => {
+            #[cfg(feature = "e2e-mocks")]
+            eprintln!("[E2E-UI-COMMON] ❌ check_authenticated: User NOT authenticated");
+            Ok(false)
+        }
     }
 }
 
@@ -155,10 +166,20 @@ pub async fn list_documents(
     docs_client: &dyn GoogleDocsAccess,
     max_results: u32,
 ) -> Result<Vec<GoogleDocInfo>, String> {
+    #[cfg(feature = "e2e-mocks")]
+    eprintln!("[E2E-UI-COMMON] 📋 list_documents: Listing Google Docs");
+
     let token = authenticator
         .get_valid_token()
         .await
-        .map_err(|e| format!("Not authenticated: {}", e))?;
+        .map_err(|e| {
+            #[cfg(feature = "e2e-mocks")]
+            eprintln!("[E2E-UI-COMMON] ❌ list_documents: Failed to get token: {}", e);
+            format!("Not authenticated: {}", e)
+        })?;
+
+    #[cfg(feature = "e2e-mocks")]
+    eprintln!("[E2E-UI-COMMON] 🔑 list_documents: Got token, calling API");
 
     docs_client
         .list_documents(&token, max_results)

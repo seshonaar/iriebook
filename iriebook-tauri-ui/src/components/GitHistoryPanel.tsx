@@ -111,6 +111,7 @@ export function GitHistoryPanel() {
             {state.commitHistory.map((commit) => (
               <div
                 key={commit.hash}
+                data-testid="revision-item"
                 className="px-2 py-1.5 bg-muted/20 rounded-md border-l-2 border-primary/40 text-sm hover:bg-muted/40 transition-colors relative group cursor-default select-none"
                 onMouseEnter={() => setHoveredCommit(commit.hash)}
                 onMouseLeave={() => setHoveredCommit(null)}

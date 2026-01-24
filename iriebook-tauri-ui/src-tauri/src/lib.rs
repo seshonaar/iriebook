@@ -70,6 +70,7 @@ pub fn run() {
             // Infrastructure: session, dialogs, utilities
             infrastructure::load_session,
             infrastructure::save_session,
+            infrastructure::init_mock_state,
             infrastructure::select_folder,
             infrastructure::select_file,
             infrastructure::open_folder,

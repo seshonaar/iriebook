@@ -140,6 +140,14 @@ impl GoogleAuthenticator {
         Err(IrieBookError::GoogleAuth("No Google Client ID found. Please set GOOGLE_CLIENT_ID env var or embed credentials.".to_string()))
     }
 
+    fn get_oauth_endpoints(&self) -> (String, String) {
+        let auth_url = std::env::var("GOOGLE_OAUTH_AUTH_URL")
+            .unwrap_or_else(|_| "https://accounts.google.com/o/oauth2/v2/auth".to_string());
+        let token_url = std::env::var("GOOGLE_OAUTH_TOKEN_URL")
+            .unwrap_or_else(|_| "https://oauth2.googleapis.com/token".to_string());
+        (auth_url, token_url)
+    }
+
     /// Prepares the authorization flow by binding a local port and generating the URL.
     ///
     /// # Returns
@@ -160,7 +168,8 @@ impl GoogleAuthenticator {
         let redirect_uri = format!("http://127.0.0.1:{}", port);
 
         // Construct Authorization URL
-        let mut url = Url::parse("https://accounts.google.com/o/oauth2/v2/auth")
+        let (auth_url, _) = self.get_oauth_endpoints();
+        let mut url = Url::parse(&auth_url)
             .map_err(|e| IrieBookError::GoogleAuth(format!("Invalid base URL: {}", e)))?;
 
         url.query_pairs_mut()
@@ -197,9 +206,10 @@ impl GoogleAuthenticator {
             params.push(("client_secret", secret.as_str()));
         }
 
+        let (_, token_url) = self.get_oauth_endpoints();
         let response = self
             .client
-            .post("https://oauth2.googleapis.com/token")
+            .post(&token_url)
             .form(&params)
             .send()
             .await
@@ -235,9 +245,10 @@ impl GoogleAuthenticator {
             params.push(("client_secret", secret.as_str()));
         }
 
+        let (_, token_url) = self.get_oauth_endpoints();
         let response = self
             .client
-            .post("https://oauth2.googleapis.com/token")
+            .post(&token_url)
             .form(&params)
             .send()
             .await
@@ -273,7 +284,31 @@ impl GoogleAuthenticator {
     /// Reads from CredentialStore, checks expiry, refreshes if expired, updates CredentialStore,
     /// and returns the valid access token.
     pub async fn get_valid_token(&self) -> Result<String, IrieBookError> {
-        let stored_json = CredentialStore::retrieve_google_token()?;
+        #[cfg(feature = "e2e-mocks")]
+        {
+            use tracing::warn;
+            warn!("🔍 [E2E-AUTH] get_valid_token called");
+        }
+
+        let stored_json = match CredentialStore::retrieve_google_token() {
+            Ok(json) => {
+                #[cfg(feature = "e2e-mocks")]
+                {
+                    use tracing::warn;
+                    warn!("✅ [E2E-AUTH] Found stored credentials, length: {}", json.len());
+                }
+                json
+            }
+            Err(e) => {
+                #[cfg(feature = "e2e-mocks")]
+                {
+                    use tracing::warn;
+                    warn!("❌ [E2E-AUTH] No credentials found: {}", e);
+                }
+                return Err(e);
+            }
+        };
+
         let mut credentials: StoredGoogleCredentials = serde_json::from_str(&stored_json)
             .map_err(|e| IrieBookError::GoogleAuth(format!("Failed to parse stored credentials: {}", e)))?;
 

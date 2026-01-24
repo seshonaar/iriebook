@@ -87,7 +87,7 @@ export function LinkGoogleDocDialog({ book, onClose, onLinked }: LinkGoogleDocDi
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl max-h-[80vh]" data-testid="link-google-doc-dialog">
         <DialogHeader>
           <DialogTitle>{t("google.dialog.title")}</DialogTitle>
           <DialogDescription>
@@ -101,6 +101,7 @@ export function LinkGoogleDocDialog({ book, onClose, onLinked }: LinkGoogleDocDi
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             disabled={loading}
+            data-testid="google-doc-search-input"
           />
 
           {/* Error display */}
@@ -127,6 +128,7 @@ export function LinkGoogleDocDialog({ book, onClose, onLinked }: LinkGoogleDocDi
                   <div
                     key={doc.id}
                     className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
+                    data-testid={`google-doc-item-${doc.id}`}
                   >
                     <div className="flex-1 min-w-0 mr-4">
                       <div className="flex items-center gap-2 mb-1">
@@ -142,6 +144,7 @@ export function LinkGoogleDocDialog({ book, onClose, onLinked }: LinkGoogleDocDi
                       onClick={() => handleLink(doc)}
                       disabled={linking !== null}
                       size="sm"
+                      data-testid={`google-doc-link-button-${doc.id}`}
                     >
                       {linking === doc.id ? (
                         <>

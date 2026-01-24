@@ -120,6 +120,7 @@ export function BookList() {
               id="current-book-mode"
               checked={isCurrentBookMode}
               onCheckedChange={handleToggleCurrentBookMode}
+              data-testid="current-book-mode-toggle"
             />
             <Label htmlFor="current-book-mode" className="cursor-pointer text-sm">
               {isCurrentBookMode

@@ -3,9 +3,8 @@
 //! These tests exercise the repository synchronization flow including
 //! status checking, pulling, committing, and pushing.
 
-use crate::e2e::fixtures::TestWorkspace;
-use crate::e2e::mocks::{GitCall, MockGitAccess};
 use iriebook::managers::repository_manager::GitSyncStatus;
+use iriebook_test_support::{GitCall, MockGitAccess, TestWorkspace};
 use iriebook_ui_common::app_state::AppStateBuilder;
 use std::sync::Arc;
 
@@ -17,7 +16,7 @@ async fn test_sync_status_clean_repository() {
     let mock_git = Arc::new(
         MockGitAccess::new()
             .with_repo_state(true, false) // Is repo, no uncommitted
-            .with_sync_state(0, 0),       // Not ahead, not behind
+            .with_sync_state(0, 0), // Not ahead, not behind
     );
 
     let app_state = AppStateBuilder::new()
@@ -233,9 +232,9 @@ async fn test_save_workspace_workflow() {
 
     // Should have committed with message
     assert!(
-        calls
-            .iter()
-            .any(|c| matches!(c, GitCall::Commit { message, .. } if message.contains("Updated my-book"))),
+        calls.iter().any(
+            |c| matches!(c, GitCall::Commit { message, .. } if message.contains("Updated my-book"))
+        ),
         "Should commit with correct message"
     );
 

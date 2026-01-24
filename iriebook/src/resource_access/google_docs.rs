@@ -34,19 +34,25 @@ impl GoogleDocsClient {
             client: reqwest::Client::new(),
         }
     }
+
+    fn get_api_base_url(&self) -> String {
+        std::env::var("GOOGLE_DOCS_API_URL")
+            .unwrap_or_else(|_| "https://www.googleapis.com/drive/v3".to_string())
+    }
 }
 
 #[async_trait::async_trait]
 impl GoogleDocsAccess for GoogleDocsClient {
     async fn list_documents(&self, token: &str, max_results: u32) -> Result<Vec<GoogleDocInfo>, IrieBookError> {
         // Use Drive API to list Google Docs files
+        let base_url = self.get_api_base_url();
         let url = format!(
-            "https://www.googleapis.com/drive/v3/files?\
+            "{}/files?\
              q=mimeType='application/vnd.google-apps.document'&\
              fields=files(id,name,modifiedTime)&\
              pageSize={}&\
              orderBy=modifiedTime desc",
-            max_results
+            base_url, max_results
         );
 
         let response = self
@@ -81,9 +87,10 @@ impl GoogleDocsAccess for GoogleDocsClient {
 
     async fn export_as_markdown(&self, doc_id: &str, token: &str) -> Result<String, IrieBookError> {
         // Use Drive API export endpoint with markdown mime type
+        let base_url = self.get_api_base_url();
         let url = format!(
-            "https://www.googleapis.com/drive/v3/files/{}/export?mimeType=text/markdown",
-            doc_id
+            "{}/files/{}/export?mimeType=text/markdown",
+            base_url, doc_id
         );
 
         let response = self

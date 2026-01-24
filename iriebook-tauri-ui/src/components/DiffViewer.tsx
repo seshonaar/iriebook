@@ -134,7 +134,7 @@ export function DiffViewer({ tab }: DiffViewerProps) {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0" data-testid="diff-view">
       {/* Header with file info and stats */}
       <div className="px-4 py-3 border-b border-border bg-muted/30 flex-none">
         <div className="flex items-center justify-between">
@@ -175,11 +175,11 @@ export function DiffViewer({ tab }: DiffViewerProps) {
               {section.rows.map((row, rowIdx) => (
                 <div key={rowIdx} className="grid grid-cols-2 divide-x divide-border">
                   {/* Left Cell */}
-                  <div className="px-4 py-1 font-mono text-sm whitespace-pre-wrap overflow-hidden min-h-[1.5em]">
+                  <div className="px-4 py-1 font-mono text-sm whitespace-pre-wrap overflow-hidden min-h-[1.5em]" data-testid="diff-left">
                     {renderSegments(row.left)}
                   </div>
                   {/* Right Cell */}
-                  <div className="px-4 py-1 font-mono text-sm whitespace-pre-wrap overflow-hidden min-h-[1.5em]">
+                  <div className="px-4 py-1 font-mono text-sm whitespace-pre-wrap overflow-hidden min-h-[1.5em]" data-testid="diff-right">
                     {renderSegments(row.right)}
                   </div>
                 </div>

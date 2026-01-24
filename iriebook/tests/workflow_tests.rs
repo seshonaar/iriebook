@@ -1,18 +1,17 @@
-//! End-to-End Tests for IrieBook
+//! Workflow Integration Tests for IrieBook
 //!
-//! This is the main entry point for E2E integration tests.
+//! Headless workflow coverage across managers using mocked externals (no UI/Tauri).
 
-#[path = "e2e/mod.rs"]
-mod e2e;
+#[path = "workflows/mod.rs"]
+pub mod workflows;
 
 // Re-export for convenience
-pub use e2e::*;
+pub use workflows::*;
 
 // Basic sanity tests to verify the test infrastructure works
 #[cfg(test)]
 mod infrastructure_tests {
-    use super::e2e::fixtures::TestWorkspace;
-    use super::e2e::mocks::{MockGitAccess, MockGoogleDocsAccess, MockPandocAccess};
+    use super::workflows::{MockGitAccess, MockGoogleDocsAccess, MockPandocAccess, TestWorkspace};
 
     #[test]
     fn test_fixtures_work() {
@@ -37,8 +36,8 @@ mod infrastructure_tests {
 
     #[test]
     fn test_mock_google_docs_works() {
-        let mock = MockGoogleDocsAccess::new()
-            .with_document("doc1", "My Novel", "# Chapter 1\n\nContent");
+        let mock =
+            MockGoogleDocsAccess::new().with_document("doc1", "My Novel", "# Chapter 1\n\nContent");
 
         assert_eq!(mock.documents.len(), 1);
         assert!(mock.document_content.contains_key("doc1"));

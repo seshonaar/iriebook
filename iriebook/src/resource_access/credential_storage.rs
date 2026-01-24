@@ -4,10 +4,18 @@
 //! - Linux: Secret Service (GNOME Keyring, KDE Wallet)
 //! - macOS: Keychain
 //! - Windows: Credential Manager
+//!
+//! For e2e tests (with e2e-mocks feature), uses in-memory storage instead
 
 use crate::utilities::error::IrieBookError;
+
+#[cfg(not(feature = "e2e-mocks"))]
 use keyring::Entry;
-use tracing::{debug, warn};
+
+#[cfg(feature = "e2e-mocks")]
+use std::sync::Mutex;
+#[cfg(feature = "e2e-mocks")]
+use std::collections::HashMap;
 
 const GITHUB_SERVICE_NAME: &str = "iriebook-github";
 const GITHUB_USERNAME: &str = "oauth-token";
@@ -15,65 +23,127 @@ const GITHUB_USERNAME: &str = "oauth-token";
 const GOOGLE_SERVICE_NAME: &str = "iriebook-google";
 const GOOGLE_USERNAME: &str = "oauth-token";
 
-/// Credential storage using OS keyring
+#[cfg(feature = "e2e-mocks")]
+static MOCK_STORAGE: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+
+#[cfg(feature = "e2e-mocks")]
+fn get_mock_key(service: &str, username: &str) -> String {
+    format!("{}:{}", service, username)
+}
+
+/// Credential storage using OS keyring (or in-memory for e2e tests)
 pub struct CredentialStore;
 
 impl CredentialStore {
-    /// Generic method to store a token in OS keyring
+    /// Generic method to store a token in OS keyring (or mock storage for e2e tests)
     fn store(service: &str, username: &str, token: &str) -> Result<(), IrieBookError> {
-        debug!(service = %service, username = %username, "Attempting to store token");
-        let entry = Entry::new(service, username)
-            .map_err(|e| {
-                warn!(service = %service, error = %e, "Failed to create keyring entry");
-                IrieBookError::CredentialStorage(format!("Failed to create keyring entry: {}", e))
-            })?;
+        #[cfg(feature = "e2e-mocks")]
+        {
+            use std::io::Write;
+            let log_msg = format!("[E2E-MOCK-STORAGE] 💾 STORE {}:{} = {}\n", service, username, token);
+            let _ = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("/tmp/e2e-mock-storage.log")
+                .and_then(|mut f| f.write_all(log_msg.as_bytes()));
 
-        match entry.set_password(token) {
-            Ok(_) => {
-                debug!(service = %service, "Token stored successfully");
-                Ok(())
+            let mut storage = MOCK_STORAGE.lock().unwrap();
+            if storage.is_none() {
+                *storage = Some(HashMap::new());
+                let init_msg = "[E2E-MOCK-STORAGE] 🔧 Init empty storage\n";
+                let _ = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/e2e-mock-storage.log")
+                    .and_then(|mut f| f.write_all(init_msg.as_bytes()));
             }
-            Err(e) => {
-                warn!(service = %service, error = %e, "Failed to set password");
-                Err(IrieBookError::CredentialStorage(format!("Failed to store token: {}", e)))
+            storage.as_mut().unwrap().insert(get_mock_key(service, username), token.to_string());
+            Ok(())
+        }
+
+        #[cfg(not(feature = "e2e-mocks"))]
+        {
+            let entry = Entry::new(service, username)
+                .map_err(|e| {
+                    IrieBookError::CredentialStorage(format!("Failed to create keyring entry: {}", e))
+                })?;
+
+            match entry.set_password(token) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    Err(IrieBookError::CredentialStorage(format!("Failed to store token: {}", e)))
+                }
             }
         }
     }
 
-    /// Generic method to retrieve a token from OS keyring
+    /// Generic method to retrieve a token from OS keyring (or mock storage for e2e tests)
     fn retrieve(service: &str, username: &str) -> Result<String, IrieBookError> {
-        debug!(service = %service, username = %username, "Attempting to retrieve token");
-        let entry = Entry::new(service, username)
-            .map_err(|e| {
-                warn!(service = %service, error = %e, "Failed to create keyring entry");
-                IrieBookError::CredentialStorage(format!("Failed to create keyring entry: {}", e))
-            })?;
-
-        match entry.get_password() {
-            Ok(token) => {
-                debug!(service = %service, "Token retrieved successfully");
-                Ok(token)
+        #[cfg(feature = "e2e-mocks")]
+        {
+            use std::io::Write;
+            let storage = MOCK_STORAGE.lock().unwrap();
+            if let Some(map) = storage.as_ref()
+                && let Some(token) = map.get(&get_mock_key(service, username))
+            {
+                let log_msg = format!("[E2E-MOCK-STORAGE] 🔍 RETRIEVE {}:{} = {}\n", service, username, token);
+                let _ = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/e2e-mock-storage.log")
+                    .and_then(|mut f| f.write_all(log_msg.as_bytes()));
+                return Ok(token.clone());
             }
-            Err(e) => {
-                debug!(service = %service, error = %e, "Failed to retrieve token");
-                Err(IrieBookError::CredentialStorage(format!("Failed to retrieve token: {}", e)))
+            let log_msg = format!("[E2E-MOCK-STORAGE] ❌ NOT FOUND {}:{}\n", service, username);
+            let _ = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("/tmp/e2e-mock-storage.log")
+                .and_then(|mut f| f.write_all(log_msg.as_bytes()));
+            Err(IrieBookError::CredentialStorage("Token not found".to_string()))
+        }
+
+        #[cfg(not(feature = "e2e-mocks"))]
+        {
+            let entry = Entry::new(service, username)
+                .map_err(|e| {
+                    IrieBookError::CredentialStorage(format!("Failed to create keyring entry: {}", e))
+                })?;
+
+            match entry.get_password() {
+                Ok(token) => Ok(token),
+                Err(e) => {
+                    Err(IrieBookError::CredentialStorage(format!("Failed to retrieve token: {}", e)))
+                }
             }
         }
     }
 
-    /// Generic method to delete a token from OS keyring
+    /// Generic method to delete a token from OS keyring (or mock storage for e2e tests)
     fn delete(service: &str, username: &str) -> Result<(), IrieBookError> {
-        let entry = Entry::new(service, username)
-            .map_err(|e| IrieBookError::CredentialStorage(format!("Failed to create keyring entry: {}", e)))?;
+        #[cfg(feature = "e2e-mocks")]
+        {
+            let mut storage = MOCK_STORAGE.lock().unwrap();
+            if let Some(map) = storage.as_mut() {
+                map.remove(&get_mock_key(service, username));
+            }
+            Ok(())
+        }
 
-        entry
-            .delete_credential()
-            .map_err(|e| IrieBookError::CredentialStorage(format!("Failed to delete token: {}", e)))?;
+        #[cfg(not(feature = "e2e-mocks"))]
+        {
+            let entry = Entry::new(service, username)
+                .map_err(|e| IrieBookError::CredentialStorage(format!("Failed to create keyring entry: {}", e)))?;
 
-        Ok(())
+            entry
+                .delete_credential()
+                .map_err(|e| IrieBookError::CredentialStorage(format!("Failed to delete token: {}", e)))?;
+
+            Ok(())
+        }
     }
 
-    /// Generic method to check if a token exists in OS keyring
+    /// Generic method to check if a token exists in OS keyring (or mock storage for e2e tests)
     fn has(service: &str, username: &str) -> bool {
         Self::retrieve(service, username).is_ok()
     }

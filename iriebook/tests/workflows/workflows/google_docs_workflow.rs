@@ -2,8 +2,7 @@
 //!
 //! These tests exercise the Google Docs linking, syncing, and unlinking flows.
 
-use crate::e2e::fixtures::TestWorkspace;
-use crate::e2e::mocks::{GoogleDocsCall, MockGoogleDocsAccess};
+use iriebook_test_support::{GoogleDocsCall, MockGoogleDocsAccess, TestWorkspace};
 use iriebook_ui_common::app_state::AppStateBuilder;
 use std::sync::Arc;
 
@@ -29,10 +28,7 @@ async fn test_list_google_docs() {
     let docs_client = app_state.google_docs_client();
 
     // List documents
-    let docs = docs_client
-        .list_documents("fake-token", 10)
-        .await
-        .unwrap();
+    let docs = docs_client.list_documents("fake-token", 10).await.unwrap();
 
     assert_eq!(docs.len(), 3);
     assert_eq!(docs[0].name, "Novel Draft 1");
@@ -59,9 +55,11 @@ She opened her eyes to darkness...
 The moonlight cast long shadows...
 "#;
 
-    let mock_docs = Arc::new(
-        MockGoogleDocsAccess::new().with_document("vampire-doc-id", "My Vampire Novel", expected_content),
-    );
+    let mock_docs = Arc::new(MockGoogleDocsAccess::new().with_document(
+        "vampire-doc-id",
+        "My Vampire Novel",
+        expected_content,
+    ));
 
     let app_state = AppStateBuilder::new()
         .workspace_path(workspace.workspace_path.clone())
@@ -102,9 +100,11 @@ async fn test_link_and_sync_google_doc() {
 New content from Google Docs!
 "#;
 
-    let mock_docs = Arc::new(
-        MockGoogleDocsAccess::new().with_document("linked-doc-id", "My Novel", updated_content),
-    );
+    let mock_docs = Arc::new(MockGoogleDocsAccess::new().with_document(
+        "linked-doc-id",
+        "My Novel",
+        updated_content,
+    ));
 
     let app_state = AppStateBuilder::new()
         .workspace_path(workspace_path)
@@ -250,10 +250,8 @@ async fn test_google_doc_not_found() {
     let workspace = TestWorkspace::new().unwrap();
 
     // Create mock with some documents, but not the one we'll request
-    let mock_docs = Arc::new(
-        MockGoogleDocsAccess::new()
-            .with_document("doc1", "Some Doc", "content"),
-    );
+    let mock_docs =
+        Arc::new(MockGoogleDocsAccess::new().with_document("doc1", "Some Doc", "content"));
 
     let app_state = AppStateBuilder::new()
         .workspace_path(workspace.workspace_path.clone())
@@ -306,14 +304,29 @@ async fn test_multiple_books_linked() {
     let book_two = workspace.get_book("book-two").unwrap();
     let book_three = workspace.get_book("book-three").unwrap();
 
-    docs_manager.link_document(&book_one.md_path, "doc-one".to_string()).unwrap();
-    docs_manager.link_document(&book_two.md_path, "doc-two".to_string()).unwrap();
-    docs_manager.link_document(&book_three.md_path, "doc-three".to_string()).unwrap();
+    docs_manager
+        .link_document(&book_one.md_path, "doc-one".to_string())
+        .unwrap();
+    docs_manager
+        .link_document(&book_two.md_path, "doc-two".to_string())
+        .unwrap();
+    docs_manager
+        .link_document(&book_three.md_path, "doc-three".to_string())
+        .unwrap();
 
     // Sync all three
-    docs_manager.sync_document(&book_one.md_path, "token").await.unwrap();
-    docs_manager.sync_document(&book_two.md_path, "token").await.unwrap();
-    docs_manager.sync_document(&book_three.md_path, "token").await.unwrap();
+    docs_manager
+        .sync_document(&book_one.md_path, "token")
+        .await
+        .unwrap();
+    docs_manager
+        .sync_document(&book_two.md_path, "token")
+        .await
+        .unwrap();
+    docs_manager
+        .sync_document(&book_three.md_path, "token")
+        .await
+        .unwrap();
 
     // Verify all three docs were exported
     let calls = mock_docs.get_calls();

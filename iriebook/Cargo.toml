@@ -39,6 +39,10 @@ async-trait = "0.1"
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
+[features]
+# E2E testing mocks (in-memory credential storage, etc.)
+e2e-mocks = []
+
 [dev-dependencies]
 proptest = "1.6"
 tempfile = "3.14"
@@ -46,4 +50,4 @@ assert_cmd = "2.0"
 predicates = "3.1"
 serial_test = "3.2"
 iriebook-ui-common = { path = "../iriebook-ui-common" }
-
+iriebook-test-support = { path = "../iriebook-test-support" }

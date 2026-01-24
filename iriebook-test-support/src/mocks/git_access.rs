@@ -12,21 +12,56 @@ use std::sync::Mutex;
 /// Records of git operations for test verification
 #[derive(Debug, Clone, PartialEq)]
 pub enum GitCall {
-    Clone { url: String, path: PathBuf },
-    GetRemoteUrl { path: PathBuf },
-    IsRepository { path: PathBuf },
-    AddAll { path: PathBuf },
-    Commit { path: PathBuf, message: String },
-    PullRebaseOurs { path: PathBuf },
-    Push { path: PathBuf },
-    GetLog { path: PathBuf, limit: usize },
-    GetStatus { path: PathBuf },
-    HasUncommittedChanges { path: PathBuf },
-    GetChangedFiles { path: PathBuf, commit_hash: String },
-    DiscardLocalChanges { path: PathBuf },
-    PrepareForRebase { path: PathBuf },
-    GetFolderStatus { repo_path: PathBuf, folder_path: PathBuf },
-    GetAllChangedFiles { path: PathBuf },
+    Clone {
+        url: String,
+        path: PathBuf,
+    },
+    GetRemoteUrl {
+        path: PathBuf,
+    },
+    IsRepository {
+        path: PathBuf,
+    },
+    AddAll {
+        path: PathBuf,
+    },
+    Commit {
+        path: PathBuf,
+        message: String,
+    },
+    PullRebaseOurs {
+        path: PathBuf,
+    },
+    Push {
+        path: PathBuf,
+    },
+    GetLog {
+        path: PathBuf,
+        limit: usize,
+    },
+    GetStatus {
+        path: PathBuf,
+    },
+    HasUncommittedChanges {
+        path: PathBuf,
+    },
+    GetChangedFiles {
+        path: PathBuf,
+        commit_hash: String,
+    },
+    DiscardLocalChanges {
+        path: PathBuf,
+    },
+    PrepareForRebase {
+        path: PathBuf,
+    },
+    GetFolderStatus {
+        repo_path: PathBuf,
+        folder_path: PathBuf,
+    },
+    GetAllChangedFiles {
+        path: PathBuf,
+    },
 }
 
 /// Mock GitAccess implementation with configurable behavior

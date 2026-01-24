@@ -1,12 +1,12 @@
 //! Mock implementations for E2E testing
 //!
 //! This module provides configurable mock implementations of all resource access traits,
-//! enabling comprehensive E2E testing without external dependencies.
+//! enabling workflow integration testing without external dependencies.
 //!
 //! ## Usage
 //!
 //! ```ignore
-//! use crate::e2e::mocks::{MockGitAccess, MockGoogleDocsAccess, MockPandocAccess};
+//! use iriebook_test_support::{MockGitAccess, MockGoogleDocsAccess, MockPandocAccess};
 //!
 //! let mock_git = Arc::new(MockGitAccess::new()
 //!     .with_repo_state(true, false)

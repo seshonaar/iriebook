@@ -2,9 +2,8 @@
 //!
 //! These tests exercise the diff computation and revision history flows.
 
-use crate::e2e::fixtures::TestWorkspace;
-use crate::e2e::mocks::MockGitAccess;
 use iriebook::utilities::types::GitCommit;
+use iriebook_test_support::{MockGitAccess, TestWorkspace};
 use iriebook_ui_common::app_state::AppStateBuilder;
 use std::sync::Arc;
 
@@ -139,7 +138,7 @@ async fn test_clean_workspace_no_changes() {
     let mock_git = Arc::new(
         MockGitAccess::new()
             .with_repo_state(true, false) // No uncommitted changes
-            .with_changed_files(vec![]),  // No changed files
+            .with_changed_files(vec![]), // No changed files
     );
 
     let app_state = AppStateBuilder::new()

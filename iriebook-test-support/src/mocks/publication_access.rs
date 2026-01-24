@@ -68,7 +68,10 @@ impl PandocAccess for MockPandocAccess {
         });
 
         if self.should_fail {
-            return Err(IrieBookError::Validation(format!("Pandoc: {}", self.error_message)));
+            return Err(IrieBookError::Validation(format!(
+                "Pandoc: {}",
+                self.error_message
+            )));
         }
 
         // Simulate writing EPUB file
@@ -85,9 +88,18 @@ impl PandocAccess for MockPandocAccess {
 /// Records of Calibre operations
 #[derive(Debug, Clone, PartialEq)]
 pub enum CalibreCall {
-    ConvertToKindle { input_md: String, input_epub: String },
-    StampMetadata { file_path: String, series: String, index: u32 },
-    ViewEbook { epub_path: String },
+    ConvertToKindle {
+        input_md: String,
+        input_epub: String,
+    },
+    StampMetadata {
+        file_path: String,
+        series: String,
+        index: u32,
+    },
+    ViewEbook {
+        epub_path: String,
+    },
 }
 
 /// Mock CalibreAccess implementation
@@ -129,13 +141,19 @@ impl CalibreAccess for MockCalibreAccess {
         input_md: &Path,
         input_epub: &Path,
     ) -> Result<String, IrieBookError> {
-        self.calls.lock().unwrap().push(CalibreCall::ConvertToKindle {
-            input_md: input_md.to_string_lossy().to_string(),
-            input_epub: input_epub.to_string_lossy().to_string(),
-        });
+        self.calls
+            .lock()
+            .unwrap()
+            .push(CalibreCall::ConvertToKindle {
+                input_md: input_md.to_string_lossy().to_string(),
+                input_epub: input_epub.to_string_lossy().to_string(),
+            });
 
         if self.should_fail {
-            return Err(IrieBookError::Validation(format!("Calibre: {}", self.error_message)));
+            return Err(IrieBookError::Validation(format!(
+                "Calibre: {}",
+                self.error_message
+            )));
         }
 
         // Simulate writing AZW3 file
@@ -162,7 +180,10 @@ impl CalibreAccess for MockCalibreAccess {
         });
 
         if self.should_fail {
-            return Err(IrieBookError::Validation(format!("Calibre: {}", self.error_message)));
+            return Err(IrieBookError::Validation(format!(
+                "Calibre: {}",
+                self.error_message
+            )));
         }
 
         Ok("Metadata stamped".to_string())
@@ -174,7 +195,10 @@ impl CalibreAccess for MockCalibreAccess {
         });
 
         if self.should_fail {
-            return Err(IrieBookError::Validation(format!("Calibre: {}", self.error_message)));
+            return Err(IrieBookError::Validation(format!(
+                "Calibre: {}",
+                self.error_message
+            )));
         }
 
         Ok("Viewer launched".to_string())
@@ -227,7 +251,10 @@ impl ArchiveAccess for MockArchiveAccess {
         });
 
         if self.should_fail {
-            return Err(IrieBookError::Validation(format!("Archive: {}", self.error_message)));
+            return Err(IrieBookError::Validation(format!(
+                "Archive: {}",
+                self.error_message
+            )));
         }
 
         // Simulate creating ZIP archive

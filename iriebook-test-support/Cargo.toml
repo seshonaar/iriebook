@@ -1,0 +1,18 @@
+[package]
+name = "iriebook-test-support"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[features]
+default = []
+e2e-mocks = []
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = "0.1"
+tempfile = "3"
+iriebook = { path = "../iriebook" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }

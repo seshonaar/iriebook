@@ -1,15 +1,16 @@
 //! End-to-End Test Infrastructure for IrieBook
 //!
-//! This module provides comprehensive E2E testing capabilities that bridge
-//! the core `iriebook` library and UI layers. All external dependencies
-//! (Git, Google Docs, Pandoc, Calibre) are mocked for reliable testing.
+//! Headless workflow integration tests bridging the core `iriebook` library and
+//! ui-common layer. All external dependencies (Git, Google Docs, Pandoc, Calibre)
+//! are mocked for reliable testing. Fixtures and mocks now live in the shared
+//! `iriebook-test-support` crate for reuse across Rust and UI E2E tests.
 //!
 //! ## Architecture
 //!
 //! ```text
 //! ┌─────────────────────────────────────────────────────────────┐
-//! │                        E2E Tests                             │
-//! │  (tests/e2e/workflows/*.rs)                                 │
+//! │                Workflow Integration Tests                   │
+//! │  (tests/workflows/workflows/*.rs)                           │
 //! └─────────────────────────────────────────────────────────────┘
 //!                              │
 //!                              ▼
@@ -30,18 +31,17 @@
 //!                              │
 //!                              ▼
 //! ┌─────────────────────────────────────────────────────────────┐
-//! │                   Mock Implementations                      │
-//! │  (tests/e2e/mocks/*.rs)                                    │
-//! │  - MockGitAccess                                           │
-//! │  - MockGoogleDocsAccess                                    │
-//! │  - MockPandocAccess, MockCalibreAccess, MockArchiveAccess  │
+//! │            Mock Implementations (shared crate)             │
+//! │  (iriebook-test-support/src/mocks/*.rs)                    │
+//! │  - MockGitAccess, MockGoogleDocsAccess, MockPandocAccess   │
+//! │  - MockCalibreAccess, MockArchiveAccess                    │
 //! └─────────────────────────────────────────────────────────────┘
 //! ```
 //!
 //! ## Usage Example
 //!
 //! ```ignore
-//! use crate::e2e::{fixtures::TestWorkspace, mocks::*};
+//! use iriebook_test_support::{TestWorkspace, MockGitAccess, MockGoogleDocsAccess};
 //! use iriebook_ui_common::app_state::AppStateBuilder;
 //! use std::sync::Arc;
 //!
@@ -76,13 +76,10 @@
 //! }
 //! ```
 
-pub mod fixtures;
-pub mod mocks;
 pub mod workflows;
 
-// Re-export commonly used items
-pub use fixtures::{TestBook, TestWorkspace};
-pub use mocks::{
-    GitCall, GoogleDocsCall, MockArchiveAccess, MockCalibreAccess, MockGitAccess,
-    MockGoogleDocsAccess, MockPandocAccess,
+// Re-export commonly used items from shared test-support crate
+pub use iriebook_test_support::{
+    ArchiveCall, CalibreCall, GitCall, GoogleDocsCall, MockArchiveAccess, MockCalibreAccess,
+    MockGitAccess, MockGoogleDocsAccess, MockPandocAccess, PandocCall, TestBook, TestWorkspace,
 };

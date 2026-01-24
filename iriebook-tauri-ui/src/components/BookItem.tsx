@@ -120,6 +120,8 @@ export function BookItem({
     <li
       className={`flex items-center gap-3 p-3 rounded-md transition-colors group ${isViewed ? "bg-accent" : "hover:bg-accent/50"
         }`}
+      data-testid="book-item"
+      data-book-path={book.path}
     >
       {!hideCheckbox && (
         <Checkbox

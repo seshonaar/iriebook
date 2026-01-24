@@ -74,6 +74,12 @@ pub async fn google_auth_start(
     state: State<'_, GoogleAuthState>,
     app_state_holder: State<'_, AppStateHolder>,
 ) -> Result<(), String> {
+    #[cfg(feature = "e2e-mocks")]
+    {
+        use tracing::warn;
+        warn!("🚀 [E2E-TAURI] google_auth_start command called");
+    }
+
     // Cancel any existing flow
     let mut lock = state.0.lock().await;
     if let Some(sender) = lock.take() {
@@ -99,6 +105,15 @@ pub async fn google_auth_start(
     let mut lock = state.0.lock().await;
     *lock = None;
 
+    #[cfg(feature = "e2e-mocks")]
+    {
+        use tracing::warn;
+        match &result {
+            Ok(_) => warn!("🚀 [E2E-TAURI] google_auth_start completed successfully"),
+            Err(e) => warn!("🚀 [E2E-TAURI] google_auth_start error: {}", e),
+        }
+    }
+
     result
 }
 
@@ -117,11 +132,25 @@ pub async fn google_auth_cancel(state: State<'_, GoogleAuthState>) -> Result<(),
 pub async fn google_check_auth(
     app_state_holder: State<'_, AppStateHolder>,
 ) -> Result<bool, String> {
+    #[cfg(feature = "e2e-mocks")]
+    {
+        use tracing::warn;
+        warn!("🔑 [E2E-TAURI] google_check_auth command called");
+    }
+
     let app_state = app_state_holder
         .get()
         .ok_or_else(|| "App state not initialized".to_string())?;
 
-    iriebook_ui_common::check_authenticated(&app_state.google_authenticator()).await
+    let result = iriebook_ui_common::check_authenticated(&app_state.google_authenticator()).await;
+
+    #[cfg(feature = "e2e-mocks")]
+    {
+        use tracing::warn;
+        warn!("🔑 [E2E-TAURI] google_check_auth returning: {:?}", result);
+    }
+
+    result
 }
 
 #[tauri::command]
@@ -137,13 +166,30 @@ pub async fn google_logout() -> Result<(), String> {
 pub async fn google_list_docs(
     app_state_holder: State<'_, AppStateHolder>,
 ) -> Result<Vec<GoogleDocInfo>, String> {
+    #[cfg(feature = "e2e-mocks")]
+    {
+        use tracing::warn;
+        warn!("📋 [E2E-TAURI] google_list_docs command called");
+    }
+
     let app_state = app_state_holder
         .get()
         .ok_or_else(|| "App state not initialized".to_string())?;
 
     let docs_client = app_state.google_docs_client();
-    iriebook_ui_common::list_documents(&app_state.google_authenticator(), &*docs_client, 50)
-    .await
+    let result = iriebook_ui_common::list_documents(&app_state.google_authenticator(), &*docs_client, 50)
+        .await;
+
+    #[cfg(feature = "e2e-mocks")]
+    {
+        use tracing::warn;
+        match &result {
+            Ok(docs) => warn!("📋 [E2E-TAURI] google_list_docs returned {} docs", docs.len()),
+            Err(e) => warn!("📋 [E2E-TAURI] google_list_docs error: {}", e),
+        }
+    }
+
+    result
 }
 
 #[tauri::command]

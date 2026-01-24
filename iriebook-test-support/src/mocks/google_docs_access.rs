@@ -143,8 +143,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_mock_google_docs_list_documents() {
-        let mock = MockGoogleDocsAccess::new()
-            .with_document("doc1", "My Novel", "# Chapter 1\n\nContent here");
+        let mock = MockGoogleDocsAccess::new().with_document(
+            "doc1",
+            "My Novel",
+            "# Chapter 1\n\nContent here",
+        );
 
         let docs = mock.list_documents("fake-token", 10).await.unwrap();
         assert_eq!(docs.len(), 1);
@@ -154,8 +157,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_mock_google_docs_export_markdown() {
-        let mock = MockGoogleDocsAccess::new()
-            .with_document("doc1", "My Novel", "# Chapter 1\n\nContent here");
+        let mock = MockGoogleDocsAccess::new().with_document(
+            "doc1",
+            "My Novel",
+            "# Chapter 1\n\nContent here",
+        );
 
         let content = mock.export_as_markdown("doc1", "fake-token").await.unwrap();
         assert!(content.contains("Chapter 1"));
@@ -179,8 +185,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mock_google_docs_records_calls() {
-        let mock = MockGoogleDocsAccess::new()
-            .with_document("doc1", "Test", "Content");
+        let mock = MockGoogleDocsAccess::new().with_document("doc1", "Test", "Content");
 
         let _ = mock.list_documents("token", 50).await;
         let _ = mock.export_as_markdown("doc1", "token").await;

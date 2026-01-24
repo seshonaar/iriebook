@@ -3,10 +3,9 @@
 //! These tests exercise the full flow from workspace setup to EPUB generation,
 //! using mocked external dependencies.
 
-use crate::e2e::fixtures::TestWorkspace;
-use crate::e2e::mocks::{
+use iriebook_test_support::{
     GitCall, MockArchiveAccess, MockCalibreAccess, MockGitAccess, MockGoogleDocsAccess,
-    MockPandocAccess,
+    MockPandocAccess, TestWorkspace,
 };
 use iriebook_ui_common::app_state::AppStateBuilder;
 use std::sync::Arc;
@@ -34,13 +33,11 @@ async fn test_complete_publication_workflow() {
             .with_sync_state(0, 0), // Clean state
     );
 
-    let mock_docs = Arc::new(
-        MockGoogleDocsAccess::new().with_document(
-            "doc-vampire-123",
-            "Vampire Romance",
-            "# Vampire Romance\n\n## Chapter 1\n\nThe night was dark...",
-        ),
-    );
+    let mock_docs = Arc::new(MockGoogleDocsAccess::new().with_document(
+        "doc-vampire-123",
+        "Vampire Romance",
+        "# Vampire Romance\n\n## Chapter 1\n\nThe night was dark...",
+    ));
 
     let mock_pandoc = Arc::new(MockPandocAccess::new());
     let mock_calibre = Arc::new(MockCalibreAccess::new());
@@ -88,17 +85,11 @@ async fn test_complete_publication_workflow() {
 
     // Verify Calibre was called to create Kindle version
     let calibre_calls = mock_calibre.get_calls();
-    assert!(
-        !calibre_calls.is_empty(),
-        "Calibre should have been called"
-    );
+    assert!(!calibre_calls.is_empty(), "Calibre should have been called");
 
     // Verify Archive was called to create ZIP
     let archive_calls = mock_archive.get_calls();
-    assert!(
-        !archive_calls.is_empty(),
-        "Archive should have been called"
-    );
+    assert!(!archive_calls.is_empty(), "Archive should have been called");
 }
 
 /// Test: Publication workflow handles validation errors gracefully
@@ -141,7 +132,8 @@ The end.
         "Validation must fail for unbalanced quotes"
     );
     assert!(
-        result.validation_error
+        result
+            .validation_error
             .as_ref()
             .map(|msg| msg.contains("Unbalanced quotes"))
             .unwrap_or(false),
@@ -222,9 +214,18 @@ async fn test_publication_generates_all_formats() {
     assert!(result.is_ok());
 
     // All tools should have been called
-    assert!(!mock_pandoc.get_calls().is_empty(), "Pandoc should be called");
-    assert!(!mock_calibre.get_calls().is_empty(), "Calibre should be called");
-    assert!(!mock_archive.get_calls().is_empty(), "Archive should be called");
+    assert!(
+        !mock_pandoc.get_calls().is_empty(),
+        "Pandoc should be called"
+    );
+    assert!(
+        !mock_calibre.get_calls().is_empty(),
+        "Calibre should be called"
+    );
+    assert!(
+        !mock_archive.get_calls().is_empty(),
+        "Archive should be called"
+    );
 }
 
 #[cfg(test)]

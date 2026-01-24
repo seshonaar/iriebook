@@ -135,15 +135,15 @@ pub fn load_cover_data(path: &Path) -> Result<(Vec<u8>, u32, u32)> {
     };
 
     // 3. Try to load from cache if valid
-    if !should_regenerate {
-        if let Some(thumb_dir) = &thumbnail_path {
-            let thumbnail_path = thumb_dir.join("thumbnail.jpg");
-            if let Ok(img) = ImageReader::open(&thumbnail_path)?.decode() {
-                let rgba = img.to_rgba8();
-                let (width, height) = rgba.dimensions();
-                let pixels = rgba.into_raw();
-                return Ok((pixels, width, height));
-            }
+    if !should_regenerate
+        && let Some(thumb_dir) = &thumbnail_path
+    {
+        let thumbnail_path = thumb_dir.join("thumbnail.jpg");
+        if let Ok(img) = ImageReader::open(&thumbnail_path)?.decode() {
+            let rgba = img.to_rgba8();
+            let (width, height) = rgba.dimensions();
+            let pixels = rgba.into_raw();
+            return Ok((pixels, width, height));
         }
     }
 
