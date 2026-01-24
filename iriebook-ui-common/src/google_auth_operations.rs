@@ -8,7 +8,6 @@
 
 use iriebook::resource_access::CredentialStore;
 use iriebook::resource_access::google_auth::GoogleAuthenticator;
-use iriebook::resource_access::google_docs::GoogleDocsClient;
 use iriebook::resource_access::traits::{GoogleDocInfo, GoogleDocsAccess};
 use tokio::sync::oneshot;
 
@@ -153,7 +152,7 @@ pub async fn check_authenticated(authenticator: &GoogleAuthenticator) -> Result<
 /// ```
 pub async fn list_documents(
     authenticator: &GoogleAuthenticator,
-    docs_client: &GoogleDocsClient,
+    docs_client: &dyn GoogleDocsAccess,
     max_results: u32,
 ) -> Result<Vec<GoogleDocInfo>, String> {
     let token = authenticator

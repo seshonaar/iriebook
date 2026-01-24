@@ -47,11 +47,11 @@ impl GoogleDocsSyncManager {
         let sync_info_option = file::load_google_docs_sync_info(book_path)
             .map_err(|e| IrieBookError::GoogleDocsApi(format!("Failed to load sync info: {}", e)))
             ?;
-            
-        // Then convert Option to Result and unwrap
-        let mut sync_info = sync_info_option
-            .ok_or_else(|| IrieBookError::GoogleDocsApi("Book not linked to Google Doc".to_string()))
-            ?;
+
+        // If not linked, return NotLinked status
+        let Some(mut sync_info) = sync_info_option else {
+            return Ok(SyncResult::NotLinked);
+        };
 
         let doc_id = &sync_info.google_doc_id;
 

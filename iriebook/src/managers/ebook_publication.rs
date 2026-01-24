@@ -131,11 +131,10 @@ impl EbookPublicationManager {
         let content = file::read_file(input_path)?;
         let bytes_read = content.len();
 
-        let validation_result = self.validator.validate(&content);
-        let (validation_passed, validation_error) = match validation_result {
-            Ok(()) => (true, None),
-            Err(e) => (false, Some(e.to_string())),
-        };
+        // Validate content - fail early if validation fails
+        self.validator.validate(&content)?;
+        let validation_passed = true;
+        let validation_error = None;
 
         // Stage 2: Content Processing
         let quote_result = self.quote_fixer.convert(&content)?;

@@ -3550,6 +3550,7 @@ dependencies = [
  "gix",
  "gix-credentials",
  "image",
+ "iriebook-ui-common",
  "keyring",
  "nom 7.1.3",
  "predicates",

@@ -141,11 +141,8 @@ pub async fn google_list_docs(
         .get()
         .ok_or_else(|| "App state not initialized".to_string())?;
 
-    iriebook_ui_common::list_documents(
-        &app_state.google_authenticator(),
-        &app_state.google_docs_client(),
-        50,
-    )
+    let docs_client = app_state.google_docs_client();
+    iriebook_ui_common::list_documents(&app_state.google_authenticator(), &*docs_client, 50)
     .await
 }
 
