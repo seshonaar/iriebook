@@ -23,7 +23,7 @@ use crate::resource_access::{config, file};
 
 /// Result of the complete ebook publication process
 /// Contains all data produced by the pipeline for the Client to display
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PublicationResult {
     /// Number of bytes read from input
     pub bytes_read: usize,
@@ -51,6 +51,17 @@ pub struct PublicationResult {
     pub summary_path: Option<PathBuf>,
     /// Command outputs from external tools (pandoc, calibre, archive)
     pub command_outputs: Vec<String>,
+}
+
+impl PublicationResult {
+    pub fn validation_failure(bytes_read: usize, error: impl Into<String>) -> Self {
+        Self {
+            bytes_read,
+            validation_passed: false,
+            validation_error: Some(error.into()),
+            ..Default::default()
+        }
+    }
 }
 
 /// Word analysis results for display
@@ -138,21 +149,10 @@ impl EbookPublicationManager {
         let (validation_passed, validation_error) = match self.validator.validate(&content) {
             Ok(()) => (true, None),
             Err(err) => {
-                return Ok(PublicationResult {
+                return Ok(PublicationResult::validation_failure(
                     bytes_read,
-                    validation_passed: false,
-                    validation_error: Some(err.to_string()),
-                    quotes_converted: 0,
-                    apostrophes_converted: 0,
-                    spaces_collapsed: 0,
-                    tabs_converted: 0,
-                    blank_lines_removed: 0,
-                    lines_trimmed: 0,
-                    word_analysis: None,
-                    output_path: None,
-                    summary_path: None,
-                    command_outputs: Vec::new(),
-                });
+                    err.to_string(),
+                ));
             }
         };
 
