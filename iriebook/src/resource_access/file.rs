@@ -4,6 +4,7 @@
 
 use crate::utilities::types::{BookMetadata, GoogleDocsSyncInfo};
 use anyhow::{Context, Result};
+use image::ImageFormat;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -467,11 +468,15 @@ pub fn get_file_modified_timestamp(path: &Path) -> Result<u64> {
 /// Copy an image file to a book's root folder as cover.jpg
 ///
 /// Validates the source image, backs up existing cover if present,
-/// and atomically copies the new cover image to cover.jpg.
+/// converts the image to JPEG format, and atomically writes to cover.jpg.
+///
+/// **Format Conversion**: The source image can be in any format supported
+/// by the `image` crate (PNG, JPEG, WEBP, BMP, etc.) and will be automatically
+/// converted to JPEG.
 ///
 /// # Arguments
 /// * `book_path` - Path to the book's .md file
-/// * `source_image` - Path to the image file to use as cover
+/// * `source_image` - Path to the image file to use as cover (any format)
 ///
 /// # Returns
 /// Path to the new cover.jpg file
@@ -486,8 +491,8 @@ pub fn replace_cover_image(book_path: &Path, source_image: &Path) -> Result<Path
         anyhow::bail!("Source image does not exist: {}", source_image.display());
     }
 
-    // 2. Validate source is a valid image
-    let _ = image::ImageReader::open(source_image)
+    // 2. Validate source is a valid image and keep decoded result (optimization)
+    let img = image::ImageReader::open(source_image)
         .with_context(|| format!("Failed to open source image: {}", source_image.display()))?
         .decode()
         .with_context(|| {
@@ -511,20 +516,12 @@ pub fn replace_cover_image(book_path: &Path, source_image: &Path) -> Result<Path
         })?;
     }
 
-    // 5. Copy to temp file (.tmp extension)
+    // 5. Encode as JPEG to temp file (atomic write pattern)
     let temp_path = cover_path.with_extension("jpg.tmp");
-    fs::copy(source_image, &temp_path)
-        .with_context(|| format!("Failed to copy source image to {}", temp_path.display()))?;
+    img.save_with_format(&temp_path, ImageFormat::Jpeg)
+        .with_context(|| format!("Failed to save image as JPEG to {}", temp_path.display()))?;
 
-    // 6. Validate temp file is a valid image (guess format since extension is .tmp)
-    let _ = image::ImageReader::open(&temp_path)
-        .with_context(|| "Failed to open copied image")?
-        .with_guessed_format()
-        .with_context(|| "Failed to guess image format")?
-        .decode()
-        .with_context(|| "Copied file is not a valid image")?;
-
-    // 7. Atomic rename temp -> cover.jpg
+    // 6. Atomic rename temp -> cover.jpg
     fs::rename(&temp_path, &cover_path).with_context(|| {
         format!(
             "Failed to move file to final location: {}",
@@ -532,7 +529,7 @@ pub fn replace_cover_image(book_path: &Path, source_image: &Path) -> Result<Path
         )
     })?;
 
-    // 8. Invalidate thumbnail cache if it exists (thumbnail is in irie/)
+    // 7. Invalidate thumbnail cache if it exists (thumbnail is in irie/)
     let thumbnail_path = get_irie_folder_file(book_path, "thumbnail.jpg")?;
     if thumbnail_path.exists() {
         let _ = fs::remove_file(&thumbnail_path); // Ignore failure, non-critical
@@ -1637,6 +1634,67 @@ mod tests {
             !thumbnail_path.exists(),
             "Thumbnail should be invalidated (deleted)"
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn replace_cover_converts_png_to_jpeg() -> Result<()> {
+        use image::{ImageBuffer, ImageFormat, Rgb};
+
+        let temp_dir = TempDir::new()?;
+        let source_png = temp_dir.path().join("source.png");
+
+        // Create PNG test image
+        let img = ImageBuffer::from_fn(10, 10, |_, _| Rgb([0u8, 255, 0]));
+        img.save(&source_png)?; // Saves as PNG due to extension
+
+        // Set up book
+        let book_dir = temp_dir.path().join("book");
+        fs::create_dir(&book_dir)?;
+        fs::create_dir(book_dir.join("irie"))?;
+        let book_path = book_dir.join("chapter1.md");
+        fs::write(&book_path, "# Test")?;
+
+        // Replace cover with PNG source
+        let result = replace_cover_image(&book_path, &source_png)?;
+
+        // CRITICAL: Verify actual format is JPEG, not just .jpg extension
+        let reader = image::ImageReader::open(&result)?.with_guessed_format()?;
+        assert_eq!(
+            reader.format(),
+            Some(ImageFormat::Jpeg),
+            "Output file should be actual JPEG format, not just .jpg extension"
+        );
+
+        // Verify it decodes successfully
+        assert!(reader.decode().is_ok());
+
+        Ok(())
+    }
+
+    #[test]
+    fn replace_cover_converts_bmp_to_jpeg() -> Result<()> {
+        use image::{ImageBuffer, ImageFormat, Rgb};
+
+        let temp_dir = TempDir::new()?;
+        let source_bmp = temp_dir.path().join("source.bmp");
+
+        // Create BMP test image
+        let img = ImageBuffer::from_fn(10, 10, |_, _| Rgb([255u8, 0, 0]));
+        img.save(&source_bmp)?; // Saves as BMP
+
+        let book_dir = temp_dir.path().join("book");
+        fs::create_dir(&book_dir)?;
+        fs::create_dir(book_dir.join("irie"))?;
+        let book_path = book_dir.join("chapter1.md");
+        fs::write(&book_path, "# Test")?;
+
+        let result = replace_cover_image(&book_path, &source_bmp)?;
+
+        // Verify actual format is JPEG
+        let reader = image::ImageReader::open(&result)?.with_guessed_format()?;
+        assert_eq!(reader.format(), Some(ImageFormat::Jpeg));
 
         Ok(())
     }
