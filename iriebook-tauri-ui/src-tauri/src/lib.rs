@@ -55,8 +55,8 @@ fn init_tracing() {
 }
 
 use iriebook_ui_common::{
-    BookListChangedEvent, CoverReloadEvent, GitOperationProgressEvent, GoogleDocsProgressEvent,
-    ProcessingUpdateEvent,
+    BookListChangedEvent, CoverReloadEvent, GitOperationProgressEvent,
+    GoogleDocsBatchSyncUpdateEvent, GoogleDocsProgressEvent, ProcessingUpdateEvent,
 };
 use state::{AppStateHolder, GoogleAuthState};
 
@@ -105,6 +105,7 @@ pub fn run() {
             cloud::google_list_docs,
             cloud::google_link_doc,
             cloud::google_sync_doc,
+            cloud::google_sync_selected,
             cloud::google_unlink_doc,
             // Git: repository operations
             git::git_check_initialized,
@@ -125,6 +126,7 @@ pub fn run() {
             ProcessingUpdateEvent,
             GitOperationProgressEvent,
             GoogleDocsProgressEvent,
+            GoogleDocsBatchSyncUpdateEvent,
             BookListChangedEvent,
             CoverReloadEvent,
             updater::UpdateProgressEvent

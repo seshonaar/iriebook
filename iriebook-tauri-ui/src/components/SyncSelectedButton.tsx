@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { commands, type BookInfo } from "../bindings";
+import { commands, events, type BookInfo } from "../bindings";
 import { Button } from "./ui/button";
 import { RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -124,6 +124,7 @@ export function SyncSelectedButton({ onBookUpdated }: SyncSelectedButtonProps) {
   };
 
   const handleSyncSelected = async () => {
+    // Keep existing auth-for-link logic for current book mode
     if (isCurrentBookMode) {
       if (!viewedBook) {
         return;
@@ -139,53 +140,77 @@ export function SyncSelectedButton({ onBookUpdated }: SyncSelectedButtonProps) {
     if (linkedBooks.length === 0) return;
 
     setIsSyncing(true);
-    let successCount = 0;
-    let failCount = 0;
 
     try {
-      // Check auth first
-      const authResult = await commands.googleCheckAuth();
-      if (authResult.status !== "ok" || !authResult.data) {
-         const authStart = await commands.googleAuthStart();
-         if (authStart.status === "error") {
-            throw new Error("Authentication failed or cancelled");
-         }
+      const result = await commands.googleSyncSelected(linkedBooks);
+      if (result.status === "error") {
+        toast.error(t("google.sync.messages.syncFailed"), {
+          description: result.error,
+        });
+        setIsSyncing(false);
       }
-
-      toast.info(t("google.sync.messages.startingBulkSync", { count: linkedBooks.length }));
-
-      for (const book of linkedBooks) {
-        try {
-          const result = await commands.googleSyncDoc(book.path);
-          if (result.status === "ok") {
-            successCount++;
-          } else {
-            failCount++;
-            console.error(`Failed to sync ${book.display_name}:`, result.error);
-          }
-        } catch (err) {
-          failCount++;
-          console.error(`Failed to sync ${book.display_name}:`, err);
-        }
-      }
-
-      if (successCount > 0) {
-        toast.success(t("google.sync.messages.bulkSyncSuccess", { count: successCount }));
-        onBookUpdated();
-      }
-      
-      if (failCount > 0) {
-        toast.error(t("google.sync.messages.bulkSyncPartialFail", { count: failCount }));
-      }
-
+      // UI updates will come from events
     } catch (err) {
       toast.error(t("google.sync.messages.syncFailed"), {
-        description: String(err)
+        description: String(err),
       });
-    } finally {
       setIsSyncing(false);
     }
   };
+
+  // Listen to batch sync events
+  useEffect(() => {
+    const unlisten = events.googleDocsBatchSyncUpdateEvent.listen((event) => {
+      const payload = event.payload;
+
+      switch (payload.type) {
+        case "started":
+          // Track that sync started (no toast needed)
+          break;
+
+        case "progress":
+          // Optional: could show progress updates
+          break;
+
+        case "completed":
+          if (payload.success) {
+            toast.success(
+              t("google.sync.messages.syncSuccessDesc", {
+                name: payload.book_name,
+              })
+            );
+          } else {
+            toast.error(`${payload.book_name}: ${payload.message}`);
+          }
+          break;
+
+        case "all_done":
+          setIsSyncing(false);
+
+          if (payload.success_count > 0) {
+            toast.success(
+              t("google.sync.messages.bulkSyncSuccess", {
+                count: payload.success_count,
+              })
+            );
+            onBookUpdated(); // Refresh book list
+          }
+
+          if (payload.fail_count > 0) {
+            toast.error(
+              t("google.sync.messages.bulkSyncPartialFail", {
+                count: payload.fail_count,
+              })
+            );
+          }
+          break;
+      }
+    });
+
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, [t, onBookUpdated]);
 
   const isDisabled =
     isSyncing ||

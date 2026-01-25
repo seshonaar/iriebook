@@ -2,8 +2,12 @@
 
 use crate::state::{AppStateHolder, GoogleAuthState};
 use iriebook::resource_access::{CredentialStore, GitHubAuthenticator, GoogleDocInfo, PollResult};
-use iriebook_ui_common::{DeviceFlowInfo, GoogleDocsProgressEvent};
+use iriebook_ui_common::{
+    processing::DefaultBookProcessor, BatchGoogleDocsSyncProcessor, BookInfo, DeviceFlowInfo,
+    GoogleDocsBatchSyncUpdateEvent, GoogleDocsProgressEvent,
+};
 use std::path::PathBuf;
+use std::sync::Arc;
 use tauri::State;
 use tauri_specta::Event;
 use tokio::sync::oneshot;
@@ -247,4 +251,27 @@ pub async fn google_unlink_doc(
         .ok_or_else(|| "App state not initialized".to_string())?;
 
     iriebook_ui_common::unlink_document(&path, &app_state.google_docs_manager())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn google_sync_selected(
+    app_state_holder: State<'_, AppStateHolder>,
+    books: Vec<BookInfo>,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    let app_state = app_state_holder
+        .get()
+        .ok_or_else(|| "App state not initialized".to_string())?;
+
+    BatchGoogleDocsSyncProcessor::sync_books(
+        books,
+        app_state.google_authenticator(),
+        app_state.google_docs_manager(),
+        Arc::new(DefaultBookProcessor),
+        move |event| {
+            let _ = GoogleDocsBatchSyncUpdateEvent(event).emit(&app);
+        },
+    )
+    .await
 }

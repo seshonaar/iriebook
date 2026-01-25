@@ -125,6 +125,50 @@ pub struct GitOperationProgressEvent(pub String);
 #[derive(Debug, Clone, Serialize, Type, Event)]
 pub struct GoogleDocsProgressEvent(pub String);
 
+/// Events emitted during batch Google Docs sync
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(tag = "type")]
+pub enum GoogleDocsBatchSyncEvent {
+    /// Sync started for a book
+    #[serde(rename = "started")]
+    Started {
+        #[specta(type = u32)]
+        book_index: usize,
+        book_name: String,
+    },
+    /// Progress update for a book
+    #[serde(rename = "progress")]
+    Progress {
+        #[specta(type = u32)]
+        book_index: usize,
+        book_name: String,
+        message: String,
+    },
+    /// Book sync completed
+    #[serde(rename = "completed")]
+    Completed {
+        #[specta(type = u32)]
+        book_index: usize,
+        book_name: String,
+        success: bool,
+        message: String,
+    },
+    /// All books synced
+    #[serde(rename = "all_done")]
+    AllDone {
+        #[specta(type = u32)]
+        total_books: usize,
+        #[specta(type = u32)]
+        success_count: usize,
+        #[specta(type = u32)]
+        fail_count: usize,
+    },
+}
+
+/// Event wrapper for batch Google Docs sync updates (for tauri-specta type-safe events)
+#[derive(Debug, Clone, Serialize, Type, Event)]
+pub struct GoogleDocsBatchSyncUpdateEvent(pub GoogleDocsBatchSyncEvent);
+
 /// Event to signal that the book list has changed and UI should refresh
 /// Emitted after git operations that could modify the book list (clone, sync, save)
 #[derive(Debug, Clone, Serialize, Type, Event)]

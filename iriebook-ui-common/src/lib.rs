@@ -6,6 +6,7 @@
 pub mod actions;
 pub mod analysis_cache;
 pub mod app_state;
+pub mod batch_google_docs_sync;
 pub mod batch_processing;
 pub mod book_scanner;
 pub mod book_viewing;
@@ -26,6 +27,7 @@ pub mod ui_state;
 // Re-export commonly used types
 pub use analysis_cache::{get_or_compute_analysis, AnalysisResponse};
 pub use app_state::AppState;
+pub use batch_google_docs_sync::BatchGoogleDocsSyncProcessor;
 pub use batch_processing::BatchProcessor;
 pub use diff_commands::{get_book_processing_diff, get_local_diffs, get_revision_diffs, RevisionDiff};
 pub use actions::{AppAction, LogEntryPayload, LogEntryType, ProcessingProgress};
@@ -57,8 +59,8 @@ pub use managers::{
 };
 pub use processing::{
     process_single_book, BookListChangedEvent, BookProcessingQueue, CoverReloadEvent,
-    GitOperationProgressEvent, GoogleDocsProgressEvent, ProcessingEvent, ProcessingMessage,
-    ProcessingUpdateEvent,
+    GitOperationProgressEvent, GoogleDocsBatchSyncEvent, GoogleDocsBatchSyncUpdateEvent,
+    GoogleDocsProgressEvent, ProcessingEvent, ProcessingMessage, ProcessingUpdateEvent,
 };
 pub use session::{load_session, save_session, SessionData};
 pub use ui_state::{

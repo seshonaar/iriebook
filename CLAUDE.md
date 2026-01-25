@@ -273,6 +273,90 @@ let manager = state.repository_manager(); // Returns Arc<RepositoryManager>
 
 See `design_compliance_report.md` for detailed analysis of historical violations.
 
+### Frontend Component Rules (MANDATORY)
+
+**React/TypeScript components MUST be presentation-only.** Before adding logic to a component:
+
+#### Mandatory Pattern
+```typescript
+export function MyComponent() {
+  const { t } = useTranslation();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleAction = async () => {
+    setIsLoading(true);
+    try {
+      const result = await commands.myCommand(params);
+      if (result.status === "error") {
+        toast.error(result.error);
+      }
+      // Success handling via events
+    } catch (err) {
+      toast.error(String(err));
+      setIsLoading(false);
+    }
+  };
+
+  // Event listener
+  useEffect(() => {
+    const unlisten = events.myEvent.listen((event) => {
+      // Update UI based on event
+      setIsLoading(false);
+    });
+    return () => { unlisten.then(f => f()); };
+  }, []);
+
+  return <button onClick={handleAction}>{t("action")}</button>;
+}
+```
+
+#### Pre-Commit Checklist
+- [ ] No loops over data operations (`.map(async)`, `for...of`)
+- [ ] No auth flow management (checking auth, triggering auth)
+- [ ] No success/fail counting or aggregation
+- [ ] No orchestration logic (multi-step workflows)
+- [ ] No direct business logic (filtering, validation, processing)
+- [ ] Component only calls commands and listens to events
+
+### Frontend Red Flags
+
+❌ **REJECT components that:**
+- Loop over items calling Tauri commands (e.g., `for (const book of books) { await commands.sync(book) }`)
+- Manage auth state or check auth before operations
+- Count operation results (e.g., `successCount++`, `failCount++`)
+- Implement multi-step workflows (e.g., auth → sync → process)
+- Filter or transform data beyond display logic
+- Contain business rules or validation logic
+
+✅ **REQUIRE:**
+- Extract orchestration to `iriebook-ui-common` module (e.g., `BatchProcessor`)
+- Create Tauri command that delegates to orchestrator
+- Component calls command once and listens to events
+- All business logic lives in Rust (core or ui-common)
+
+**Example violation and fix:**
+
+| Violation | Fix |
+|-----------|-----|
+| Loop in component: `for (book of books) { await commands.sync(book.path) }` | Create `BatchSyncProcessor::sync_books()` in ui-common, add `google_sync_selected` command |
+| Auth check in component: `if (!authResult.data) { await startAuth() }` | Move auth checking to manager, emit events for auth state |
+| Success counting: `let successCount = 0; ... successCount++` | Emit events with results, count in orchestrator, send summary event |
+
+### Why This Matters
+
+**Frontend components are disposable.** If we switch from React to Svelte, Vue, or another framework:
+- Only component files need rewriting
+- All orchestration logic survives in `iriebook-ui-common`
+- Tauri commands remain unchanged
+- Event system remains unchanged
+
+**The frontend should be a thin rendering layer that:**
+- Calls Tauri commands with parameters
+- Listens to events for updates
+- Renders UI based on state
+- Manages local UI state (loading, dialogs, form input)
+- Does NOT implement business workflows
+
 ## TypeScript Bindings (Tauri UI)
 
 The Tauri UI uses **specta + tauri-specta** to automatically generate type-safe TypeScript bindings from Rust code. This provides complete type safety between the Rust backend and TypeScript frontend, including compile-time validation of command names, parameters, return types, and events.
