@@ -12,19 +12,24 @@ import {
 import { MoreVertical, FileText, GitCompareArrows, FolderOpen } from "lucide-react";
 import { useAppContext } from "../contexts/AppContext";
 import { openDiffTab } from "../contexts/actions";
+import { CoverImage } from "./CoverImage";
 
 interface MetadataDisplayProps {
   bookPath: string;
+  coverImagePath: string | null;
   workspaceRoot: string | null;
   metadata: BookMetadata;
+  onReplaceCover: () => void;
   onEdit: () => void;
   onBookChanged?: (result: ChangeBookResult) => void;
 }
 
 export function MetadataDisplay({
   bookPath,
+  coverImagePath,
   workspaceRoot,
   metadata,
+  onReplaceCover,
   onEdit,
   onBookChanged,
 }: MetadataDisplayProps) {
@@ -160,81 +165,89 @@ export function MetadataDisplay({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">{t('metadata.display.title')}</h3>
-        <div className="flex gap-2">
-          <Button onClick={handleOpenFolder} variant="outline" size="sm">
-            <FolderOpen className="h-4 w-4 mr-1" />
-            {t('common.actions.openFolder')}
-          </Button>
-          <Button
-            onClick={handleViewBook}
-            variant="outline"
-            size="sm"
-            disabled={isViewing}
-          >
-            {isViewing ? t('common.status.processing') : t('books.viewer.viewBook')}
-          </Button>
-          <Button onClick={onEdit} variant="outline" size="sm">
-            {t('common.actions.edit')}
-          </Button>
+      <div className="flex w-full flex-wrap items-center gap-2 mb-4">
+        <Button onClick={onReplaceCover} variant="outline" size="sm">
+          {t('books.viewer.replaceCoverButton')}
+        </Button>
+        <Button onClick={handleOpenFolder} variant="outline" size="sm">
+          <FolderOpen className="h-4 w-4 mr-1" />
+          {t('common.actions.openFolder')}
+        </Button>
+        <Button
+          onClick={handleViewBook}
+          variant="outline"
+          size="sm"
+          disabled={isViewing}
+        >
+          {isViewing ? t('common.status.processing') : t('books.viewer.viewBook')}
+        </Button>
+        <Button onClick={onEdit} variant="outline" size="sm">
+          {t('books.viewer.editMetadata')}
+        </Button>
 
-          {/* Three-dots dropdown menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                <MoreVertical className="h-4 w-4" />
-                <span className="sr-only">{t('common.actions.more')}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={handleChangeBookFile}
-                disabled={isChanging}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                <span>
-                  {isChanging ? t('common.status.saving') : t('metadata.display.changeFile')}
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleViewChanges}>
-                <GitCompareArrows className="mr-2 h-4 w-4" />
-                <span>{t('metadata.display.viewChanges')}</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {/* Three-dots dropdown menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 w-8 p-0 ml-auto">
+              <MoreVertical className="h-4 w-4" />
+              <span className="sr-only">{t('common.actions.more')}</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={handleChangeBookFile}
+              disabled={isChanging}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              <span>
+                {isChanging ? t('common.status.saving') : t('metadata.display.changeFile')}
+              </span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleViewChanges}>
+              <GitCompareArrows className="mr-2 h-4 w-4" />
+              <span>{t('metadata.display.viewChanges')}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      <div className="space-y-3">
-        <div>
-          <label className="text-sm font-medium text-gray-600">{t('metadata.editor.fields.title')}</label>
-          <p className="text-base mt-1">{metadata.title}</p>
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="flex-shrink-0">
+          <CoverImage
+            coverImagePath={coverImagePath}
+            onReplaceCover={onReplaceCover}
+          />
         </div>
-
-        <div>
-          <label className="text-sm font-medium text-gray-600">{t('metadata.display.author')}</label>
-          <p className="text-base mt-1">{metadata.author}</p>
-        </div>
-
-        {metadata["belongs-to-collection"] && (
+        <div className="space-y-3">
           <div>
-            <label className="text-sm font-medium text-gray-600">
-              {t('metadata.editor.fields.collection')}
-            </label>
-            <p className="text-base mt-1">{metadata["belongs-to-collection"]}</p>
+            <label className="text-sm font-medium text-gray-600">{t('metadata.editor.fields.title')}</label>
+            <p className="text-base mt-1">{metadata.title}</p>
           </div>
-        )}
 
-        {metadata["group-position"] !== null &&
-          metadata["group-position"] !== undefined && (
+          <div>
+            <label className="text-sm font-medium text-gray-600">{t('metadata.display.author')}</label>
+            <p className="text-base mt-1">{metadata.author}</p>
+          </div>
+
+          {metadata["belongs-to-collection"] && (
             <div>
               <label className="text-sm font-medium text-gray-600">
-                {t('metadata.editor.fields.position')}
+                {t('metadata.editor.fields.collection')}
               </label>
-              <p className="text-base mt-1">{metadata["group-position"]}</p>
+              <p className="text-base mt-1">{metadata["belongs-to-collection"]}</p>
             </div>
           )}
+
+          {metadata["group-position"] !== null &&
+            metadata["group-position"] !== undefined && (
+              <div>
+                <label className="text-sm font-medium text-gray-600">
+                  {t('metadata.editor.fields.position')}
+                </label>
+                <p className="text-base mt-1">{metadata["group-position"]}</p>
+              </div>
+            )}
+        </div>
       </div>
     </div>
   );

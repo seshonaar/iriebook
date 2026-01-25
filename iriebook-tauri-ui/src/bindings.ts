@@ -269,6 +269,14 @@ async googleSyncDoc(bookPath: string) : Promise<Result<string, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async googleSyncSelected(books: BookInfo[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("google_sync_selected", { books }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async googleUnlinkDoc(bookPath: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("google_unlink_doc", { bookPath }) };
@@ -377,6 +385,7 @@ export const events = __makeEvents__<{
 bookListChangedEvent: BookListChangedEvent,
 coverReloadEvent: CoverReloadEvent,
 gitOperationProgressEvent: GitOperationProgressEvent,
+googleDocsBatchSyncUpdateEvent: GoogleDocsBatchSyncUpdateEvent,
 googleDocsProgressEvent: GoogleDocsProgressEvent,
 processingUpdateEvent: ProcessingUpdateEvent,
 updateProgressEvent: UpdateProgressEvent
@@ -384,6 +393,7 @@ updateProgressEvent: UpdateProgressEvent
 bookListChangedEvent: "book-list-changed-event",
 coverReloadEvent: "cover-reload-event",
 gitOperationProgressEvent: "git-operation-progress-event",
+googleDocsBatchSyncUpdateEvent: "google-docs-batch-sync-update-event",
 googleDocsProgressEvent: "google-docs-progress-event",
 processingUpdateEvent: "processing-update-event",
 updateProgressEvent: "update-progress-event"
@@ -573,6 +583,30 @@ export type GitSyncStatus =
  * Information about a Google Doc
  */
 export type GoogleDocInfo = { id: string; name: string; modified_time: string }
+/**
+ * Events emitted during batch Google Docs sync
+ */
+export type GoogleDocsBatchSyncEvent = 
+/**
+ * Sync started for a book
+ */
+{ type: "started"; book_index: number; book_name: string } | 
+/**
+ * Progress update for a book
+ */
+{ type: "progress"; book_index: number; book_name: string; message: string } | 
+/**
+ * Book sync completed
+ */
+{ type: "completed"; book_index: number; book_name: string; success: boolean; message: string } | 
+/**
+ * All books synced
+ */
+{ type: "all_done"; total_books: number; success_count: number; fail_count: number }
+/**
+ * Event wrapper for batch Google Docs sync updates (for tauri-specta type-safe events)
+ */
+export type GoogleDocsBatchSyncUpdateEvent = GoogleDocsBatchSyncEvent
 /**
  * Event wrapper for Google Docs sync progress messages (for tauri-specta type-safe events)
  */

@@ -7,7 +7,7 @@ use iriebook_ui_common::{
     CoverReloadEvent, CoverStatus, ProcessingUpdateEvent, add_book_with_rescan, book_scanner,
     change_book_with_rescan, check_for_duplicate, collect_distinct_authors,
     collect_distinct_series, delete_book_with_rescan, get_or_compute_analysis, load_metadata,
-    replace_cover_image as core_replace_cover_image, save_metadata,
+    save_metadata,
 };
 use std::path::PathBuf;
 use tauri::State;
@@ -88,12 +88,20 @@ pub fn save_book_metadata(book_path: String, metadata: BookMetadata) -> Result<(
 
 #[tauri::command]
 #[specta::specta]
-pub fn replace_cover_image(book_path: String, new_cover_path: String) -> Result<(), String> {
+pub fn replace_cover_image(
+    book_path: String,
+    new_cover_path: String,
+    app_state_holder: State<AppStateHolder>,
+) -> Result<(), String> {
     let book = PathBuf::from(book_path);
     let source = PathBuf::from(new_cover_path);
-    core_replace_cover_image(&book, &source)
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    let app_state = app_state_holder
+        .get()
+        .ok_or_else(|| "App state not initialized".to_string())?;
+    let manager = app_state.book_ui_manager();
+    let mut book_ui_manager = manager.lock().unwrap();
+
+    book_ui_manager.replace_cover_image(&book, &source)
 }
 
 // ============= BOOK VIEWING =============

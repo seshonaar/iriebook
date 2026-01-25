@@ -2,6 +2,7 @@ use super::cover_loading_engine::{
     CoverLoadingEngine, CoverStatus, DefaultCoverLoadingEngine, MockCoverLoadingEngine,
     OnCoverLoaded,
 };
+use iriebook::resource_access::file::replace_cover_image;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -37,7 +38,10 @@ impl BookUIManager {
         if self.use_mock_engine {
             Arc::new(MockCoverLoadingEngine::new())
         } else {
-            Arc::new(DefaultCoverLoadingEngine::new(cover_path, self.on_cover_loaded.clone()))
+            Arc::new(DefaultCoverLoadingEngine::new(
+                cover_path,
+                self.on_cover_loaded.clone(),
+            ))
         }
     }
 
@@ -59,10 +63,35 @@ impl BookUIManager {
         self.engines.clear();
     }
 
+    fn remove_engine(&mut self, book_path: &Path) {
+        self.engines.retain(|(path, _)| path != book_path);
+    }
+
     /// Get thumbnail for a book's cover
     pub fn get_thumbnail(&mut self, book_path: &Path, cover_path: &Path) -> CoverStatus {
         let engine = self.get_or_create_engine(book_path);
         engine.get_thumbnail(cover_path)
+    }
+
+    /// Replace cover image and trigger a fresh thumbnail load
+    pub fn replace_cover_image(
+        &mut self,
+        book_path: &Path,
+        source_image: &Path,
+    ) -> Result<(), String> {
+        let cover_path = replace_cover_image(book_path, source_image).map_err(|e| e.to_string())?;
+
+        if !cover_path.exists() {
+            return Err(format!(
+                "Cover image not found after replace: {}",
+                cover_path.display()
+            ));
+        }
+
+        self.remove_engine(&cover_path);
+        let _ = self.get_thumbnail(&cover_path, &cover_path);
+
+        Ok(())
     }
 }
 
@@ -146,5 +175,30 @@ mod tests {
 
         // Should have two engines
         assert_eq!(manager.engines.len(), 2);
+    }
+
+    #[test]
+    fn test_replace_cover_image_resets_engine() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let book_path = temp_dir.path().join("book.md");
+        std::fs::write(&book_path, "# Test").unwrap();
+
+        let source_image = temp_dir.path().join("source.png");
+        let image = image::RgbImage::new(1, 1);
+        image.save(&source_image).unwrap();
+
+        let cover_path = temp_dir.path().join("cover.jpg");
+        let mut manager = BookUIManager::new(true);
+
+        let _ = manager.get_thumbnail(&cover_path, &cover_path);
+        let initial_engine = manager.engines[0].1.clone();
+
+        manager
+            .replace_cover_image(&book_path, &source_image)
+            .unwrap();
+
+        assert_eq!(manager.engines.len(), 1);
+        let new_engine = manager.engines[0].1.clone();
+        assert!(!Arc::ptr_eq(&initial_engine, &new_engine));
     }
 }

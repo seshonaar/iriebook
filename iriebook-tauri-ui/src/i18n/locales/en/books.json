@@ -19,12 +19,16 @@
     "editMetadata": "Edit Metadata",
     "viewMetadata": "View Metadata",
     "viewBook": "View Book",
-    "replaceCover": "Click to replace cover",
+    "replaceCover": "Click to change cover",
+    "replaceCoverButton": "Change cover",
     "noCover": "No cover image available",
     "coverNotFound": "Cover not found",
     "noCoverImage": "No cover image",
     "clickToAdd": "Click to add one",
-    "coverAlt": "Book cover"
+    "coverAlt": "Book cover",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomReset": "Reset zoom"
   },
   "delete": {
     "confirmTitle": "Delete Book",
