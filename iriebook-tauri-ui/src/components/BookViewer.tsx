@@ -92,6 +92,7 @@ export function BookViewer({
         if (book.cover_image_path) {
           dispatch(setCoverStatus(book.cover_image_path, { type: "not_started" }));
         }
+
       } catch (err) {
         toast.dismiss(loadingToast);
         throw err;

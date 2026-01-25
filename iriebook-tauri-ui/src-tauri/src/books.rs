@@ -4,10 +4,10 @@ use crate::state::AppStateHolder;
 use iriebook_ui_common::ui_state::{BookInfo, PublishEnabled, WordStatsEnabled};
 use iriebook_ui_common::{
     AddBookResult, AnalysisResponse, BatchProcessor, BookMetadata, ChangeBookResult,
-    CoverReloadEvent, CoverStatus, ProcessingUpdateEvent, add_book_with_rescan, book_scanner,
-    change_book_with_rescan, check_for_duplicate, collect_distinct_authors,
-    collect_distinct_series, delete_book_with_rescan, get_or_compute_analysis, load_metadata,
-    save_metadata,
+    BookListChangedEvent, CoverReloadEvent, CoverStatus, ProcessingUpdateEvent,
+    add_book_with_rescan, book_scanner, change_book_with_rescan, check_for_duplicate,
+    collect_distinct_authors, collect_distinct_series, delete_book_with_rescan,
+    get_or_compute_analysis, load_metadata, save_metadata,
 };
 use std::path::PathBuf;
 use tauri::State;
@@ -89,6 +89,7 @@ pub fn save_book_metadata(book_path: String, metadata: BookMetadata) -> Result<(
 #[tauri::command]
 #[specta::specta]
 pub fn replace_cover_image(
+    app: tauri::AppHandle,
     book_path: String,
     new_cover_path: String,
     app_state_holder: State<AppStateHolder>,
@@ -101,7 +102,9 @@ pub fn replace_cover_image(
     let manager = app_state.book_ui_manager();
     let mut book_ui_manager = manager.lock().unwrap();
 
-    book_ui_manager.replace_cover_image(&book, &source)
+    book_ui_manager.replace_cover_image(&book, &source)?;
+    let _ = BookListChangedEvent {}.emit(&app);
+    Ok(())
 }
 
 // ============= BOOK VIEWING =============
