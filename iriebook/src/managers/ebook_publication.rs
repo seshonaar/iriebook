@@ -16,10 +16,11 @@ use std::sync::Arc;
 
 use crate::engines::traits::{
     MarkdownTransformEngine, QuoteFixerEngine, ValidatorEngine, WhitespaceTrimmerEngine,
-    WordAnalyzerEngine,
+    WordAnalyzerEngine, WordReplacementEngine,
 };
 use crate::resource_access::traits::{ArchiveAccess, CalibreAccess, PandocAccess};
 use crate::resource_access::{config, file};
+use crate::utilities::types::ReplacePair;
 
 /// Result of the complete ebook publication process
 /// Contains all data produced by the pipeline for the Client to display
@@ -43,6 +44,8 @@ pub struct PublicationResult {
     pub blank_lines_removed: usize,
     /// Number of lines trimmed
     pub lines_trimmed: usize,
+    /// Number of word replacements made
+    pub replacements_made: usize,
     /// Word analysis results (None if disabled)
     pub word_analysis: Option<WordAnalysisResult>,
     /// Output file path (if written)
@@ -77,6 +80,28 @@ pub struct WordAnalysisResult {
     pub top_words: Vec<(String, usize)>,
 }
 
+/// Arguments for the publish method
+#[derive(Debug)]
+pub struct PublishArgs<'a> {
+    pub input_path: &'a Path,
+    pub output_path: Option<&'a Path>,
+    pub enable_word_stats: bool,
+    pub enable_publishing: bool,
+    pub replace_pairs: Option<&'a [ReplacePair]>,
+}
+
+impl<'a> Default for PublishArgs<'a> {
+    fn default() -> Self {
+        Self {
+            input_path: Path::new(""),
+            output_path: None,
+            enable_word_stats: false,
+            enable_publishing: false,
+            replace_pairs: None,
+        }
+    }
+}
+
 /// Manager for orchestrating ebook publication workflow
 pub struct EbookPublicationManager {
     validator: Arc<dyn ValidatorEngine>,
@@ -84,6 +109,7 @@ pub struct EbookPublicationManager {
     whitespace_trimmer: Arc<dyn WhitespaceTrimmerEngine>,
     word_analyzer: Arc<dyn WordAnalyzerEngine>,
     markdown_transformer: Arc<dyn MarkdownTransformEngine>,
+    word_replacer: Arc<dyn WordReplacementEngine>,
     pandoc_access: Arc<dyn PandocAccess>,
     calibre_access: Arc<dyn CalibreAccess>,
     archive_access: Arc<dyn ArchiveAccess>,
@@ -98,6 +124,7 @@ impl EbookPublicationManager {
         whitespace_trimmer: Arc<dyn WhitespaceTrimmerEngine>,
         word_analyzer: Arc<dyn WordAnalyzerEngine>,
         markdown_transformer: Arc<dyn MarkdownTransformEngine>,
+        word_replacer: Arc<dyn WordReplacementEngine>,
         pandoc_access: Arc<dyn PandocAccess>,
         calibre_access: Arc<dyn CalibreAccess>,
         archive_access: Arc<dyn ArchiveAccess>,
@@ -108,6 +135,7 @@ impl EbookPublicationManager {
             whitespace_trimmer,
             word_analyzer,
             markdown_transformer,
+            word_replacer,
             pandoc_access,
             calibre_access,
             archive_access,
@@ -118,26 +146,23 @@ impl EbookPublicationManager {
     ///
     /// This method orchestrates the entire ebook processing workflow:
     /// - Reads and validates input file
-    /// - Processes content (quotes, whitespace, word analysis)
+    /// - Processes content (quotes, whitespace, word analysis, replacements)
     /// - Generates output files (markdown, EPUB, Kindle) if publishing enabled
     /// - Returns structured result data for Client to display
     ///
     /// # Arguments
-    /// * `input_path` - Path to the input markdown file
-    /// * `output_path` - Optional custom output path (None = auto-generate)
-    /// * `enable_word_stats` - If true, perform word statistics analysis
-    /// * `enable_publishing` - If true, write output files
+    /// * `args` - PublishArgs containing all parameters
     ///
     /// # Returns
     /// * `Ok(PublicationResult)` - Structured processing results
     /// * `Err` - Processing error
-    pub fn publish(
-        &self,
-        input_path: &Path,
-        output_path: Option<&Path>,
-        enable_word_stats: bool,
-        enable_publishing: bool,
-    ) -> Result<PublicationResult> {
+    pub fn publish(&self, args: PublishArgs<'_>) -> Result<PublicationResult> {
+        let input_path = args.input_path;
+        let output_path = args.output_path;
+        let enable_word_stats = args.enable_word_stats;
+        let enable_publishing = args.enable_publishing;
+        let replace_pairs = args.replace_pairs;
+
         // Vector to collect command outputs
         let mut command_outputs = Vec::new();
 
@@ -160,6 +185,17 @@ impl EbookPublicationManager {
         let quote_result = self.quote_fixer.convert(&content)?;
         let trimming_result = self.whitespace_trimmer.trim(&quote_result.content)?;
 
+        // Word replacement (last in the chain)
+        let replacement_result = match replace_pairs {
+            Some(pairs) if !pairs.is_empty() => self
+                .word_replacer
+                .replace(&trimming_result.content, pairs)?,
+            _ => crate::engines::traits::ReplacementResult {
+                content: trimming_result.content.clone(),
+                replacements_made: 0,
+            },
+        };
+
         // Load config
         let current_dir = input_path.parent().unwrap_or(Path::new("."));
         let loaded_config = config::load_config(current_dir).unwrap_or_default();
@@ -169,7 +205,7 @@ impl EbookPublicationManager {
             true => {
                 let analysis_result = self
                     .word_analyzer
-                    .analyze(&trimming_result.content, &loaded_config.word_analysis)?;
+                    .analyze(&replacement_result.content, &loaded_config.word_analysis)?;
                 Some(WordAnalysisResult {
                     total_words: analysis_result.total_words,
                     unique_words: analysis_result.unique_words,
@@ -198,7 +234,7 @@ impl EbookPublicationManager {
             // Transform markdown structure
             let formatted_text = self
                 .markdown_transformer
-                .transform(&trimming_result.content)?;
+                .transform(&replacement_result.content)?;
 
             // Write the fixed content
             file::write_file(&final_output_path, &formatted_text)?;
@@ -258,6 +294,7 @@ impl EbookPublicationManager {
             tabs_converted: trimming_result.tabs_converted,
             blank_lines_removed: trimming_result.blank_lines_removed,
             lines_trimmed: trimming_result.lines_trimmed,
+            replacements_made: replacement_result.replacements_made,
             word_analysis,
             output_path: output_path_result,
             summary_path: summary_path_result,
@@ -273,6 +310,7 @@ mod tests {
     use crate::engines::text_processing::markdown_transform::MarkdownTransformer;
     use crate::engines::text_processing::quote_fixer::QuoteFixer;
     use crate::engines::text_processing::whitespace_trimmer::WhitespaceTrimmer;
+    use crate::engines::text_processing::word_replacement::WordReplacer;
     use crate::engines::validation::validator::Validator;
     use crate::resource_access::archive::ZipArchiver;
     use crate::resource_access::calibre::CalibreConverter;
@@ -288,6 +326,7 @@ mod tests {
             Arc::new(WhitespaceTrimmer),
             Arc::new(WordAnalyzer),
             Arc::new(MarkdownTransformer),
+            Arc::new(WordReplacer::new()),
             Arc::new(PandocConverter),
             Arc::new(CalibreConverter),
             Arc::new(ZipArchiver),
@@ -307,12 +346,13 @@ mod tests {
         let manager = create_test_manager();
 
         // Execute without publishing
-        let result = manager.publish(
-            &input_path,
-            None,  // No custom output path
-            false, // enable_word_stats = false (default)
-            false, // enable_publishing = false
-        )?;
+        let result = manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: None,
+            enable_word_stats: false,
+            enable_publishing: false,
+            replace_pairs: None,
+        })?;
 
         // Verify result
         assert!(result.validation_passed, "Expected validation to pass");
@@ -342,12 +382,13 @@ mod tests {
         let manager = create_test_manager();
 
         // Execute with publishing enabled
-        let result = manager.publish(
-            &input_path,
-            Some(&output_path),
-            false, // enable_word_stats = false (default)
-            true,  // enable_publishing = true
-        )?;
+        let result = manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: Some(&output_path),
+            enable_word_stats: false,
+            enable_publishing: true,
+            replace_pairs: None,
+        })?;
 
         // Verify output file was created
         assert!(output_path.exists(), "Expected output file to be created");
@@ -385,7 +426,13 @@ mod tests {
         let manager = create_test_manager();
 
         // Execute with custom output path
-        let result = manager.publish(&input_path, Some(&custom_output), false, true)?;
+        let result = manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: Some(&custom_output),
+            enable_word_stats: false,
+            enable_publishing: true,
+            replace_pairs: None,
+        })?;
 
         // Verify custom output exists
         assert!(
@@ -420,7 +467,13 @@ mod tests {
         let manager = create_test_manager();
 
         // Execute without publishing (verbose is now handled by Client, not Manager)
-        let result = manager.publish(&input_path, None, false, false)?;
+        let result = manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: None,
+            enable_word_stats: false,
+            enable_publishing: false,
+            replace_pairs: None,
+        })?;
 
         // Verify result has expected data (verbose display is Client's job now)
         assert!(result.validation_passed, "Expected validation to pass");
@@ -443,7 +496,13 @@ mod tests {
         let manager = create_test_manager();
 
         // Execute processing with explicit output path
-        let result = manager.publish(&input_path, Some(&output_path), false, true)?;
+        let result = manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: Some(&output_path),
+            enable_word_stats: false,
+            enable_publishing: true,
+            replace_pairs: None,
+        })?;
 
         // Verify processing succeeded
         assert!(result.validation_passed, "Expected validation to pass");
@@ -474,7 +533,13 @@ mod tests {
         let manager = create_test_manager();
 
         // Execute without specifying output path (should auto-generate)
-        let result = manager.publish(&input_path, None, false, true)?;
+        let result = manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: None,
+            enable_word_stats: false,
+            enable_publishing: true,
+            replace_pairs: None,
+        })?;
 
         // Verify result has auto-generated output path
         assert!(result.validation_passed, "Expected validation to pass");
@@ -507,7 +572,13 @@ mod tests {
         let manager = create_test_manager();
 
         // Execute with enable_word_stats=false (default behavior)
-        let result = manager.publish(&input_path, None, false, false)?;
+        let result = manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: None,
+            enable_word_stats: false,
+            enable_publishing: false,
+            replace_pairs: None,
+        })?;
 
         // Verify word analysis is None when disabled
         assert!(
@@ -532,7 +603,13 @@ mod tests {
         let manager = create_test_manager();
 
         // Execute with enable_word_stats=true
-        let result = manager.publish(&input_path, None, true, true)?;
+        let result = manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: None,
+            enable_word_stats: true,
+            enable_publishing: true,
+            replace_pairs: None,
+        })?;
 
         // Verify word analysis is Some when enabled
         assert!(
@@ -561,7 +638,13 @@ mod tests {
         let manager = create_test_manager();
 
         // Execute with enable_publishing=false
-        let result = manager.publish(&input_path, None, false, false)?;
+        let result = manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: None,
+            enable_word_stats: false,
+            enable_publishing: false,
+            replace_pairs: None,
+        })?;
 
         // Verify no output files were created
         assert!(
@@ -597,7 +680,13 @@ mod tests {
         let manager = create_test_manager();
 
         // Execute with enable_publishing=true
-        let result = manager.publish(&input_path, Some(&output_path), false, true)?;
+        let result = manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: Some(&output_path),
+            enable_word_stats: false,
+            enable_publishing: true,
+            replace_pairs: None,
+        })?;
 
         // Verify output file was created
         assert!(output_path.exists(), "Expected output file to be created");
@@ -633,7 +722,13 @@ mod tests {
         let manager = create_test_manager();
 
         // Execute with enable_word_stats=true, enable_publishing=false
-        let result = manager.publish(&input_path, None, true, false)?;
+        let result = manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: None,
+            enable_word_stats: true,
+            enable_publishing: false,
+            replace_pairs: None,
+        })?;
 
         // Verify word analysis is Some
         assert!(
@@ -649,6 +744,97 @@ mod tests {
         assert!(
             result.summary_path.is_none(),
             "Expected no summary when publishing disabled"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_replace_pairs_applied_during_processing() -> Result<()> {
+        use crate::utilities::types::ReplacePair;
+
+        // Setup test directory and input file
+        let temp_dir = TempDir::new()?;
+        let input_path = temp_dir.path().join("test.md");
+        let output_path = temp_dir.path().join("fixed.md");
+
+        // Write input with words to replace
+        fs::write(&input_path, "Hello Rene world. Rene is here.")?;
+
+        // Create manager
+        let manager = create_test_manager();
+
+        // Define replace pairs
+        let replace_pairs = vec![ReplacePair {
+            source: "Rene".to_string(),
+            target: "René".to_string(),
+        }];
+
+        // Execute with replace pairs and publishing enabled
+        let result = manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: Some(&output_path),
+            enable_word_stats: false,
+            enable_publishing: true,
+            replace_pairs: Some(&replace_pairs),
+        })?;
+
+        // Verify replacements were made
+        assert!(result.validation_passed, "Expected validation to pass");
+        assert_eq!(result.replacements_made, 2, "Expected 2 replacements");
+
+        // Verify output file has replacements
+        let output_content = fs::read_to_string(&output_path)?;
+        assert!(output_content.contains("René"), "Expected René in output");
+        assert!(
+            !output_content.contains("Rene "),
+            "Expected no standalone Rene in output"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_replace_pairs_case_sensitive() -> Result<()> {
+        use crate::utilities::types::ReplacePair;
+
+        // Setup test directory
+        let temp_dir = TempDir::new()?;
+        let input_path = temp_dir.path().join("test.md");
+        let output_path = temp_dir.path().join("fixed.md");
+
+        // Write input with mixed case
+        fs::write(&input_path, "rene Rene RENe")?;
+
+        // Create manager
+        let manager = create_test_manager();
+
+        // Define replace pair (only matches exact case)
+        let replace_pairs = vec![ReplacePair {
+            source: "Rene".to_string(),
+            target: "René".to_string(),
+        }];
+
+        // Execute
+        let result = manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: Some(&output_path),
+            enable_word_stats: false,
+            enable_publishing: true,
+            replace_pairs: Some(&replace_pairs),
+        })?;
+
+        // Should only replace exact case matches
+        assert_eq!(result.replacements_made, 1, "Expected 1 replacement");
+
+        let output_content = fs::read_to_string(&output_path)?;
+        assert!(
+            output_content.contains("rene"),
+            "Expected lowercase rene to remain"
+        );
+        assert!(
+            output_content.contains("RENe"),
+            "Expected uppercase RENe to remain"
         );
 
         Ok(())

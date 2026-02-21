@@ -51,7 +51,7 @@ pub use image_loading::{
     load_cover_as_data_url, load_cover_data, CoverImageData, THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH,
 };
 pub use iriebook::resource_access::file::{load_metadata, replace_cover_image, save_metadata};
-pub use iriebook::utilities::types::BookMetadata;
+pub use iriebook::utilities::types::{BookMetadata, ReplacePair};
 pub use metadata_utils::{collect_distinct_authors, collect_distinct_series, MetadataEditState};
 pub use managers::{
     BookUIManager, CoverLoadingEngine, CoverStatus, DefaultCoverLoadingEngine, MockCoverLoadingEngine,

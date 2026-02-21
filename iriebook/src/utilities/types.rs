@@ -57,18 +57,31 @@ impl fmt::Display for WordCount {
 }
 
 /// Book metadata from YAML frontmatter
-#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, Type)]
+#[derive(Debug, Clone, PartialEq, Default, serde::Deserialize, serde::Serialize, Type)]
 pub struct BookMetadata {
+    #[serde(default)]
     pub title: String,
+    #[serde(default)]
     pub author: String,
-    #[serde(rename = "belongs-to-collection")]
+    #[serde(rename = "belongs-to-collection", default)]
     pub belongs_to_collection: Option<String>,
-    #[serde(rename = "group-position")]
+    #[serde(rename = "group-position", default)]
     pub group_position: Option<u32>,
+    #[serde(default)]
     pub language: Option<String>,
+    #[serde(default)]
     pub rights: Option<String>,
-    #[serde(rename = "cover-image")]
+    #[serde(rename = "cover-image", default)]
     pub cover_image: Option<String>,
+    #[serde(rename = "replace-pairs", default)]
+    pub replace_pairs: Option<Vec<ReplacePair>>,
+}
+
+/// A single word replacement pair (case-sensitive, whole-word)
+#[derive(Debug, Clone, PartialEq, Default, serde::Deserialize, serde::Serialize, Type)]
+pub struct ReplacePair {
+    pub source: String,
+    pub target: String,
 }
 
 impl BookMetadata {
@@ -90,6 +103,7 @@ impl BookMetadata {
             language: Some("ro-RO".to_string()),
             rights: Some(format!("© {} All Rights Reserved", current_year)),
             cover_image: Some("cover.jpg".to_string()),
+            replace_pairs: None,
         }
     }
 
@@ -355,13 +369,11 @@ mod tests {
         assert_eq!(metadata.language, Some("ro-RO".to_string()));
         assert_eq!(metadata.cover_image, Some("cover.jpg".to_string()));
         assert!(metadata.rights.is_some());
-        assert!(
-            metadata
-                .rights
-                .as_ref()
-                .unwrap()
-                .contains("All Rights Reserved")
-        );
+        assert!(metadata
+            .rights
+            .as_ref()
+            .unwrap()
+            .contains("All Rights Reserved"));
     }
 
     #[test]
@@ -374,6 +386,7 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
+            replace_pairs: None,
         };
         assert!(metadata.validate().is_err());
     }
@@ -388,6 +401,7 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
+            replace_pairs: None,
         };
         assert!(metadata.validate().is_err());
     }
@@ -402,6 +416,7 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
+            replace_pairs: None,
         };
         assert!(metadata.validate().is_ok());
     }
@@ -416,6 +431,10 @@ mod tests {
             language: Some("ro-RO".to_string()),
             rights: Some("© 2025 All Rights Reserved".to_string()),
             cover_image: Some("cover.jpg".to_string()),
+            replace_pairs: Some(vec![ReplacePair {
+                source: "Rene".to_string(),
+                target: "René".to_string(),
+            }]),
         };
 
         let yaml = serde_yaml::to_string(&metadata).unwrap();
@@ -426,6 +445,7 @@ mod tests {
         assert_eq!(deserialized.language, metadata.language);
         assert_eq!(deserialized.rights, metadata.rights);
         assert_eq!(deserialized.cover_image, metadata.cover_image);
+        assert_eq!(deserialized.replace_pairs, metadata.replace_pairs);
     }
 
     #[test]
@@ -438,6 +458,7 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
+            replace_pairs: None,
         };
 
         let with_defaults = metadata.with_predefined_defaults();
@@ -445,13 +466,11 @@ mod tests {
         assert_eq!(with_defaults.language, Some("ro-RO".to_string()));
         assert_eq!(with_defaults.cover_image, Some("cover.jpg".to_string()));
         assert!(with_defaults.rights.is_some());
-        assert!(
-            with_defaults
-                .rights
-                .as_ref()
-                .unwrap()
-                .contains("All Rights Reserved")
-        );
+        assert!(with_defaults
+            .rights
+            .as_ref()
+            .unwrap()
+            .contains("All Rights Reserved"));
     }
 
     #[test]
@@ -464,6 +483,10 @@ mod tests {
             language: Some("en-US".to_string()),
             rights: Some("Custom rights".to_string()),
             cover_image: Some("custom.jpg".to_string()),
+            replace_pairs: Some(vec![ReplacePair {
+                source: "foo".to_string(),
+                target: "bar".to_string(),
+            }]),
         };
 
         let with_defaults = metadata.with_predefined_defaults();
@@ -472,5 +495,6 @@ mod tests {
         assert_eq!(with_defaults.language, Some("en-US".to_string()));
         assert_eq!(with_defaults.rights, Some("Custom rights".to_string()));
         assert_eq!(with_defaults.cover_image, Some("custom.jpg".to_string()));
+        assert!(with_defaults.replace_pairs.as_ref().map(|p| p.len()) == Some(1));
     }
 }

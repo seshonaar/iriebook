@@ -45,7 +45,10 @@ impl MetadataEditState {
             title: metadata.title.clone(),
             author: metadata.author.clone(),
             belongs_to_collection: metadata.belongs_to_collection.clone().unwrap_or_default(),
-            group_position: metadata.group_position.map(|p| p.to_string()).unwrap_or_default(),
+            group_position: metadata
+                .group_position
+                .map(|p| p.to_string())
+                .unwrap_or_default(),
             original: metadata.clone(),
         }
     }
@@ -53,12 +56,10 @@ impl MetadataEditState {
     pub fn to_metadata(&self) -> Result<BookMetadata, String> {
         let group_position = match self.group_position.trim().is_empty() {
             true => None,
-            false => {
-                match self.group_position.parse::<u32>() {
-                    Ok(val) => Some(val),
-                    Err(_) => return Err("Group position must be a number".to_string()),
-                }
-            }
+            false => match self.group_position.parse::<u32>() {
+                Ok(val) => Some(val),
+                Err(_) => return Err("Group position must be a number".to_string()),
+            },
         };
 
         let belongs_to_collection = match self.belongs_to_collection.trim().is_empty() {
@@ -74,6 +75,7 @@ impl MetadataEditState {
             language: self.original.language.clone(),
             rights: self.original.rights.clone(),
             cover_image: self.original.cover_image.clone(),
+            replace_pairs: self.original.replace_pairs.clone(),
         };
 
         // Validate the metadata
@@ -98,6 +100,7 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
+            replace_pairs: None,
         }
     }
 
@@ -272,7 +275,10 @@ mod tests {
             BookPath::from(PathBuf::from("/test/book.md")),
             "Book".to_string(),
         )
-        .with_metadata(Some(create_test_metadata("Author", Some("  Spaced Series  "))));
+        .with_metadata(Some(create_test_metadata(
+            "Author",
+            Some("  Spaced Series  "),
+        )));
 
         let books = vec![book];
         let series = collect_distinct_series(&books);
@@ -321,10 +327,10 @@ mod tests {
     fn test_edit_state_roundtrip() {
         let original = create_test_metadata("Author", Some("Series"));
         let state = MetadataEditState::from_metadata(&original);
-        
+
         assert_eq!(state.author, "Author");
         assert_eq!(state.belongs_to_collection, "Series");
-        
+
         let result = state.to_metadata().unwrap();
         assert_eq!(result.author, "Author");
         assert_eq!(result.belongs_to_collection, Some("Series".to_string()));
@@ -334,18 +340,18 @@ mod tests {
     fn test_edit_state_validation() {
         let original = create_test_metadata("Author", None);
         let mut state = MetadataEditState::from_metadata(&original);
-        
+
         // Invalid: empty title
         state.title = "".to_string();
         assert!(state.to_metadata().is_err());
-        
+
         // Restore title
         state.title = "Valid Title".to_string();
-        
+
         // Invalid: bad group position
         state.group_position = "not a number".to_string();
         assert!(state.to_metadata().is_err());
-        
+
         // Valid
         state.group_position = "10".to_string();
         assert!(state.to_metadata().is_ok());

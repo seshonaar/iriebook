@@ -441,7 +441,7 @@ export type BookListChangedEvent = Record<string, never>
 /**
  * Book metadata from YAML frontmatter
  */
-export type BookMetadata = { title: string; author: string; "belongs-to-collection": string | null; "group-position": number | null; language: string | null; rights: string | null; "cover-image": string | null }
+export type BookMetadata = { title?: string; author?: string; "belongs-to-collection"?: string | null; "group-position"?: number | null; language?: string | null; rights?: string | null; "cover-image"?: string | null; "replace-pairs"?: ReplacePair[] | null }
 /**
  * NewType wrapper for book file path
  */
@@ -635,6 +635,10 @@ export type ProcessingEvent =
  * Event wrapper for processing updates (for tauri-specta type-safe events)
  */
 export type ProcessingUpdateEvent = ProcessingEvent
+/**
+ * A single word replacement pair (case-sensitive, whole-word)
+ */
+export type ReplacePair = { source: string; target: string }
 /**
  * Single file diff result from a git revision
  */

@@ -1,5 +1,7 @@
 use crate::ui_state::{PublishEnabled, WordStatsEnabled};
+use crate::load_metadata;
 use anyhow::Result;
+use iriebook::utilities::types::ReplacePair;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::path::{Path, PathBuf};
@@ -273,7 +275,7 @@ pub fn process_single_book(
     publish: PublishEnabled,
     word_stats: WordStatsEnabled,
 ) -> ProcessingResult {
-    use iriebook::{engines::{analysis::word_analyzer::WordAnalyzer, text_processing::{markdown_transform::MarkdownTransformer, quote_fixer::QuoteFixer, whitespace_trimmer::WhitespaceTrimmer}, validation::validator::Validator}, managers::ebook_publication::EbookPublicationManager, resource_access::{archive::ZipArchiver, calibre::CalibreConverter, pandoc::PandocConverter}};
+    use iriebook::{engines::{analysis::word_analyzer::WordAnalyzer, text_processing::{markdown_transform::MarkdownTransformer, quote_fixer::QuoteFixer, whitespace_trimmer::WhitespaceTrimmer, word_replacement::WordReplacer}, validation::validator::Validator}, managers::ebook_publication::{EbookPublicationManager, PublishArgs}, resource_access::{archive::ZipArchiver, calibre::CalibreConverter, pandoc::PandocConverter}};
                                 
     // Create the manager with all dependencies
     let manager = EbookPublicationManager::new(
@@ -282,18 +284,26 @@ pub fn process_single_book(
         Arc::new(WhitespaceTrimmer),
         Arc::new(WordAnalyzer),
         Arc::new(MarkdownTransformer),
+        Arc::new(WordReplacer::new()),
         Arc::new(PandocConverter),
         Arc::new(CalibreConverter),
         Arc::new(ZipArchiver),
     );
 
+    // Load metadata to get replace pairs
+    let replace_pairs: Option<Vec<ReplacePair>> = load_metadata(book_path)
+        .ok()
+        .flatten()
+        .and_then(|m| m.replace_pairs);
+
     // Process the book
-    let result = manager.publish(
-        book_path,
-        None, // Auto-generate output path
-        word_stats.is_enabled(),
-        publish.is_enabled(),
-    )?;
+    let result = manager.publish(PublishArgs {
+        input_path: book_path,
+        output_path: None,
+        enable_word_stats: word_stats.is_enabled(),
+        enable_publishing: publish.is_enabled(),
+        replace_pairs: replace_pairs.as_deref(),
+    })?;
 
     // Format the result message
     let mut output = String::new();

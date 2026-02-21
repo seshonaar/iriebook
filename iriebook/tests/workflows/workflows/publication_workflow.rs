@@ -3,6 +3,7 @@
 //! These tests exercise the full flow from workspace setup to EPUB generation,
 //! using mocked external dependencies.
 
+use iriebook::managers::ebook_publication::PublishArgs;
 use iriebook_test_support::{
     GitCall, MockArchiveAccess, MockCalibreAccess, MockGitAccess, MockGoogleDocsAccess,
     MockPandocAccess, TestWorkspace,
@@ -67,7 +68,13 @@ async fn test_complete_publication_workflow() {
 
     // Note: We need to pass the book path for publication
     // The actual publication requires the book.md to exist with proper structure
-    let result = pub_manager.publish(&book_path, None, true, true);
+    let result = pub_manager.publish(PublishArgs {
+        input_path: &book_path,
+        output_path: None,
+        enable_word_stats: true,
+        enable_publishing: true,
+        replace_pairs: None,
+    });
 
     // === ASSERT ===
 
@@ -123,7 +130,13 @@ The end.
         .build();
 
     let pub_manager = app_state.ebook_publication_manager();
-    let result = pub_manager.publish(&book.md_path, None, true, true);
+    let result = pub_manager.publish(PublishArgs {
+        input_path: &book.md_path,
+        output_path: None,
+        enable_word_stats: true,
+        enable_publishing: true,
+        replace_pairs: None,
+    });
 
     // Publication should return a validation failure result (not an outright error)
     let result = result.expect("Publication should return structured validation failure");
@@ -168,7 +181,13 @@ async fn test_publication_handles_pandoc_failure() {
         .build();
 
     let pub_manager = app_state.ebook_publication_manager();
-    let result = pub_manager.publish(&book.md_path, None, true, true);
+    let result = pub_manager.publish(PublishArgs {
+        input_path: &book.md_path,
+        output_path: None,
+        enable_word_stats: true,
+        enable_publishing: true,
+        replace_pairs: None,
+    });
 
     // Publication should fail
     assert!(result.is_err());
@@ -209,7 +228,13 @@ async fn test_publication_generates_all_formats() {
     let pub_manager = app_state.ebook_publication_manager();
 
     // Publish with metadata (generates all formats)
-    let result = pub_manager.publish(&book.md_path, None, false, true);
+    let result = pub_manager.publish(PublishArgs {
+        input_path: &book.md_path,
+        output_path: None,
+        enable_word_stats: false,
+        enable_publishing: true,
+        replace_pairs: None,
+    });
 
     assert!(result.is_ok());
 
@@ -267,7 +292,13 @@ The end.
             .build();
 
         let pub_manager = app_state.ebook_publication_manager();
-        let result = pub_manager.publish(&book.md_path, None, false, true);
+        let result = pub_manager.publish(PublishArgs {
+            input_path: &book.md_path,
+            output_path: None,
+            enable_word_stats: false,
+            enable_publishing: true,
+            replace_pairs: None,
+        });
 
         // Should succeed - quotes are balanced and will be curled
         assert!(result.is_ok(), "Publication failed: {:?}", result.err());

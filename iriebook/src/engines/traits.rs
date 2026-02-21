@@ -1,9 +1,9 @@
-use crate::resource_access::config::WordAnalysisConfig;
-use crate::utilities::error::IrieBookError;
-use crate::utilities::types::DiffResult;
+use crate::engines::analysis::word_analyzer::AnalysisResult;
 use crate::engines::text_processing::quote_fixer::ConversionResult;
 use crate::engines::text_processing::whitespace_trimmer::TrimmingResult;
-use crate::engines::analysis::word_analyzer::AnalysisResult;
+use crate::resource_access::config::WordAnalysisConfig;
+use crate::utilities::error::IrieBookError;
+use crate::utilities::types::{DiffResult, ReplacePair};
 
 /// Trait for quote validation engines
 ///
@@ -67,7 +67,11 @@ pub trait WordAnalyzerEngine: Send + Sync {
     /// # Returns
     /// * `Ok(AnalysisResult)` containing word counts and statistics
     /// * `Err(IrieBookError)` if analysis fails
-    fn analyze(&self, content: &str, config: &WordAnalysisConfig) -> Result<AnalysisResult, IrieBookError>;
+    fn analyze(
+        &self,
+        content: &str,
+        config: &WordAnalysisConfig,
+    ) -> Result<AnalysisResult, IrieBookError>;
 }
 
 /// Trait for markdown transformation engines
@@ -86,6 +90,13 @@ pub trait MarkdownTransformEngine: Send + Sync {
     fn transform(&self, content: &str) -> Result<String, IrieBookError>;
 }
 
+/// Result of word replacement
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReplacementResult {
+    pub content: String,
+    pub replacements_made: usize,
+}
+
 /// Trait for diff computation engines
 ///
 /// Implementations of this trait compute word-level diffs between two text sources.
@@ -101,4 +112,25 @@ pub trait DifferEngine: Send + Sync {
     /// * `Ok(DiffResult)` containing segments and statistics
     /// * `Err(IrieBookError)` if diff computation fails
     fn diff(&self, left_content: &str, right_content: &str) -> Result<DiffResult, IrieBookError>;
+}
+
+/// Trait for word replacement engines
+///
+/// Implementations of this trait perform case-sensitive whole-word replacements
+/// using replace pairs defined in book metadata.
+pub trait WordReplacementEngine: Send + Sync {
+    /// Replaces words in content according to the provided replace pairs
+    ///
+    /// # Arguments
+    /// * `content` - The text content to process
+    /// * `replace_pairs` - List of source->target word pairs
+    ///
+    /// # Returns
+    /// * `Ok(ReplacementResult)` containing the modified content and count of replacements
+    /// * `Err(IrieBookError)` if replacement fails
+    fn replace(
+        &self,
+        content: &str,
+        replace_pairs: &[ReplacePair],
+    ) -> Result<ReplacementResult, IrieBookError>;
 }

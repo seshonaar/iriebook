@@ -636,6 +636,7 @@ pub fn add_book_to_workspace(workspace_root: &Path, source_md: &Path) -> Result<
             language: None,
             rights: None,
             cover_image: None,
+            replace_pairs: None,
         };
         save_metadata(&book_path, &default_metadata)?;
     }
@@ -1007,6 +1008,7 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
+            replace_pairs: None,
         };
 
         save_metadata(&book_path, &metadata)?;
@@ -1038,6 +1040,7 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
+            replace_pairs: None,
         };
 
         save_metadata(&book_path, &metadata)?;
@@ -1051,13 +1054,11 @@ mod tests {
                 assert_eq!(metadata.language, Some("ro-RO".to_string()));
                 assert_eq!(metadata.cover_image, Some("cover.jpg".to_string()));
                 assert!(metadata.rights.is_some());
-                assert!(
-                    metadata
-                        .rights
-                        .as_ref()
-                        .unwrap()
-                        .contains("All Rights Reserved")
-                );
+                assert!(metadata
+                    .rights
+                    .as_ref()
+                    .unwrap()
+                    .contains("All Rights Reserved"));
             }
             None => panic!("Expected metadata to be loaded"),
         }
@@ -1079,6 +1080,7 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
+            replace_pairs: None,
         };
 
         let result = save_metadata(&book_path, &metadata);
@@ -1099,6 +1101,7 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
+            replace_pairs: None,
         };
 
         save_metadata(&book_path, &metadata)?;
@@ -1261,6 +1264,7 @@ mod tests {
             language: Some("en-US".to_string()),
             rights: Some("© 2026 Jane Doe".to_string()),
             cover_image: Some("custom_cover.jpg".to_string()),
+            replace_pairs: None,
         };
         save_metadata(&book_path, &custom_metadata)?;
 
@@ -1382,6 +1386,7 @@ mod tests {
             language: Some("en-US".to_string()),
             rights: Some("© 2026 Jane Doe".to_string()),
             cover_image: Some("custom_cover.jpg".to_string()),
+            ..Default::default()
         };
         save_metadata(&book_path, &custom_metadata)?;
 

@@ -12,8 +12,9 @@ use iriebook::engines::analysis::word_analyzer::WordAnalyzer;
 use iriebook::engines::text_processing::markdown_transform::MarkdownTransformer;
 use iriebook::engines::text_processing::quote_fixer::QuoteFixer;
 use iriebook::engines::text_processing::whitespace_trimmer::WhitespaceTrimmer;
+use iriebook::engines::text_processing::word_replacement::WordReplacer;
 use iriebook::engines::validation::validator::Validator;
-use iriebook::managers::ebook_publication::EbookPublicationManager;
+use iriebook::managers::ebook_publication::{EbookPublicationManager, PublishArgs};
 use iriebook::resource_access::archive::ZipArchiver;
 use iriebook::resource_access::calibre::CalibreConverter;
 use iriebook::resource_access::file;
@@ -23,8 +24,7 @@ fn main() -> Result<()> {
     // Initialize tracing subscriber for CLI
     tracing_subscriber::fmt()
         .with_env_filter(
-            EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("iriebook=info")),
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("iriebook=info")),
         )
         .with_writer(std::io::stderr)
         .init();
@@ -58,13 +58,20 @@ fn main() -> Result<()> {
         Arc::new(WhitespaceTrimmer),
         Arc::new(WordAnalyzer),
         Arc::new(MarkdownTransformer),
+        Arc::new(WordReplacer::new()),
         Arc::new(PandocConverter),
         Arc::new(CalibreConverter),
         Arc::new(ZipArchiver),
     );
 
     // Execute publication pipeline
-    let result = manager.publish(&args.input, args.output.as_deref(), args.word_stats, args.publish)?;
+    let result = manager.publish(PublishArgs {
+        input_path: &args.input,
+        output_path: args.output.as_deref(),
+        enable_word_stats: args.word_stats,
+        enable_publishing: args.publish,
+        replace_pairs: None,
+    })?;
 
     // Display results (Client's responsibility)
     display_results(&result, args.verbose);

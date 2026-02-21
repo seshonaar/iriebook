@@ -4,6 +4,7 @@ use iriebook::engines::comparison::differ::Differ;
 use iriebook::engines::text_processing::markdown_transform::MarkdownTransformer;
 use iriebook::engines::text_processing::quote_fixer::QuoteFixer;
 use iriebook::engines::text_processing::whitespace_trimmer::WhitespaceTrimmer;
+use iriebook::engines::text_processing::word_replacement::WordReplacer;
 use iriebook::engines::traits::{
     DifferEngine, MarkdownTransformEngine, QuoteFixerEngine, ValidatorEngine,
     WhitespaceTrimmerEngine, WordAnalyzerEngine,
@@ -286,9 +287,9 @@ impl AppStateBuilder {
             .expect("workspace_path is required - call .workspace_path() first");
 
         // Resource Access
-        let git_access = self
-            .git_access
-            .expect("git_access is required - call .with_git_access() or .with_defaults_for_remaining()");
+        let git_access = self.git_access.expect(
+            "git_access is required - call .with_git_access() or .with_defaults_for_remaining()",
+        );
         let google_docs_access = self
             .google_docs_access
             .expect("google_docs_access is required");
@@ -319,8 +320,7 @@ impl AppStateBuilder {
 
         // Build managers with injected dependencies
         let repository_manager = Arc::new(RepositoryManager::new(git_access));
-        let google_docs_manager =
-            Arc::new(GoogleDocsSyncManager::new(google_docs_access.clone()));
+        let google_docs_manager = Arc::new(GoogleDocsSyncManager::new(google_docs_access.clone()));
         let diff_manager = Arc::new(DiffManager::new(diff_source, differ));
         let ebook_publication_manager = Arc::new(EbookPublicationManager::new(
             validator,
@@ -328,6 +328,7 @@ impl AppStateBuilder {
             whitespace_trimmer,
             word_analyzer,
             markdown_transformer,
+            Arc::new(WordReplacer::new()),
             pandoc_access,
             calibre_access.clone(),
             archive_access,

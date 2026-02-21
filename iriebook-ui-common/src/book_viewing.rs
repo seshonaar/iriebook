@@ -6,10 +6,12 @@
 //! 3. Launch ebook-viewer
 
 use anyhow::{Context, Result};
+use iriebook::resource_access::file::load_metadata;
+use iriebook::utilities::types::ReplacePair;
 use std::path::Path;
 use std::sync::Arc;
 
-use iriebook::managers::ebook_publication::EbookPublicationManager;
+use iriebook::managers::ebook_publication::{EbookPublicationManager, PublishArgs};
 use iriebook::resource_access::file;
 use iriebook::resource_access::traits::CalibreAccess;
 
@@ -34,21 +36,35 @@ pub fn view_book(
     calibre_access: &Arc<dyn CalibreAccess>,
 ) -> Result<()> {
     // Step 1: Determine EPUB path from metadata
-    let epub_path = file::get_output_file_name(book_path)
-        .context("Failed to get EPUB path. Ensure metadata.yaml exists with title and author fields.")?;
+    let epub_path = file::get_output_file_name(book_path).context(
+        "Failed to get EPUB path. Ensure metadata.yaml exists with title and author fields.",
+    )?;
 
     // Step 2: Check if EPUB exists, generate if needed
     if !epub_path.exists() {
+        // Load metadata to get replace pairs
+        let replace_pairs: Option<Vec<ReplacePair>> = load_metadata(book_path)
+            .ok()
+            .flatten()
+            .and_then(|m| m.replace_pairs);
+
         // Generate EPUB using publication pipeline
-        // Parameters: input_path, output_path=None (auto),
-        //             enable_word_stats=false, enable_publishing=true
         publication_manager
-            .publish(book_path, None, false, true)
+            .publish(PublishArgs {
+                input_path: book_path,
+                output_path: None,
+                enable_word_stats: false,
+                enable_publishing: true,
+                replace_pairs: replace_pairs.as_deref(),
+            })
             .context("Failed to generate EPUB for viewing")?;
 
         // Verify EPUB was created
         if !epub_path.exists() {
-            anyhow::bail!("EPUB generation completed but file not found at: {}", epub_path.display());
+            anyhow::bail!(
+                "EPUB generation completed but file not found at: {}",
+                epub_path.display()
+            );
         }
     }
 
@@ -74,6 +90,9 @@ mod tests {
         fs::write(&book_path, "# Test Book").unwrap();
 
         let result = file::get_output_file_name(&book_path);
-        assert!(result.is_err(), "Expected error when metadata.yaml is missing");
+        assert!(
+            result.is_err(),
+            "Expected error when metadata.yaml is missing"
+        );
     }
 }

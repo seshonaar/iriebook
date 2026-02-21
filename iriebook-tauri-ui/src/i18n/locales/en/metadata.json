@@ -17,7 +17,13 @@
       "author": "Author",
       "collection": "Series/Collection",
       "position": "Position in Series",
-      "positionPlaceholder": "Optional (e.g., 1, 2, 3)"
+      "positionPlaceholder": "Optional (e.g., 1, 2, 3)",
+      "replacePairs": "Word Replacements",
+      "replacePairsHint": "Add words to replace during processing (case-sensitive)",
+      "source": "Find",
+      "target": "Replace with",
+      "addPair": "Add Replacement",
+      "removePair": "Remove"
     },
     "validation": {
       "titleRequired": "Title is required",

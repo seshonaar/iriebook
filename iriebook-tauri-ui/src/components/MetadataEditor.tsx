@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { commands, type BookMetadata, type BookInfo } from "../bindings";
+import { commands, type BookMetadata, type BookInfo, type ReplacePair } from "../bindings";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -21,13 +21,16 @@ export function MetadataEditor({
   onCancel,
 }: MetadataEditorProps) {
   const { t } = useTranslation();
-  const [title, setTitle] = useState(metadata.title);
-  const [author, setAuthor] = useState(metadata.author);
+  const [title, setTitle] = useState(metadata.title || "");
+  const [author, setAuthor] = useState(metadata.author || "");
   const [collection, setCollection] = useState(
     metadata["belongs-to-collection"] || ""
   );
   const [position, setPosition] = useState(
     metadata["group-position"]?.toString() || ""
+  );
+  const [replacePairs, setReplacePairs] = useState<ReplacePair[]>(
+    metadata["replace-pairs"] || []
   );
 
   const [authors, setAuthors] = useState<string[]>([]);
@@ -92,6 +95,7 @@ export function MetadataEditor({
         language: metadata.language,
         rights: metadata.rights,
         "cover-image": metadata["cover-image"],
+        "replace-pairs": replacePairs.length > 0 ? replacePairs : null,
       };
 
       const result = await commands.saveBookMetadata(bookPath, updatedMetadata);
@@ -106,6 +110,20 @@ export function MetadataEditor({
     } finally {
       setSaving(false);
     }
+  };
+
+  const addReplacePair = () => {
+    setReplacePairs([...replacePairs, { source: "", target: "" }]);
+  };
+
+  const updateReplacePair = (index: number, field: "source" | "target", value: string) => {
+    const updated = [...replacePairs];
+    updated[index] = { ...updated[index], [field]: value };
+    setReplacePairs(updated);
+  };
+
+  const removeReplacePair = (index: number) => {
+    setReplacePairs(replacePairs.filter((_, i) => i !== index));
   };
 
   return (
@@ -183,6 +201,53 @@ export function MetadataEditor({
           />
           {errors.position && (
             <p className="text-sm text-red-500 mt-1">{errors.position}</p>
+          )}
+        </div>
+
+        {/* Word Replacements */}
+        <div className="border-t pt-4 mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <Label>{t('metadata.editor.fields.replacePairs')}</Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addReplacePair}
+            >
+              {t('metadata.editor.fields.addPair')}
+            </Button>
+          </div>
+          
+          {replacePairs.map((pair, index) => (
+            <div key={index} className="flex items-center gap-2 mb-2">
+              <Input
+                placeholder={t('metadata.editor.fields.source')}
+                value={pair.source}
+                onChange={(e) => updateReplacePair(index, "source", e.target.value)}
+                className="flex-1"
+                style={{ height: '2.5rem', padding: '0.75rem 0.5rem' }}
+              />
+              <span className="text-muted-foreground">→</span>
+              <Input
+                placeholder={t('metadata.editor.fields.target')}
+                value={pair.target}
+                onChange={(e) => updateReplacePair(index, "target", e.target.value)}
+                className="flex-1"
+                style={{ height: '2.5rem', padding: '0.75rem 0.5rem' }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => removeReplacePair(index)}
+              >
+                ✕
+              </Button>
+            </div>
+          ))}
+          
+          {replacePairs.length === 0 && (
+            <p className="text-sm text-muted-foreground">{t('metadata.editor.fields.replacePairsHint')}</p>
           )}
         </div>
 
