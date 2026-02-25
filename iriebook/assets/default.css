@@ -24,6 +24,14 @@ h1:not(.unnumbered), h2 {
     font-weight: bold;
 }
 
+/* Prevent double page breaks when h1 is first element in a section */
+/* Each XHTML file is a separate section, so the file boundary already provides a page break */
+section > h1:first-child {
+    page-break-before: auto;
+    -webkit-column-break-before: auto;
+    break-before: auto;
+}
+
 /* --- 4. SUBTITLE LOGIC (ToC Invisible) --- */
 /* Matches <p class="subtitle"> from your Rust tool */
 .subtitle {

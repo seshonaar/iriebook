@@ -1840,4 +1840,16 @@ mod tests {
         assert!(EMBEDDED_CSS.contains("body"));
         assert!(EMBEDDED_CSS.contains("h1:not(.unnumbered), h2"));
     }
+
+    #[test]
+    fn test_css_prevents_double_page_breaks() {
+        assert!(
+            EMBEDDED_CSS.contains("section > h1:first-child"),
+            "CSS must contain fix for double page breaks"
+        );
+        assert!(
+            EMBEDDED_CSS.contains("page-break-before: auto"),
+            "CSS must set page-break-before: auto for first h1"
+        );
+    }
 }
