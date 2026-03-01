@@ -441,7 +441,7 @@ export type BookListChangedEvent = Record<string, never>
 /**
  * Book metadata from YAML frontmatter
  */
-export type BookMetadata = { title?: string; author?: string; "belongs-to-collection"?: string | null; "group-position"?: number | null; language?: string | null; rights?: string | null; "cover-image"?: string | null; "replace-pairs"?: ReplacePair[] | null }
+export type BookMetadata = { title?: string; author?: string; "belongs-to-collection"?: string | null; "group-position"?: number | null; language?: string | null; rights?: string | null; "cover-image"?: string | null; "replace-pairs"?: ReplacePair[] | null; identifier?: Identifier[] | null }
 /**
  * NewType wrapper for book file path
  */
@@ -615,6 +615,10 @@ export type GoogleDocsProgressEvent = string
  * Google Docs sync information (stored in google-docs-sync.yaml)
  */
 export type GoogleDocsSyncInfo = { "google-doc-id": string; "sync-status": string }
+/**
+ * Book identifier (e.g., ISBN)
+ */
+export type Identifier = { scheme?: string | null; text?: string | null }
 /**
  * Events emitted during book processing (serializable for Tauri events)
  */

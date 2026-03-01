@@ -123,3 +123,51 @@ h1.dedication-page {
     line-height: 1.8;
     text-indent: 0;
 }
+
+/* --- 9. COPYRIGHT PAGE --- */
+/* Hidden H1 used to force Pandoc section split */
+h1.copyright-page {
+    display: none;
+    height: 0;
+    margin: 0;
+    padding: 0;
+}
+
+/* Centered on its own page, after title, before dedication */
+.copyright {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    min-height: 80vh;
+    text-align: center;
+    padding-top: 5em;
+}
+
+.copyright p {
+    text-indent: 0;
+    margin: 0.5em 0;
+}
+
+.copyright-owner {
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 0.5em;
+}
+
+.copyright-rights {
+    font-size: 0.9em;
+    margin-bottom: 1em;
+}
+
+.copyright-disclaimer {
+    font-size: 0.85em;
+    line-height: 1.6;
+    max-width: 80%;
+    text-align: justify;
+}
+
+.copyright-isbn {
+    font-size: 0.85em;
+    margin-top: 1.5em;
+}

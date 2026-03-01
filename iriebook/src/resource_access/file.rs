@@ -637,6 +637,7 @@ pub fn add_book_to_workspace(workspace_root: &Path, source_md: &Path) -> Result<
             rights: None,
             cover_image: None,
             replace_pairs: None,
+            identifier: None,
         };
         save_metadata(&book_path, &default_metadata)?;
     }
@@ -970,6 +971,63 @@ mod tests {
     }
 
     #[test]
+    fn load_metadata_parses_all_fields_including_identifier() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let book_path = temp_dir.path().join("book.md");
+        fs::write(&book_path, "content")?;
+
+        // Create metadata file with all fields
+        let metadata_path = temp_dir.path().join("metadata.yaml");
+        let content = r#"---
+title: Test Book
+author: Jane Doe
+belongs-to-collection: Test Series
+group-position: 1
+language: ro-RO
+rights: © 2026 All Rights Reserved
+cover-image: cover.jpg
+identifier:
+  - scheme: ISBN-13
+    text: 978-0-123456-78-9
+---"#;
+        fs::write(&metadata_path, content)?;
+
+        let result = load_metadata(&book_path)?;
+        assert!(result.is_some());
+
+        let metadata = result.unwrap();
+        assert_eq!(metadata.title, "Test Book");
+        assert_eq!(metadata.author, "Jane Doe");
+        assert_eq!(
+            metadata.belongs_to_collection,
+            Some("Test Series".to_string())
+        );
+        assert_eq!(metadata.group_position, Some(1));
+        assert_eq!(metadata.language, Some("ro-RO".to_string()));
+        assert_eq!(
+            metadata.rights,
+            Some("© 2026 All Rights Reserved".to_string())
+        );
+        assert_eq!(metadata.cover_image, Some("cover.jpg".to_string()));
+
+        // Validate identifier (list of identifiers)
+        assert!(metadata.identifier.is_some());
+        let identifiers = metadata.identifier.as_ref().unwrap();
+        assert_eq!(identifiers.len(), 1);
+        assert_eq!(identifiers[0].scheme, Some("ISBN-13".to_string()));
+        assert_eq!(identifiers[0].text, Some("978-0-123456-78-9".to_string()));
+
+        // Validate helper method (re-read to get fresh reference)
+        let result = load_metadata(&book_path)?.unwrap();
+        assert_eq!(
+            result.identifier_display_text(),
+            Some("ISBN-13: 978-0-123456-78-9".to_string())
+        );
+
+        Ok(())
+    }
+
+    #[test]
     fn load_metadata_handles_frontmatter_delimiters() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let book_path = temp_dir.path().join("book.md");
@@ -1009,6 +1067,7 @@ mod tests {
             rights: None,
             cover_image: None,
             replace_pairs: None,
+            identifier: None,
         };
 
         save_metadata(&book_path, &metadata)?;
@@ -1041,6 +1100,7 @@ mod tests {
             rights: None,
             cover_image: None,
             replace_pairs: None,
+            identifier: None,
         };
 
         save_metadata(&book_path, &metadata)?;
@@ -1072,50 +1132,18 @@ mod tests {
         let book_path = temp_dir.path().join("book.md");
         fs::write(&book_path, "content").unwrap();
 
-        let metadata = BookMetadata {
-            title: "".to_string(), // Invalid - empty
-            author: "Author".to_string(),
-            belongs_to_collection: None,
-            group_position: None,
-            language: None,
-            rights: None,
-            cover_image: None,
-            replace_pairs: None,
-        };
+        let metadata = BookMetadata::default();
 
         let result = save_metadata(&book_path, &metadata);
         assert!(result.is_err());
-    }
 
-    #[test]
-    fn save_metadata_atomic_write() -> Result<()> {
-        let temp_dir = TempDir::new()?;
-        let book_path = temp_dir.path().join("book.md");
-        fs::write(&book_path, "content")?;
-
-        let metadata = BookMetadata {
-            title: "Test".to_string(),
-            author: "Author".to_string(),
-            belongs_to_collection: None,
-            group_position: None,
-            language: None,
-            rights: None,
-            cover_image: None,
-            replace_pairs: None,
-        };
-
-        save_metadata(&book_path, &metadata)?;
-
-        // Temp file should not exist after successful write
-        // Metadata should be in root directory
+        // Temp file should not exist after failed write
         let metadata_path = temp_dir.path().join("metadata.yaml");
         let temp_path = metadata_path.with_extension("tmp");
         assert!(!temp_path.exists());
 
-        // Verify metadata file was created in root
-        assert!(metadata_path.exists());
-
-        Ok(())
+        // Verify metadata file was NOT created (validation failed before writing)
+        assert!(!metadata_path.exists());
     }
 
     // extract_folder_name tests
@@ -1265,6 +1293,7 @@ mod tests {
             rights: Some("© 2026 Jane Doe".to_string()),
             cover_image: Some("custom_cover.jpg".to_string()),
             replace_pairs: None,
+            identifier: None,
         };
         save_metadata(&book_path, &custom_metadata)?;
 

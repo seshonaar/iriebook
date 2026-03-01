@@ -8,14 +8,17 @@
 
 use crate::engines::traits::MarkdownTransformEngine;
 use crate::utilities::error::IrieBookError;
+use crate::utilities::types::BookMetadata;
+use chrono::Datelike;
 use nom::{
-    IResult,
     branch::alt,
     bytes::complete::{tag, take_until},
     combinator::rest,
     sequence::{preceded, tuple},
+    IResult,
 };
 use regex::Regex;
+use std::path::Path;
 
 /// Token representing a single line with metadata
 #[derive(Debug, Clone, PartialEq)]
@@ -207,6 +210,59 @@ pub struct MarkdownTransformer;
 impl MarkdownTransformEngine for MarkdownTransformer {
     fn transform(&self, content: &str) -> Result<String, IrieBookError> {
         Ok(transform_impl(content))
+    }
+
+    fn generate_copyright_page(
+        &self,
+        book_folder: &Path,
+        metadata: &BookMetadata,
+    ) -> Result<Option<String>, IrieBookError> {
+        let copyright_path = book_folder.join("copyright.txt");
+
+        if !copyright_path.exists() {
+            return Ok(None);
+        }
+
+        let disclaimer_text =
+            std::fs::read_to_string(&copyright_path).map_err(|e| IrieBookError::FileRead {
+                path: copyright_path.to_string_lossy().to_string(),
+                source: e,
+            })?;
+
+        let author = &metadata.author;
+        let year = chrono::Utc::now().year();
+
+        // Extract rights text, stripping the © YEAR prefix if present (since we show that separately)
+        let rights_text = metadata
+            .rights
+            .as_ref()
+            .map(|r| {
+                // Strip leading "© YYYY " or "© YYYY-" pattern
+                let re = regex::Regex::new(r"^©\s*\d{4}\s*-?\s*").unwrap();
+                re.replace(r, "").to_string()
+            })
+            .unwrap_or_default();
+
+        // Include ISBN if present in metadata
+        let isbn_line = if let Some(text) = metadata.identifier_display_text() {
+            format!(r#"<p class="copyright-isbn">{}</p>"#, text)
+        } else {
+            String::new()
+        };
+
+        let copyright_page = format!(
+            r#"# {{.copyright-page .unnumbered .unlisted}}
+
+<div class="copyright">
+<p class="copyright-owner">© {} {}</p>
+<p class="copyright-rights">{}</p>
+<div class="copyright-disclaimer">{}</div>
+{}
+"#,
+            year, author, rights_text, disclaimer_text, isbn_line
+        );
+
+        Ok(Some(copyright_page))
     }
 }
 
@@ -400,7 +456,7 @@ fn parse_tokens(tokens: Vec<Token>) -> Vec<ContentItem> {
             TokenKind::H3Line => {
                 // H3 header
                 let text = token.content[4..].to_string(); // Skip "### "
-                // Check if entire content is italic (*text*) -> dedication page
+                                                           // Check if entire content is italic (*text*) -> dedication page
                 if is_italic_line(&text) {
                     // Strip the asterisks for clean dedication text
                     let inner = text.trim().trim_matches('*').to_string();
@@ -659,6 +715,9 @@ fn transform_impl(content: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utilities::types::Identifier;
+    use std::fs;
+    use tempfile::TempDir;
 
     // ==========================================
     // Chapter Renumbering Tests (TDD)
@@ -1281,11 +1340,8 @@ More text.
         let result = transformer.transform(input).unwrap();
 
         // Should NOT have scene break after subtitle
-        assert!(
-            !result.contains(
-                "<p class=\"subtitle\">The Beginning</p>\n<div class='scene-break'></div>"
-            )
-        );
+        assert!(!result
+            .contains("<p class=\"subtitle\">The Beginning</p>\n<div class='scene-break'></div>"));
     }
 
     #[test]
@@ -1485,5 +1541,153 @@ More text.
         assert!(result.contains("# {.dedication-page .unnumbered .unlisted}"));
         assert!(result.contains("<div class=\"dedication\">"));
         assert!(result.contains("To those who dream"));
+    }
+
+    #[test]
+    fn generate_copyright_page_returns_none_when_no_file() {
+        let transformer = MarkdownTransformer;
+        let temp_dir = TempDir::new().unwrap();
+        let book_folder = temp_dir.path();
+
+        let metadata = BookMetadata {
+            title: "Test".to_string(),
+            author: "Author".to_string(),
+            ..Default::default()
+        };
+
+        let result = transformer
+            .generate_copyright_page(book_folder, &metadata)
+            .unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn generate_copyright_page_includes_author_and_year() {
+        let transformer = MarkdownTransformer;
+        let temp_dir = TempDir::new().unwrap();
+        let book_folder = temp_dir.path();
+
+        // Create copyright.txt
+        fs::write(book_folder.join("copyright.txt"), "All rights reserved.").unwrap();
+
+        let metadata = BookMetadata {
+            title: "Test Book".to_string(),
+            author: "Jane Doe".to_string(),
+            ..Default::default()
+        };
+
+        let result = transformer
+            .generate_copyright_page(book_folder, &metadata)
+            .unwrap();
+        assert!(result.is_some());
+        let page = result.unwrap();
+
+        // Should contain author and year
+        assert!(page.contains("Jane Doe"));
+        let current_year = chrono::Utc::now().year();
+        assert!(page.contains(&current_year.to_string()));
+        assert!(page.contains("All rights reserved."));
+    }
+
+    #[test]
+    fn generate_copyright_page_uses_div_for_disclaimer_wrapper() {
+        let transformer = MarkdownTransformer;
+        let temp_dir = TempDir::new().unwrap();
+        let book_folder = temp_dir.path();
+
+        fs::write(book_folder.join("copyright.txt"), "Line one.\n\nLine two.").unwrap();
+
+        let metadata = BookMetadata {
+            title: "Test Book".to_string(),
+            author: "Jane Doe".to_string(),
+            ..Default::default()
+        };
+
+        let page = transformer
+            .generate_copyright_page(book_folder, &metadata)
+            .unwrap()
+            .unwrap();
+
+        assert!(page.contains("<div class=\"copyright-disclaimer\">"));
+        assert!(!page.contains("<p class=\"copyright-disclaimer\">"));
+    }
+
+    #[test]
+    fn generate_copyright_page_does_not_add_thematic_break() {
+        let transformer = MarkdownTransformer;
+        let temp_dir = TempDir::new().unwrap();
+        let book_folder = temp_dir.path();
+
+        fs::write(book_folder.join("copyright.txt"), "Line one.").unwrap();
+
+        let metadata = BookMetadata {
+            title: "Test Book".to_string(),
+            author: "Jane Doe".to_string(),
+            ..Default::default()
+        };
+
+        let page = transformer
+            .generate_copyright_page(book_folder, &metadata)
+            .unwrap()
+            .unwrap();
+
+        assert!(!page.contains("\n---\n"));
+    }
+
+    #[test]
+    fn generate_copyright_page_includes_isbn_when_present() {
+        let transformer = MarkdownTransformer;
+        let temp_dir = TempDir::new().unwrap();
+        let book_folder = temp_dir.path();
+
+        // Create copyright.txt
+        fs::write(book_folder.join("copyright.txt"), "All rights reserved.").unwrap();
+
+        // Create metadata with identifier
+        let metadata = BookMetadata {
+            title: "Test Book".to_string(),
+            author: "Jane Doe".to_string(),
+            identifier: Some(vec![Identifier {
+                scheme: Some("ISBN-13".to_string()),
+                text: Some("978-0-123456-78-9".to_string()),
+            }]),
+            ..Default::default()
+        };
+
+        let result = transformer
+            .generate_copyright_page(book_folder, &metadata)
+            .unwrap();
+        assert!(result.is_some());
+        let page = result.unwrap();
+
+        // Should contain ISBN
+        assert!(page.contains("ISBN-13: 978-0-123456-78-9"));
+    }
+
+    #[test]
+    fn generate_copyright_page_excludes_isbn_when_not_present() {
+        let transformer = MarkdownTransformer;
+        let temp_dir = TempDir::new().unwrap();
+        let book_folder = temp_dir.path();
+
+        // Create copyright.txt
+        fs::write(book_folder.join("copyright.txt"), "All rights reserved.").unwrap();
+
+        // Create metadata without identifier
+        let metadata = BookMetadata {
+            title: "Test Book".to_string(),
+            author: "Jane Doe".to_string(),
+            identifier: None,
+            ..Default::default()
+        };
+
+        let result = transformer
+            .generate_copyright_page(book_folder, &metadata)
+            .unwrap();
+        assert!(result.is_some());
+        let page = result.unwrap();
+
+        // Should NOT contain ISBN
+        assert!(!page.contains("copyright-isbn"));
     }
 }

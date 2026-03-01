@@ -60,6 +60,7 @@ impl PandocAccess for MockPandocAccess {
         original_input: &Path,
         fixed_md: &Path,
         output_epub: &Path,
+        _custom_metadata_path: Option<&Path>,
     ) -> Result<String, IrieBookError> {
         self.calls.lock().unwrap().push(PandocCall {
             original_input: original_input.to_string_lossy().to_string(),
@@ -284,6 +285,7 @@ mod tests {
             Path::new("/input/book.md"),
             Path::new("/tmp/fixed.md"),
             &output_path,
+            None,
         );
 
         assert!(result.is_ok());

@@ -231,10 +231,29 @@ impl EbookPublicationManager {
                 None => file::generate_output_path(input_path)?,
             };
 
+            // Get book folder for copyright.txt lookup
+            let book_folder = input_path.parent().unwrap_or(Path::new("."));
+
+            // Load metadata for copyright page generation (pass input_path, not folder - load_metadata calls .parent() internally)
+            let metadata = file::load_metadata(input_path)?.unwrap_or_default();
+
+            // Generate copyright page if copyright.txt exists
+            let copyright_page = self
+                .markdown_transformer
+                .generate_copyright_page(book_folder, &metadata)?;
+
+            // Prepend copyright page to content if it exists
+            let has_copyright_page = copyright_page.is_some();
+            let content_with_copyright = if let Some(ref copyright) = copyright_page {
+                format!("{}\n\n{}", copyright, replacement_result.content)
+            } else {
+                replacement_result.content.clone()
+            };
+
             // Transform markdown structure
             let formatted_text = self
                 .markdown_transformer
-                .transform(&replacement_result.content)?;
+                .transform(&content_with_copyright)?;
 
             // Write the fixed content
             file::write_file(&final_output_path, &formatted_text)?;
@@ -255,13 +274,36 @@ impl EbookPublicationManager {
             // Generate ebook artifacts if metadata exists
             match file::get_output_file_name(input_path) {
                 Ok(output_epub) => {
-                    // Pass original input path for metadata/cover lookup, fixed path for content
+                    // Create temp metadata file without rights field if copyright page was generated
+                    // This suppresses pandoc's auto-generated copyright page
+                    let temp_metadata_path = if has_copyright_page {
+                        let mut metadata_without_rights = metadata.clone();
+                        metadata_without_rights.rights = None;
+                        let temp_yaml = serde_yaml::to_string(&metadata_without_rights)
+                            .map_err(|e| anyhow::anyhow!("Failed to serialize metadata: {}", e))?;
+                        let temp_path = final_output_path
+                            .parent()
+                            .unwrap_or(Path::new("."))
+                            .join("temp_metadata.yaml");
+                        std::fs::write(&temp_path, temp_yaml)?;
+                        Some(temp_path)
+                    } else {
+                        None
+                    };
+
+                    // Use custom metadata if we generated a copyright page (to suppress pandoc's auto copyright page)
                     let pandoc_output = self.pandoc_access.convert_to_epub(
                         input_path,
                         &final_output_path,
                         &output_epub,
+                        temp_metadata_path.as_deref(),
                     )?;
                     command_outputs.push(format!("pandoc: {}", pandoc_output));
+
+                    // Clean up temp metadata file
+                    if let Some(temp_meta) = temp_metadata_path {
+                        let _ = std::fs::remove_file(temp_meta);
+                    }
 
                     // Pass original input path for metadata lookup
                     let calibre_output = self

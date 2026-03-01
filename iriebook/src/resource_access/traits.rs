@@ -33,14 +33,24 @@ pub trait PandocAccess: Send + Sync {
     /// Converts markdown to EPUB using Pandoc
     ///
     /// # Arguments
-    /// * `original_input` - Path to the original input markdown file (for metadata/cover lookup)
+    /// * `original_input` - Path to the original input markdown file (for cover lookup)
     /// * `fixed_md` - Path to the fixed markdown file to convert
     /// * `output_epub` - Path where the EPUB should be written
+    /// * `custom_metadata_path` - Optional path to a custom metadata.yaml file.
+    ///   If provided, this will be used instead of the book's metadata.yaml.
+    ///   Use this to suppress pandoc's auto-generated copyright page by providing
+    ///   a metadata file without the `rights` field.
     ///
     /// # Returns
     /// * `Ok(String)` with command output if conversion succeeds
     /// * `Err(IrieBookError)` if conversion fails
-    fn convert_to_epub(&self, original_input: &Path, fixed_md: &Path, output_epub: &Path) -> Result<String, IrieBookError>;
+    fn convert_to_epub(
+        &self,
+        original_input: &Path,
+        fixed_md: &Path,
+        output_epub: &Path,
+        custom_metadata_path: Option<&Path>,
+    ) -> Result<String, IrieBookError>;
 }
 
 /// Trait for Calibre access (Kindle conversion and metadata)

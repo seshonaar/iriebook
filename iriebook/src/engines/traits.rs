@@ -3,7 +3,7 @@ use crate::engines::text_processing::quote_fixer::ConversionResult;
 use crate::engines::text_processing::whitespace_trimmer::TrimmingResult;
 use crate::resource_access::config::WordAnalysisConfig;
 use crate::utilities::error::IrieBookError;
-use crate::utilities::types::{DiffResult, ReplacePair};
+use crate::utilities::types::{BookMetadata, DiffResult, ReplacePair};
 
 /// Trait for quote validation engines
 ///
@@ -88,6 +88,22 @@ pub trait MarkdownTransformEngine: Send + Sync {
     /// * `Ok(String)` containing the transformed markdown
     /// * `Err(IrieBookError)` if transformation fails
     fn transform(&self, content: &str) -> Result<String, IrieBookError>;
+
+    /// Generates a copyright page from metadata and optional copyright.txt file
+    ///
+    /// # Arguments
+    /// * `book_folder` - Path to the book's root folder (where copyright.txt would be)
+    /// * `metadata` - Book metadata containing author, rights, etc.
+    ///
+    /// # Returns
+    /// * `Ok(Some(String))` with the generated copyright page markdown if copyright.txt exists
+    /// * `Ok(None)` if copyright.txt doesn't exist (no custom copyright page needed)
+    /// * `Err(IrieBookError)` if file reading fails
+    fn generate_copyright_page(
+        &self,
+        book_folder: &std::path::Path,
+        metadata: &BookMetadata,
+    ) -> Result<Option<String>, IrieBookError>;
 }
 
 /// Result of word replacement

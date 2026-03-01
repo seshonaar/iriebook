@@ -56,6 +56,37 @@ impl fmt::Display for WordCount {
     }
 }
 
+/// Book identifier (e.g., ISBN)
+#[derive(Debug, Clone, PartialEq, Default, serde::Deserialize, serde::Serialize, Type)]
+pub struct Identifier {
+    #[serde(default)]
+    pub scheme: Option<String>,
+    #[serde(default)]
+    pub text: Option<String>,
+}
+
+impl Identifier {
+    /// Returns the display text if available
+    pub fn display_text(&self) -> Option<String> {
+        match (&self.scheme, &self.text) {
+            (Some(scheme), Some(text)) => Some(format!("{}: {}", scheme, text)),
+            (Some(scheme), None) => Some(scheme.clone()),
+            (None, Some(text)) => Some(text.clone()),
+            (None, None) => None,
+        }
+    }
+}
+
+impl BookMetadata {
+    /// Returns the first identifier's display text if available
+    pub fn identifier_display_text(&self) -> Option<String> {
+        self.identifier
+            .as_ref()
+            .and_then(|ids| ids.first())
+            .and_then(|id| id.display_text())
+    }
+}
+
 /// Book metadata from YAML frontmatter
 #[derive(Debug, Clone, PartialEq, Default, serde::Deserialize, serde::Serialize, Type)]
 pub struct BookMetadata {
@@ -75,6 +106,8 @@ pub struct BookMetadata {
     pub cover_image: Option<String>,
     #[serde(rename = "replace-pairs", default)]
     pub replace_pairs: Option<Vec<ReplacePair>>,
+    #[serde(default)]
+    pub identifier: Option<Vec<Identifier>>,
 }
 
 /// A single word replacement pair (case-sensitive, whole-word)
@@ -104,6 +137,7 @@ impl BookMetadata {
             rights: Some(format!("© {} All Rights Reserved", current_year)),
             cover_image: Some("cover.jpg".to_string()),
             replace_pairs: None,
+            identifier: None,
         }
     }
 
@@ -387,6 +421,7 @@ mod tests {
             rights: None,
             cover_image: None,
             replace_pairs: None,
+            identifier: None,
         };
         assert!(metadata.validate().is_err());
     }
@@ -402,6 +437,7 @@ mod tests {
             rights: None,
             cover_image: None,
             replace_pairs: None,
+            identifier: None,
         };
         assert!(metadata.validate().is_err());
     }
@@ -417,6 +453,7 @@ mod tests {
             rights: None,
             cover_image: None,
             replace_pairs: None,
+            identifier: None,
         };
         assert!(metadata.validate().is_ok());
     }
@@ -435,6 +472,10 @@ mod tests {
                 source: "Rene".to_string(),
                 target: "René".to_string(),
             }]),
+            identifier: Some(vec![Identifier {
+                scheme: Some("ISBN-13".to_string()),
+                text: Some("978-0-123456-78-9".to_string()),
+            }]),
         };
 
         let yaml = serde_yaml::to_string(&metadata).unwrap();
@@ -446,6 +487,10 @@ mod tests {
         assert_eq!(deserialized.rights, metadata.rights);
         assert_eq!(deserialized.cover_image, metadata.cover_image);
         assert_eq!(deserialized.replace_pairs, metadata.replace_pairs);
+        assert_eq!(
+            deserialized.identifier_display_text(),
+            metadata.identifier_display_text()
+        );
     }
 
     #[test]
@@ -459,6 +504,7 @@ mod tests {
             rights: None,
             cover_image: None,
             replace_pairs: None,
+            identifier: None,
         };
 
         let with_defaults = metadata.with_predefined_defaults();
@@ -487,6 +533,7 @@ mod tests {
                 source: "foo".to_string(),
                 target: "bar".to_string(),
             }]),
+            identifier: None,
         };
 
         let with_defaults = metadata.with_predefined_defaults();
@@ -496,5 +543,29 @@ mod tests {
         assert_eq!(with_defaults.rights, Some("Custom rights".to_string()));
         assert_eq!(with_defaults.cover_image, Some("custom.jpg".to_string()));
         assert!(with_defaults.replace_pairs.as_ref().map(|p| p.len()) == Some(1));
+    }
+
+    #[test]
+    fn identifier_display_text_works() {
+        let id = Identifier {
+            scheme: Some("ISBN-13".to_string()),
+            text: Some("978-0-123456-78-9".to_string()),
+        };
+        assert_eq!(
+            id.display_text(),
+            Some("ISBN-13: 978-0-123456-78-9".to_string())
+        );
+
+        let id_no_scheme = Identifier {
+            scheme: None,
+            text: Some("978-0-123456-78-9".to_string()),
+        };
+        assert_eq!(
+            id_no_scheme.display_text(),
+            Some("978-0-123456-78-9".to_string())
+        );
+
+        let id_empty = Identifier::default();
+        assert_eq!(id_empty.display_text(), None);
     }
 }
