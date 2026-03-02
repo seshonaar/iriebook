@@ -1114,13 +1114,11 @@ identifier:
                 assert_eq!(metadata.language, Some("ro-RO".to_string()));
                 assert_eq!(metadata.cover_image, Some("cover.jpg".to_string()));
                 assert!(metadata.rights.is_some());
-                assert!(
-                    metadata
-                        .rights
-                        .as_ref()
-                        .unwrap()
-                        .contains("All Rights Reserved")
-                );
+                assert!(metadata
+                    .rights
+                    .as_ref()
+                    .unwrap()
+                    .contains("All Rights Reserved"));
             }
             None => panic!("Expected metadata to be loaded"),
         }
@@ -1891,6 +1889,10 @@ identifier:
             "CSS must include title page container styles"
         );
         assert!(
+            EMBEDDED_CSS.contains("min-height: 72vh"),
+            "CSS must keep title page height compact for paged readers"
+        );
+        assert!(
             EMBEDDED_CSS.contains(".titlepage .title"),
             "CSS must include title styling for title page"
         );
@@ -1927,12 +1929,31 @@ identifier:
             "CSS must use a calligraphic bottom ornament line"
         );
         assert!(
-            EMBEDDED_CSS.contains("border: 1px solid #7a6a52"),
+            EMBEDDED_CSS.contains("border: 1px solid #6e604d !important;"),
             "CSS must include aristocratic frame border for title page"
         );
         assert!(
             EMBEDDED_CSS.contains("outline: 1px solid #c9b9a0"),
-            "CSS must include refined inner frame line for title page"
+            "CSS must include dual inner frame lines for title page"
+        );
+        assert!(
+            EMBEDDED_CSS.contains(".titlepage-series")
+                && EMBEDDED_CSS.contains("color: #6e604d !important;"),
+            "CSS must keep frame and series title in the same dark tone"
+        );
+        assert!(
+            EMBEDDED_CSS.contains(".titlepage::before")
+                && EMBEDDED_CSS.contains(".titlepage::after")
+                && EMBEDDED_CSS.contains("color: #7a6a52 !important;"),
+            "CSS must keep top star and fleur ornament in matching tone"
+        );
+        assert!(
+            EMBEDDED_CSS.contains("break-inside: avoid"),
+            "CSS must prevent title page frame fragmentation"
+        );
+        assert!(
+            EMBEDDED_CSS.contains("page-break-after: always"),
+            "CSS must force clean break after title page"
         );
     }
 }

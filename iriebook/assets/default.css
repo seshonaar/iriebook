@@ -98,7 +98,7 @@ img {
 
 /* --- 8. INTERNAL TITLE PAGE --- */
 .titlepage {
-    min-height: 85vh;
+    min-height: 72vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -107,16 +107,21 @@ img {
     margin: 2.2em auto;
     padding: 2.8em 8% 2.6em;
     max-width: 31em;
-    border: 1px solid #7a6a52;
+    border: 1px solid #6e604d !important;
     outline: 1px solid #c9b9a0;
     outline-offset: -6px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+    break-after: page;
+    page-break-after: always;
 }
 
 .titlepage::before {
     content: "✦";
     display: block;
     letter-spacing: 0;
-    color: #7a6a52;
+    color: #7a6a52 !important;
     margin-bottom: 1.3em;
 }
 
@@ -124,7 +129,7 @@ img {
     content: "⸻ ❦ ⸻";
     display: block;
     letter-spacing: 0.06em;
-    color: #7a6a52;
+    color: #7a6a52 !important;
     margin-top: 1.8em;
 }
 
@@ -136,7 +141,7 @@ img {
 .titlepage-top-stars {
     margin: 0 0 1.3em;
     letter-spacing: 0.24em;
-    color: #7a6a52;
+    color: #7a6a52 !important;
     text-indent: 0;
 }
 
@@ -146,6 +151,7 @@ img {
     line-height: 1.25;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+    color: #7a6a52;
 }
 
 .titlepage .author {
@@ -161,7 +167,7 @@ img {
     font-size: 0.9em;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    color: #6f6250;
+    color: #6e604d !important;
     text-indent: 0;
 }
 
@@ -216,6 +222,10 @@ img {
 }
 
 .titlepage.title-style-ornate .titlepage-top-stars {
+    color: #6b4f2a;
+}
+
+.titlepage.title-style-ornate .title {
     color: #6b4f2a;
 }
 
