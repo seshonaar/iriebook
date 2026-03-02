@@ -149,6 +149,16 @@ impl RepositoryManager {
         }
     }
 
+    /// Reset workspace local changes
+    ///
+    /// Discards all uncommitted local changes in the working tree and index.
+    #[instrument(skip(self), fields(path = %workspace_path.display()))]
+    pub async fn reset_workspace(&self, workspace_path: &Path) -> Result<(), IrieBookError> {
+        info!("Resetting local changes");
+        self.git_access.discard_local_changes(workspace_path)?;
+        Ok(())
+    }
+
     /// Save workspace: commit + push
     ///
     /// # Arguments
@@ -169,14 +179,29 @@ impl RepositoryManager {
         info!("Saving workspace");
 
         // Check if there are changes to commit
+        let mut committed = false;
         let has_changes = self.git_access.has_uncommitted_changes(workspace_path)?;
 
         if has_changes {
             self.git_access.add_all(workspace_path)?;
-            let commit_hash = self.git_access.commit(workspace_path, message)?;
-            debug!(hash = %commit_hash, "Changes committed");
+            match self.git_access.commit(workspace_path, message) {
+                Ok(commit_hash) => {
+                    committed = true;
+                    debug!(hash = %commit_hash, "Changes committed");
+                }
+                Err(e) if e.to_string().contains("Nothing to commit") => {
+                    debug!("No stageable changes to commit after add_all");
+                }
+                Err(e) => return Err(e),
+            }
         } else {
             debug!("No changes to commit");
+        }
+
+        // If we didn't create a commit, update from remote before push attempt.
+        // This avoids non-fast-forward push failures when there are no local edits.
+        if !committed {
+            self.git_access.pull_rebase_ours(workspace_path)?;
         }
 
         // Try to push (whether new commit or pending)
@@ -187,11 +212,11 @@ impl RepositoryManager {
             }
             Err(e) => {
                 // Mark as pending push for next sync/save
-                if has_changes {
+                if committed {
                     warn!(error = %e, "Saved but push pending");
                     Ok(SaveResult::SavedPushPending(e.to_string()))
                 } else {
-                    debug!("Nothing to commit");
+                    debug!("Nothing to commit and push failed");
                     Ok(SaveResult::NothingToCommit)
                 }
             }
@@ -281,6 +306,8 @@ impl RepositoryManager {
 mod tests {
     use super::*;
     use crate::utilities::types::GitStatus;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Mutex;
 
     // Mock implementation of GitAccess for testing
     struct MockGitAccess {
@@ -429,5 +456,248 @@ mod tests {
         let status = manager.get_sync_status(Path::new("/tmp/test")).unwrap();
 
         assert_eq!(status, GitSyncStatus::NeedsPull);
+    }
+
+    struct SaveTestMockGitAccess {
+        has_uncommitted_sequence: Mutex<Vec<bool>>,
+        commit_returns_nothing: bool,
+        add_all_calls: AtomicUsize,
+        commit_calls: AtomicUsize,
+        pull_rebase_calls: AtomicUsize,
+        push_calls: AtomicUsize,
+    }
+
+    impl SaveTestMockGitAccess {
+        fn new(has_uncommitted_sequence: Vec<bool>, commit_returns_nothing: bool) -> Self {
+            Self {
+                has_uncommitted_sequence: Mutex::new(has_uncommitted_sequence),
+                commit_returns_nothing,
+                add_all_calls: AtomicUsize::new(0),
+                commit_calls: AtomicUsize::new(0),
+                pull_rebase_calls: AtomicUsize::new(0),
+                push_calls: AtomicUsize::new(0),
+            }
+        }
+    }
+
+    impl GitAccess for SaveTestMockGitAccess {
+        fn clone_repository(&self, _url: &str, _path: &Path, _token: &str) -> Result<(), IrieBookError> {
+            Ok(())
+        }
+
+        fn get_remote_url(&self, _repo_path: &Path) -> Result<String, IrieBookError> {
+            Ok("https://github.com/user/repo.git".to_string())
+        }
+
+        fn is_repository(&self, _path: &Path) -> bool {
+            true
+        }
+
+        fn add_all(&self, _repo_path: &Path) -> Result<(), IrieBookError> {
+            self.add_all_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn commit(&self, _repo_path: &Path, _message: &str) -> Result<String, IrieBookError> {
+            self.commit_calls.fetch_add(1, Ordering::SeqCst);
+            if self.commit_returns_nothing {
+                return Err(IrieBookError::Git("Nothing to commit".to_string()));
+            }
+            Ok("abc123".to_string())
+        }
+
+        fn pull_rebase_ours(&self, _repo_path: &Path) -> Result<(), IrieBookError> {
+            self.pull_rebase_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn push(&self, _repo_path: &Path, _token: &str) -> Result<(), IrieBookError> {
+            self.push_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn get_log(&self, _repo_path: &Path, _limit: usize) -> Result<Vec<GitCommit>, IrieBookError> {
+            Ok(vec![])
+        }
+
+        fn get_status(&self, _repo_path: &Path) -> Result<GitStatus, IrieBookError> {
+            Ok(GitStatus {
+                ahead_by: 0,
+                behind_by: 0,
+                has_uncommitted: false,
+            })
+        }
+
+        fn has_uncommitted_changes(&self, _repo_path: &Path) -> Result<bool, IrieBookError> {
+            let mut sequence = self.has_uncommitted_sequence.lock().unwrap();
+            if sequence.is_empty() {
+                Ok(false)
+            } else {
+                Ok(sequence.remove(0))
+            }
+        }
+
+        fn get_changed_files(&self, _repo_path: &Path, _commit_hash: &str) -> Result<Vec<String>, IrieBookError> {
+            Ok(vec![])
+        }
+
+        fn discard_local_changes(&self, _repo_path: &Path) -> Result<(), IrieBookError> {
+            Ok(())
+        }
+
+        fn prepare_for_rebase(&self, _repo_path: &Path) -> Result<(), IrieBookError> {
+            Ok(())
+        }
+
+        fn get_folder_status(&self, _repo_path: &Path, _folder_path: &Path) -> Result<bool, IrieBookError> {
+            Ok(false)
+        }
+
+        fn get_all_changed_files(&self, _repo_path: &Path) -> Result<Vec<std::path::PathBuf>, IrieBookError> {
+            Ok(vec![])
+        }
+    }
+
+    #[tokio::test]
+    async fn save_workspace_no_changes_rebases_and_pushes() {
+        let mock_git = Arc::new(SaveTestMockGitAccess::new(vec![false], false));
+        let manager = RepositoryManager::new(mock_git.clone());
+
+        let result = manager
+            .save_workspace(Path::new("/tmp/test"), "msg", "token")
+            .await
+            .unwrap();
+
+        assert_eq!(result, SaveResult::SavedAndPushed);
+        assert_eq!(mock_git.add_all_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(mock_git.commit_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(mock_git.pull_rebase_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(mock_git.push_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn save_workspace_skips_empty_commit_when_changes_disappear_after_add_all() {
+        let mock_git = Arc::new(SaveTestMockGitAccess::new(vec![true], true));
+        let manager = RepositoryManager::new(mock_git.clone());
+
+        let result = manager
+            .save_workspace(Path::new("/tmp/test"), "msg", "token")
+            .await
+            .unwrap();
+
+        assert_eq!(result, SaveResult::SavedAndPushed);
+        assert_eq!(mock_git.add_all_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(mock_git.commit_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(mock_git.pull_rebase_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(mock_git.push_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn save_workspace_with_changes_commits_without_rebase() {
+        let mock_git = Arc::new(SaveTestMockGitAccess::new(vec![true], false));
+        let manager = RepositoryManager::new(mock_git.clone());
+
+        let result = manager
+            .save_workspace(Path::new("/tmp/test"), "msg", "token")
+            .await
+            .unwrap();
+
+        assert_eq!(result, SaveResult::SavedAndPushed);
+        assert_eq!(mock_git.add_all_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(mock_git.commit_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(mock_git.pull_rebase_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(mock_git.push_calls.load(Ordering::SeqCst), 1);
+    }
+
+    struct ResetTestMockGitAccess {
+        discard_calls: AtomicUsize,
+    }
+
+    impl ResetTestMockGitAccess {
+        fn new() -> Self {
+            Self {
+                discard_calls: AtomicUsize::new(0),
+            }
+        }
+    }
+
+    impl GitAccess for ResetTestMockGitAccess {
+        fn clone_repository(&self, _url: &str, _path: &Path, _token: &str) -> Result<(), IrieBookError> {
+            Ok(())
+        }
+
+        fn get_remote_url(&self, _repo_path: &Path) -> Result<String, IrieBookError> {
+            Ok("https://github.com/user/repo.git".to_string())
+        }
+
+        fn is_repository(&self, _path: &Path) -> bool {
+            true
+        }
+
+        fn add_all(&self, _repo_path: &Path) -> Result<(), IrieBookError> {
+            Ok(())
+        }
+
+        fn commit(&self, _repo_path: &Path, _message: &str) -> Result<String, IrieBookError> {
+            Ok("abc123".to_string())
+        }
+
+        fn pull_rebase_ours(&self, _repo_path: &Path) -> Result<(), IrieBookError> {
+            Ok(())
+        }
+
+        fn push(&self, _repo_path: &Path, _token: &str) -> Result<(), IrieBookError> {
+            Ok(())
+        }
+
+        fn get_log(&self, _repo_path: &Path, _limit: usize) -> Result<Vec<GitCommit>, IrieBookError> {
+            Ok(vec![])
+        }
+
+        fn get_status(&self, _repo_path: &Path) -> Result<GitStatus, IrieBookError> {
+            Ok(GitStatus {
+                ahead_by: 0,
+                behind_by: 0,
+                has_uncommitted: false,
+            })
+        }
+
+        fn has_uncommitted_changes(&self, _repo_path: &Path) -> Result<bool, IrieBookError> {
+            Ok(false)
+        }
+
+        fn get_changed_files(&self, _repo_path: &Path, _commit_hash: &str) -> Result<Vec<String>, IrieBookError> {
+            Ok(vec![])
+        }
+
+        fn discard_local_changes(&self, _repo_path: &Path) -> Result<(), IrieBookError> {
+            self.discard_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn prepare_for_rebase(&self, _repo_path: &Path) -> Result<(), IrieBookError> {
+            Ok(())
+        }
+
+        fn get_folder_status(&self, _repo_path: &Path, _folder_path: &Path) -> Result<bool, IrieBookError> {
+            Ok(false)
+        }
+
+        fn get_all_changed_files(&self, _repo_path: &Path) -> Result<Vec<std::path::PathBuf>, IrieBookError> {
+            Ok(vec![])
+        }
+    }
+
+    #[tokio::test]
+    async fn reset_workspace_discards_local_changes() {
+        let mock_git = Arc::new(ResetTestMockGitAccess::new());
+        let manager = RepositoryManager::new(mock_git.clone());
+
+        manager
+            .reset_workspace(Path::new("/tmp/test"))
+            .await
+            .unwrap();
+
+        assert_eq!(mock_git.discard_calls.load(Ordering::SeqCst), 1);
     }
 }

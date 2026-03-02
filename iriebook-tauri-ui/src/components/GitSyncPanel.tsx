@@ -21,6 +21,7 @@ import {
   Download,
   Upload,
   RefreshCw,
+  RotateCcw,
   AlertCircle,
   Github,
   LogOut,
@@ -39,6 +40,7 @@ export function GitSyncPanel() {
     isOperationInProgress,
     handleSave,
     handleSyncOrClone,
+    handleResetLocalChanges,
     openCommitDialog,
     closeCommitDialog,
     refreshStatus,
@@ -271,6 +273,21 @@ export function GitSyncPanel() {
                         : t('git.sync.actions.sync')}
               </span>
             </Button>
+
+            {!isUninitialized && (
+              <Button
+                onClick={handleResetLocalChanges}
+                disabled={isOperationInProgress}
+                size="sm"
+                variant="outline"
+                className="h-9"
+              >
+                <RotateCcw className="mr-2 h-3.5 w-3.5" />
+                <span className="sr-only sm:not-sr-only sm:inline-block">
+                  {t('git.sync.actions.reset')}
+                </span>
+              </Button>
+            )}
 
             <div className="w-px h-6 bg-border mx-1" />
 

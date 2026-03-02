@@ -52,6 +52,10 @@ export function BookItem({
 
   // Check if book is linked to Google Docs
   const isLinked = book.google_docs_sync_info != null;
+  const diffableChangedFiles = book.git_changed_files.filter((file) =>
+    file.toLowerCase().endsWith(".md")
+  );
+  const canShowLocalDiffs = diffableChangedFiles.length > 0;
 
   const handleDelete = async () => {
     if (!workspaceRoot) return;
@@ -142,25 +146,31 @@ export function BookItem({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleShowLocalDiffs();
-                    }}
-                    className="inline-flex items-center cursor-pointer hover:bg-accent rounded p-0.5 transition-colors"
-                    disabled={loadingDiffs}
-                  >
-                    <PencilLine className="h-3.5 w-3.5 text-amber-500" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <div className="text-xs">
-                    <div className="font-semibold mb-1">Modified files (click to view diff):</div>
-                    <ul className="list-disc list-inside">
-                      {book.git_changed_files.map((file) => (
-                        <li key={file}>{file}</li>
-                      ))}
-                    </ul>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (canShowLocalDiffs) {
+                          handleShowLocalDiffs();
+                        }
+                      }}
+                      className="inline-flex items-center hover:bg-accent rounded p-0.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      disabled={loadingDiffs || !canShowLocalDiffs}
+                    >
+                      <PencilLine className="h-3.5 w-3.5 text-amber-500" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="text-xs">
+                      <div className="font-semibold mb-1">
+                        {canShowLocalDiffs
+                          ? t("books.list.modifiedFilesDiffable")
+                          : t("books.list.modifiedFilesNoDiff")}
+                      </div>
+                      <ul className="list-disc list-inside">
+                        {book.git_changed_files.map((file) => (
+                          <li key={file}>{file}</li>
+                        ))}
+                      </ul>
                   </div>
                 </TooltipContent>
               </Tooltip>

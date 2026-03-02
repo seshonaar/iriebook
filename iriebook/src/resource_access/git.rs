@@ -255,8 +255,17 @@ impl GitAccess for GitClient {
 
         // 3. Commit
         let mut parents = Vec::new();
+        let mut head_tree_id: Option<gix::ObjectId> = None;
         if let Ok(head_commit) = repo.head_commit() {
+            if let Ok(tree) = head_commit.tree() {
+                head_tree_id = Some(tree.id);
+            }
             parents.push(head_commit.id);
+        }
+
+        // Prevent empty commits (same tree as HEAD)
+        if head_tree_id.is_some_and(|id| id == tree_id) {
+            return Err(IrieBookError::Git("Nothing to commit".to_string()));
         }
 
         let commit_id = repo
@@ -1782,7 +1791,7 @@ mod tests {
     }
 
     #[test]
-    fn commit_with_no_changes_creates_empty_commit() {
+    fn commit_with_no_changes_returns_error() {
         let temp_dir = TempDir::new().unwrap();
         let git_client = GitClient;
 
@@ -1795,11 +1804,13 @@ mod tests {
         git_client.commit(temp_dir.path(), "First").unwrap();
 
         // Try to commit without any changes (nothing staged)
-        // This should still create a commit (same tree as parent)
         let result = git_client.commit(temp_dir.path(), "Empty commit");
 
-        // Should succeed
-        assert!(result.is_ok());
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Nothing to commit"));
     }
 
     #[test]

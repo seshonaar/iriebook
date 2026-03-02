@@ -40,7 +40,7 @@ pub use collection_management::{
 pub use default_paths::get_default_library_path;
 pub use git_operations::{
     check_initialized, clone_repository, get_commit_history, get_remote_url, get_sync_status,
-    save_repository, sync_repository,
+    reset_repository, save_repository, sync_repository,
 };
 pub use git_state::{DeviceFlowInfo, GitAuthStatus, GitCommit, GitSyncStatus};
 pub use google_auth_operations::{

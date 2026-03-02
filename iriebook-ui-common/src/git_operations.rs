@@ -74,6 +74,19 @@ pub async fn save_repository(
     }
 }
 
+/// Reset local repository changes (discard uncommitted work)
+pub async fn reset_repository(
+    workspace_path: &Path,
+    repo_manager: &RepositoryManager,
+) -> Result<String, String> {
+    repo_manager
+        .reset_workspace(workspace_path)
+        .await
+        .map_err(|e| format!("Reset failed: {}", e))?;
+
+    Ok("Local changes discarded".to_string())
+}
+
 /// Get commit history
 ///
 /// # Arguments

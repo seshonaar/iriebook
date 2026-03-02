@@ -484,4 +484,46 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_scan_for_books_includes_non_markdown_git_changes_for_status() -> Result<()> {
+        use iriebook::resource_access::git::GitClient;
+        use iriebook::resource_access::traits::GitAccess;
+
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        // Initialize git repo
+        std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(root)
+            .output()?;
+        std::process::Command::new("git")
+            .args(["config", "user.name", "Test"])
+            .current_dir(root)
+            .output()?;
+        std::process::Command::new("git")
+            .args(["config", "user.email", "test@test.com"])
+            .current_dir(root)
+            .output()?;
+
+        // Create book with manuscript + cover image, then commit
+        fs::create_dir(root.join("book1"))?;
+        fs::write(root.join("book1/chapter.md"), "content")?;
+        fs::write(root.join("book1/cover.jpg"), "cover-v1")?;
+
+        let git_client = GitClient;
+        git_client.add_all(root)?;
+        git_client.commit(root, "initial")?;
+
+        // Modify only the cover image
+        fs::write(root.join("book1/cover.jpg"), "cover-v2")?;
+
+        let books = scan_for_books(root)?;
+        assert_eq!(books.len(), 1);
+        assert!(books[0].has_git_changes());
+        assert!(books[0].git_changed_files.contains(&"cover.jpg".to_string()));
+
+        Ok(())
+    }
 }

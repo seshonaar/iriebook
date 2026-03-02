@@ -31,13 +31,16 @@
       "clone": "Clone Repository",
       "saveToCloud": "Save to GitHub",
       "saveToCloudGithub": "Save to Cloud (Github)",
-      "enterRevision": "Enter revision description..."
+      "enterRevision": "Enter revision description...",
+      "reset": "Reset Local",
+      "resetConfirm": "Discard all local uncommitted changes? This cannot be undone."
     },
     "messages": {
       "cloneSuccess": "Repository cloned successfully!",
       "cloneCancelled": "Clone cancelled",
       "syncSuccess": "Sync successful",
-      "saveSuccess": "Save successful"
+      "saveSuccess": "Save successful",
+      "resetSuccess": "Local changes discarded"
     }
   },
   "history": {

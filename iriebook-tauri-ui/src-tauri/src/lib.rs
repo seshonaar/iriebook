@@ -112,6 +112,7 @@ pub fn run() {
             git::git_clone_repository,
             git::git_sync,
             git::git_save,
+            git::git_reset_local_changes,
             git::git_get_log,
             git::git_get_status,
             git::git_get_remote_url,

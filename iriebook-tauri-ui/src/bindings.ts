@@ -317,6 +317,14 @@ async gitSave(workspacePath: string, message: string) : Promise<Result<string, s
     else return { status: "error", error: e  as any };
 }
 },
+async gitResetLocalChanges(workspacePath: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("git_reset_local_changes", { workspacePath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async gitGetLog(workspacePath: string, limit: number) : Promise<Result<GitCommit[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("git_get_log", { workspacePath, limit }) };

@@ -12,7 +12,10 @@
     "currentBookMode": "Current Book",
     "multiSelectMode": "Multi-select",
     "currentBookStatus": "Current book: {{name}}",
-    "noBookViewed": "No book selected - click a book to view"
+    "noBookViewed": "No book selected - click a book to view",
+    "modifiedFilesDiffable": "Modified files (click to view manuscript diff):",
+    "modifiedFilesNoDiff": "Modified files (no manuscript diff available):",
+    "noManuscriptChanges": "No manuscript files changed"
   },
   "viewer": {
     "loading": "Loading book details...",

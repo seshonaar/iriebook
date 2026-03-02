@@ -100,6 +100,31 @@ pub async fn git_save(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn git_reset_local_changes(
+    app: tauri::AppHandle,
+    app_state_holder: State<'_, AppStateHolder>,
+    workspace_path: String,
+) -> Result<String, String> {
+    let path = PathBuf::from(workspace_path);
+    let app_state = app_state_holder
+        .get()
+        .ok_or_else(|| "App state not initialized".to_string())?;
+
+    let _ = GitOperationProgressEvent("Resetting local changes...".to_string()).emit(&app);
+
+    let result = iriebook_ui_common::reset_repository(&path, &app_state.repository_manager()).await;
+
+    let _ = GitOperationProgressEvent("Reset complete".to_string()).emit(&app);
+
+    if result.is_ok() {
+        let _ = BookListChangedEvent {}.emit(&app);
+    }
+
+    result
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn git_get_log(
     app_state_holder: State<'_, AppStateHolder>,
     workspace_path: String,

@@ -116,6 +116,29 @@ export function useGitOperations() {
     }
   };
 
+  const handleResetLocalChanges = async () => {
+    if (!state.selectedFolder) return;
+
+    const confirmed = window.confirm(t("git.sync.actions.resetConfirm"));
+    if (!confirmed) return;
+
+    dispatch(gitOperationStarted());
+    setSyncStatusMessage(null);
+
+    try {
+      const result = await (commands as any).gitResetLocalChanges(state.selectedFolder);
+      if (result.status === "error") throw new Error(result.error);
+
+      setSyncStatusMessage(String(result.data));
+      dispatch(gitOperationCompleted({ success: true, message: t("git.sync.messages.resetSuccess") }));
+      await refreshStatus();
+    } catch (err) {
+      const msg = String(err);
+      setSyncStatusMessage(msg);
+      dispatch(gitOperationCompleted({ success: false, message: msg }));
+    }
+  };
+
   const openCommitDialog = () => setShowCommitDialog(true);
 
   const closeCommitDialog = () => {
@@ -136,6 +159,7 @@ export function useGitOperations() {
     handleSave,
     handleGetLatest,
     handleSyncOrClone,
+    handleResetLocalChanges,
     openCommitDialog,
     closeCommitDialog,
     refreshStatus,
