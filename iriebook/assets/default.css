@@ -104,23 +104,40 @@ img {
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 0 8%;
-}
-
-.titlepage::before,
-.titlepage::after {
-    content: "❦ ✧ ❦";
-    display: block;
-    letter-spacing: 0.15em;
-    color: #7a6a52;
+    margin: 2.2em auto;
+    padding: 2.8em 8% 2.6em;
+    max-width: 31em;
+    border: 1px solid #7a6a52;
+    outline: 1px solid #c9b9a0;
+    outline-offset: -6px;
 }
 
 .titlepage::before {
-    margin-bottom: 2em;
+    content: "✦";
+    display: block;
+    letter-spacing: 0;
+    color: #7a6a52;
+    margin-bottom: 1.3em;
 }
 
 .titlepage::after {
-    margin-top: 2em;
+    content: "⸻ ❦ ⸻";
+    display: block;
+    letter-spacing: 0.06em;
+    color: #7a6a52;
+    margin-top: 1.8em;
+}
+
+.titlepage.titlepage-has-series-stars::before {
+    content: "";
+    margin: 0;
+}
+
+.titlepage-top-stars {
+    margin: 0 0 1.3em;
+    letter-spacing: 0.24em;
+    color: #7a6a52;
+    text-indent: 0;
 }
 
 .titlepage .title {
@@ -148,14 +165,6 @@ img {
     text-indent: 0;
 }
 
-.titlepage-series-index {
-    margin-top: 0.4em;
-    font-size: 0.8em;
-    letter-spacing: 0.2em;
-    color: #8a7a63;
-    text-indent: 0;
-}
-
 .titlepage .rights {
     margin-top: 2.8em;
     font-size: 0.75em;
@@ -166,7 +175,7 @@ img {
 /* Metadata-driven variants: title-page-style: classic|minimal|ornate */
 .titlepage.title-style-classic::before,
 .titlepage.title-style-classic::after {
-    content: "❦ ✧ ❦";
+    color: #7a6a52;
 }
 
 .titlepage.title-style-minimal::before,
@@ -186,16 +195,27 @@ img {
 }
 
 .titlepage.title-style-minimal .titlepage-series,
-.titlepage.title-style-minimal .titlepage-series-index {
+.titlepage.title-style-minimal .titlepage-series {
     letter-spacing: 0.12em;
     color: #5f5f5f;
 }
 
 .titlepage.title-style-ornate::before,
 .titlepage.title-style-ornate::after {
-    content: "❦";
     font-size: 1.35em;
     letter-spacing: 0;
+    color: #6b4f2a;
+}
+
+.titlepage.title-style-ornate::before {
+    content: "✦";
+}
+
+.titlepage.title-style-ornate::after {
+    content: "⸻ ❦ ⸻";
+}
+
+.titlepage.title-style-ornate .titlepage-top-stars {
     color: #6b4f2a;
 }
 
@@ -209,7 +229,7 @@ img {
 }
 
 .titlepage.title-style-ornate .titlepage-series,
-.titlepage.title-style-ornate .titlepage-series-index {
+.titlepage.title-style-ornate .titlepage-series {
     color: #6b4f2a;
 }
 

@@ -302,23 +302,66 @@ fn inject_title_page_series(
 ) -> Option<String> {
     let title_re = Regex::new(r#"(<h1\b[^>]*\bclass="[^"]*\btitle\b[^"]*"[^>]*>.*?</h1>)"#).ok()?;
     let title_match = title_re.find(title_page_xhtml)?;
+    let title_block = &title_page_xhtml[title_match.start()..title_match.end()];
+
+    let top_stars = build_top_star_group(series_position);
+
+    let mut top_block = String::new();
+    top_block.push_str(&format!(
+        "\n  <p class=\"titlepage-top-stars\">{}</p>",
+        top_stars
+    ));
 
     let mut series_block = String::new();
     series_block.push_str(&format!(
         "\n  <p class=\"titlepage-series\">{}</p>",
         series_name
     ));
-    if let Some(position) = series_position {
-        series_block.push_str(&format!(
-            "\n  <p class=\"titlepage-series-index\">#{}</p>",
-            position
-        ));
-    }
 
     let mut updated = String::new();
-    updated.push_str(&title_page_xhtml[..title_match.end()]);
+    updated.push_str(&title_page_xhtml[..title_match.start()]);
+    updated.push_str(&top_block);
+    updated.push_str(title_block);
     updated.push_str(&series_block);
     updated.push_str(&title_page_xhtml[title_match.end()..]);
+
+    add_class_to_titlepage_section(&updated, "titlepage-has-series-stars")
+}
+
+fn build_top_star_group(series_position: Option<u32>) -> String {
+    let count = series_position
+        .and_then(|value| usize::try_from(value).ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(1);
+
+    (0..count).map(|_| "✦").collect::<Vec<_>>().join(" ")
+}
+
+fn add_class_to_titlepage_section(title_page_xhtml: &str, class_name: &str) -> Option<String> {
+    let section_re = Regex::new(
+        r#"(<section\b[^>]*epub:type="titlepage"[^>]*\bclass=")([^"]*)(")"#,
+    )
+    .ok()?;
+    let captures = section_re.captures(title_page_xhtml)?;
+    let full_match = captures.get(0)?;
+    let prefix = captures.get(1)?.as_str();
+    let classes = captures.get(2)?.as_str();
+    let suffix = captures.get(3)?.as_str();
+
+    let mut class_tokens: Vec<String> = classes
+        .split_whitespace()
+        .map(ToString::to_string)
+        .collect();
+    if !class_tokens.iter().any(|token| token == class_name) {
+        class_tokens.push(class_name.to_string());
+    }
+
+    let replacement = format!("{}{}{}", prefix, class_tokens.join(" "), suffix);
+
+    let mut updated = String::new();
+    updated.push_str(&title_page_xhtml[..full_match.start()]);
+    updated.push_str(&replacement);
+    updated.push_str(&title_page_xhtml[full_match.end()..]);
 
     Some(updated)
 }
@@ -708,12 +751,20 @@ mod tests {
             .unwrap();
 
         assert!(
+            updated_title_page.contains("<p class=\"titlepage-top-stars\">✦ ✦ ✦</p>"),
+            "Expected top stars to match series index"
+        );
+        assert!(
+            updated_title_page.contains("class=\"titlepage titlepage-has-series-stars\""),
+            "Expected marker class when series stars are injected"
+        );
+        assert!(
             updated_title_page.contains("<p class=\"titlepage-series\">Saga</p>"),
             "Expected series name on title page"
         );
         assert!(
-            updated_title_page.contains("<p class=\"titlepage-series-index\">#3"),
-            "Expected series index on title page"
+            !updated_title_page.contains("titlepage-series-index"),
+            "Series index should not be rendered when stars are present"
         );
     }
 }

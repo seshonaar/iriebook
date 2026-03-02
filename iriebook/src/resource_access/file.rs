@@ -1114,11 +1114,13 @@ identifier:
                 assert_eq!(metadata.language, Some("ro-RO".to_string()));
                 assert_eq!(metadata.cover_image, Some("cover.jpg".to_string()));
                 assert!(metadata.rights.is_some());
-                assert!(metadata
-                    .rights
-                    .as_ref()
-                    .unwrap()
-                    .contains("All Rights Reserved"));
+                assert!(
+                    metadata
+                        .rights
+                        .as_ref()
+                        .unwrap()
+                        .contains("All Rights Reserved")
+                );
             }
             None => panic!("Expected metadata to be loaded"),
         }
@@ -1913,12 +1915,24 @@ identifier:
             "CSS must include series line styling on title page"
         );
         assert!(
-            EMBEDDED_CSS.contains(".titlepage-series-index"),
-            "CSS must include series index styling on title page"
+            EMBEDDED_CSS.contains("content: \"✦\""),
+            "CSS must use a single top ornament glyph"
         );
         assert!(
-            EMBEDDED_CSS.contains("content: \"❦ ✧ ❦\""),
-            "CSS must use fancy ornament glyphs for title page"
+            EMBEDDED_CSS.contains(".titlepage-top-stars"),
+            "CSS must include metadata-driven top stars styling"
+        );
+        assert!(
+            EMBEDDED_CSS.contains("content: \"⸻ ❦ ⸻\""),
+            "CSS must use a calligraphic bottom ornament line"
+        );
+        assert!(
+            EMBEDDED_CSS.contains("border: 1px solid #7a6a52"),
+            "CSS must include aristocratic frame border for title page"
+        );
+        assert!(
+            EMBEDDED_CSS.contains("outline: 1px solid #c9b9a0"),
+            "CSS must include refined inner frame line for title page"
         );
     }
 }
