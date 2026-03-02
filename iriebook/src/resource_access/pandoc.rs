@@ -7,6 +7,7 @@ use crate::resource_access::traits::PandocAccess;
 use crate::resource_access::{command, file};
 use crate::utilities::error::IrieBookError;
 use regex::Regex;
+use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -101,7 +102,7 @@ fn convert_to_epub_impl(
         .arg("--css")
         .arg(css_path)
         .arg("--metadata-file")
-        .arg(metadata_path)
+        .arg(&metadata_path)
         .arg("--epub-cover-image")
         .arg(cover_path)
         .arg("--standalone")
@@ -113,6 +114,21 @@ fn convert_to_epub_impl(
         })?;
 
     let mut output = command::format_output(pandoc_output);
+
+    if let Some((series_name, series_position)) = read_title_page_series_from_metadata(&metadata_path)?
+    {
+        let series_added = apply_title_page_series_to_epub(output_epub, &series_name, series_position)?;
+        if series_added {
+            output.push_str(" | injected series info on title page");
+        }
+    }
+
+    if let Some(style) = read_title_page_style_from_metadata(&metadata_path)? {
+        let styled = apply_title_page_style_to_epub(output_epub, &style)?;
+        if styled {
+            output.push_str(" | applied title-page style");
+        }
+    }
 
     // When using custom metadata (rights removed), we also inject a custom
     // copyright page in markdown. Pandoc still places nav/toc before chapter
@@ -126,6 +142,185 @@ fn convert_to_epub_impl(
     }
 
     Ok(output)
+}
+
+fn read_title_page_style_from_metadata(metadata_path: &Path) -> Result<Option<String>, IrieBookError> {
+    let yaml_value = read_metadata_yaml_value(metadata_path)?;
+
+    let style = yaml_value
+        .as_mapping()
+        .and_then(|mapping| mapping.get(serde_yaml::Value::String("title-page-style".to_string())))
+        .and_then(|value| value.as_str())
+        .and_then(normalize_title_page_style)
+        .map(ToString::to_string);
+
+    Ok(style)
+}
+
+fn read_title_page_series_from_metadata(
+    metadata_path: &Path,
+) -> Result<Option<(String, Option<u32>)>, IrieBookError> {
+    let yaml_value = read_metadata_yaml_value(metadata_path)?;
+
+    let Some(mapping) = yaml_value.as_mapping() else {
+        return Ok(None);
+    };
+
+    let series_name = mapping
+        .get(serde_yaml::Value::String(
+            "belongs-to-collection".to_string(),
+        ))
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string);
+
+    let series_position = mapping
+        .get(serde_yaml::Value::String("group-position".to_string()))
+        .and_then(|value| value.as_u64())
+        .and_then(|value| u32::try_from(value).ok());
+
+    Ok(series_name.map(|name| (name, series_position)))
+}
+
+fn read_metadata_yaml_value(metadata_path: &Path) -> Result<serde_yaml::Value, IrieBookError> {
+    let metadata_text = fs::read_to_string(metadata_path).map_err(|e| IrieBookError::FileRead {
+        path: metadata_path.display().to_string(),
+        source: e,
+    })?;
+
+    let cleaned_yaml = metadata_text
+        .lines()
+        .filter(|line| *line != "---")
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    serde_yaml::from_str(&cleaned_yaml).map_err(|e| IrieBookError::FileRead {
+        path: metadata_path.display().to_string(),
+        source: std::io::Error::new(std::io::ErrorKind::InvalidData, e),
+    })
+}
+
+fn normalize_title_page_style(style: &str) -> Option<&'static str> {
+    match style.trim().to_ascii_lowercase().as_str() {
+        "classic" => Some("classic"),
+        "minimal" => Some("minimal"),
+        "ornate" => Some("ornate"),
+        _ => None,
+    }
+}
+
+fn apply_title_page_style_to_epub(epub_path: &Path, style: &str) -> Result<bool, IrieBookError> {
+    let mut entries = read_epub_entries(epub_path)?;
+
+    let Some(title_page_index) = entries
+        .iter()
+        .position(|entry| entry.name == "EPUB/text/title_page.xhtml")
+    else {
+        return Ok(false);
+    };
+
+    let title_page = String::from_utf8(entries[title_page_index].data.clone()).map_err(|e| {
+        IrieBookError::FileRead {
+            path: format!("{}::EPUB/text/title_page.xhtml", epub_path.display()),
+            source: std::io::Error::new(std::io::ErrorKind::InvalidData, e),
+        }
+    })?;
+
+    let Some(updated_title_page) = inject_title_page_style_class(&title_page, style) else {
+        return Ok(false);
+    };
+
+    entries[title_page_index].data = updated_title_page.into_bytes();
+    write_epub_entries(epub_path, &entries)?;
+    Ok(true)
+}
+
+fn apply_title_page_series_to_epub(
+    epub_path: &Path,
+    series_name: &str,
+    series_position: Option<u32>,
+) -> Result<bool, IrieBookError> {
+    let mut entries = read_epub_entries(epub_path)?;
+
+    let Some(title_page_index) = entries
+        .iter()
+        .position(|entry| entry.name == "EPUB/text/title_page.xhtml")
+    else {
+        return Ok(false);
+    };
+
+    let title_page = String::from_utf8(entries[title_page_index].data.clone()).map_err(|e| {
+        IrieBookError::FileRead {
+            path: format!("{}::EPUB/text/title_page.xhtml", epub_path.display()),
+            source: std::io::Error::new(std::io::ErrorKind::InvalidData, e),
+        }
+    })?;
+
+    let Some(updated_title_page) = inject_title_page_series(&title_page, series_name, series_position)
+    else {
+        return Ok(false);
+    };
+
+    entries[title_page_index].data = updated_title_page.into_bytes();
+    write_epub_entries(epub_path, &entries)?;
+    Ok(true)
+}
+
+fn inject_title_page_style_class(title_page_xhtml: &str, style: &str) -> Option<String> {
+    let section_re = Regex::new(
+        r#"(<section\b[^>]*epub:type="titlepage"[^>]*\bclass=")([^"]*)(")"#,
+    )
+    .ok()?;
+    let captures = section_re.captures(title_page_xhtml)?;
+    let full_match = captures.get(0)?;
+    let prefix = captures.get(1)?.as_str();
+    let classes = captures.get(2)?.as_str();
+    let suffix = captures.get(3)?.as_str();
+
+    let mut class_tokens: Vec<String> = classes
+        .split_whitespace()
+        .filter(|token| !token.starts_with("title-style-"))
+        .map(ToString::to_string)
+        .collect();
+    class_tokens.push(format!("title-style-{}", style));
+
+    let replacement = format!("{}{}{}", prefix, class_tokens.join(" "), suffix);
+
+    let mut updated = String::new();
+    updated.push_str(&title_page_xhtml[..full_match.start()]);
+    updated.push_str(&replacement);
+    updated.push_str(&title_page_xhtml[full_match.end()..]);
+
+    Some(updated)
+}
+
+fn inject_title_page_series(
+    title_page_xhtml: &str,
+    series_name: &str,
+    series_position: Option<u32>,
+) -> Option<String> {
+    let title_re = Regex::new(r#"(<h1\b[^>]*\bclass="[^"]*\btitle\b[^"]*"[^>]*>.*?</h1>)"#).ok()?;
+    let title_match = title_re.find(title_page_xhtml)?;
+
+    let mut series_block = String::new();
+    series_block.push_str(&format!(
+        "\n  <p class=\"titlepage-series\">{}</p>",
+        series_name
+    ));
+    if let Some(position) = series_position {
+        series_block.push_str(&format!(
+            "\n  <p class=\"titlepage-series-index\">#{}</p>",
+            position
+        ));
+    }
+
+    let mut updated = String::new();
+    updated.push_str(&title_page_xhtml[..title_match.end()]);
+    updated.push_str(&series_block);
+    updated.push_str(&title_page_xhtml[title_match.end()..]);
+
+    Some(updated)
 }
 
 #[derive(Debug, Clone)]
@@ -403,6 +598,122 @@ mod tests {
         assert!(
             nav_idx > copyright_idx,
             "Expected nav itemref to come after copyright itemref"
+        );
+    }
+
+    #[test]
+    fn reads_title_page_style_from_metadata_with_frontmatter() {
+        let temp_dir = TempDir::new().unwrap();
+        let metadata_path = temp_dir.path().join("metadata.yaml");
+        std::fs::write(
+            &metadata_path,
+            "---\ntitle: Test\nauthor: Jane\ntitle-page-style: ornate\n---\n",
+        )
+        .unwrap();
+
+        let style = read_title_page_style_from_metadata(&metadata_path).unwrap();
+        assert_eq!(style.as_deref(), Some("ornate"));
+    }
+
+    #[test]
+    fn reads_title_page_series_from_metadata_with_frontmatter() {
+        let temp_dir = TempDir::new().unwrap();
+        let metadata_path = temp_dir.path().join("metadata.yaml");
+        std::fs::write(
+            &metadata_path,
+            "---\ntitle: Test\nauthor: Jane\nbelongs-to-collection: Saga\ngroup-position: 3\n---\n",
+        )
+        .unwrap();
+
+        let series = read_title_page_series_from_metadata(&metadata_path).unwrap();
+        assert_eq!(series, Some(("Saga".to_string(), Some(3))));
+    }
+
+    #[test]
+    fn applies_title_page_style_class_in_epub() {
+        let temp_dir = TempDir::new().unwrap();
+        let epub_path = temp_dir.path().join("book.epub");
+
+        let file = std::fs::File::create(&epub_path).unwrap();
+        let mut zip = ZipWriter::new(file);
+        let options = FileOptions::<()>::default();
+
+        let title_page = r#"<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<body epub:type="frontmatter">
+<section epub:type="titlepage" class="titlepage">
+  <h1 class="title">Book</h1>
+  <p class="author">Author</p>
+</section>
+</body>
+</html>
+"#;
+
+        zip.start_file("EPUB/text/title_page.xhtml", options).unwrap();
+        zip.write_all(title_page.as_bytes()).unwrap();
+        zip.finish().unwrap();
+
+        let changed = apply_title_page_style_to_epub(&epub_path, "ornate").unwrap();
+        assert!(changed, "Expected title page style class to be applied");
+
+        let file = std::fs::File::open(&epub_path).unwrap();
+        let mut archive = zip::ZipArchive::new(file).unwrap();
+        let mut updated_title_page = String::new();
+        archive
+            .by_name("EPUB/text/title_page.xhtml")
+            .unwrap()
+            .read_to_string(&mut updated_title_page)
+            .unwrap();
+
+        assert!(
+            updated_title_page.contains("class=\"titlepage title-style-ornate\""),
+            "Expected style class on title page section"
+        );
+    }
+
+    #[test]
+    fn applies_series_info_in_epub_title_page() {
+        let temp_dir = TempDir::new().unwrap();
+        let epub_path = temp_dir.path().join("book.epub");
+
+        let file = std::fs::File::create(&epub_path).unwrap();
+        let mut zip = ZipWriter::new(file);
+        let options = FileOptions::<()>::default();
+
+        let title_page = r#"<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<body epub:type="frontmatter">
+<section epub:type="titlepage" class="titlepage">
+  <h1 class="title">Book</h1>
+  <p class="author">Author</p>
+</section>
+</body>
+</html>
+"#;
+
+        zip.start_file("EPUB/text/title_page.xhtml", options).unwrap();
+        zip.write_all(title_page.as_bytes()).unwrap();
+        zip.finish().unwrap();
+
+        let changed = apply_title_page_series_to_epub(&epub_path, "Saga", Some(3)).unwrap();
+        assert!(changed, "Expected title page series info to be injected");
+
+        let file = std::fs::File::open(&epub_path).unwrap();
+        let mut archive = zip::ZipArchive::new(file).unwrap();
+        let mut updated_title_page = String::new();
+        archive
+            .by_name("EPUB/text/title_page.xhtml")
+            .unwrap()
+            .read_to_string(&mut updated_title_page)
+            .unwrap();
+
+        assert!(
+            updated_title_page.contains("<p class=\"titlepage-series\">Saga</p>"),
+            "Expected series name on title page"
+        );
+        assert!(
+            updated_title_page.contains("<p class=\"titlepage-series-index\">#3"),
+            "Expected series index on title page"
         );
     }
 }

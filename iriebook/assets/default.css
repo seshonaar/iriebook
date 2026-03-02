@@ -96,7 +96,124 @@ img {
     margin: 2em auto;
 }
 
-/* --- 8. DEDICATION PAGE (Italic H3) --- */
+/* --- 8. INTERNAL TITLE PAGE --- */
+.titlepage {
+    min-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 0 8%;
+}
+
+.titlepage::before,
+.titlepage::after {
+    content: "❦ ✧ ❦";
+    display: block;
+    letter-spacing: 0.15em;
+    color: #7a6a52;
+}
+
+.titlepage::before {
+    margin-bottom: 2em;
+}
+
+.titlepage::after {
+    margin-top: 2em;
+}
+
+.titlepage .title {
+    margin: 0;
+    font-size: 2.2em;
+    line-height: 1.25;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.titlepage .author {
+    margin-top: 1.5em;
+    font-size: 1em;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    text-indent: 0;
+}
+
+.titlepage-series {
+    margin-top: 1.2em;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: #6f6250;
+    text-indent: 0;
+}
+
+.titlepage-series-index {
+    margin-top: 0.4em;
+    font-size: 0.8em;
+    letter-spacing: 0.2em;
+    color: #8a7a63;
+    text-indent: 0;
+}
+
+.titlepage .rights {
+    margin-top: 2.8em;
+    font-size: 0.75em;
+    letter-spacing: 0.03em;
+    opacity: 0.65;
+}
+
+/* Metadata-driven variants: title-page-style: classic|minimal|ornate */
+.titlepage.title-style-classic::before,
+.titlepage.title-style-classic::after {
+    content: "❦ ✧ ❦";
+}
+
+.titlepage.title-style-minimal::before,
+.titlepage.title-style-minimal::after {
+    content: "";
+    margin: 0;
+}
+
+.titlepage.title-style-minimal .title {
+    font-size: 1.9em;
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
+
+.titlepage.title-style-minimal .author {
+    letter-spacing: 0.1em;
+}
+
+.titlepage.title-style-minimal .titlepage-series,
+.titlepage.title-style-minimal .titlepage-series-index {
+    letter-spacing: 0.12em;
+    color: #5f5f5f;
+}
+
+.titlepage.title-style-ornate::before,
+.titlepage.title-style-ornate::after {
+    content: "❦";
+    font-size: 1.35em;
+    letter-spacing: 0;
+    color: #6b4f2a;
+}
+
+.titlepage.title-style-ornate .title {
+    font-size: 2.4em;
+    letter-spacing: 0.1em;
+}
+
+.titlepage.title-style-ornate .author {
+    letter-spacing: 0.24em;
+}
+
+.titlepage.title-style-ornate .titlepage-series,
+.titlepage.title-style-ornate .titlepage-series-index {
+    color: #6b4f2a;
+}
+
+/* --- 9. DEDICATION PAGE (Italic H3) --- */
 /* Hidden H1 used to force Pandoc section split */
 h1.dedication-page {
     display: none;
@@ -124,7 +241,7 @@ h1.dedication-page {
     text-indent: 0;
 }
 
-/* --- 9. COPYRIGHT PAGE --- */
+/* --- 10. COPYRIGHT PAGE --- */
 /* Hidden H1 used to force Pandoc section split */
 h1.copyright-page {
     display: none;

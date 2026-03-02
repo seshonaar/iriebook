@@ -1881,4 +1881,44 @@ identifier:
             "CSS must set page-break-before: auto for first h1"
         );
     }
+
+    #[test]
+    fn test_css_has_fancy_internal_title_page_styles() {
+        assert!(
+            EMBEDDED_CSS.contains(".titlepage {"),
+            "CSS must include title page container styles"
+        );
+        assert!(
+            EMBEDDED_CSS.contains(".titlepage .title"),
+            "CSS must include title styling for title page"
+        );
+        assert!(
+            EMBEDDED_CSS.contains(".titlepage .author"),
+            "CSS must include author styling for title page"
+        );
+        assert!(
+            EMBEDDED_CSS.contains(".titlepage.title-style-ornate"),
+            "CSS must include ornate title page variant"
+        );
+        assert!(
+            EMBEDDED_CSS.contains(".titlepage.title-style-minimal"),
+            "CSS must include minimal title page variant"
+        );
+        assert!(
+            EMBEDDED_CSS.contains(".titlepage.title-style-classic"),
+            "CSS must include classic title page variant"
+        );
+        assert!(
+            EMBEDDED_CSS.contains(".titlepage-series"),
+            "CSS must include series line styling on title page"
+        );
+        assert!(
+            EMBEDDED_CSS.contains(".titlepage-series-index"),
+            "CSS must include series index styling on title page"
+        );
+        assert!(
+            EMBEDDED_CSS.contains("content: \"❦ ✧ ❦\""),
+            "CSS must use fancy ornament glyphs for title page"
+        );
+    }
 }
