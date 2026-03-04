@@ -12,10 +12,29 @@ body {
 }
 
 /* --- 2. CHAPTER HEADERS (ToC Visible) --- */
-h1:not(.unnumbered), h2 {
+h1:not(.unnumbered) {
     page-break-before: always;
     -webkit-column-break-before: always;
     break-before: page;
+    text-align: center;
+    margin-top: 3em;
+    margin-bottom: 1em;
+    font-size: 1.8em;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+/* Kindle/AZW3 TOC fix: prevent blank first TOC page caused by forced h1 page break */
+nav[type="toc"] h1,
+#toc h1,
+h1#toc-title {
+    page-break-before: auto !important;
+    -webkit-column-break-before: auto !important;
+    break-before: auto !important;
+    margin-top: 0 !important;
+}
+
+h2 {
     text-align: center;
     margin-top: 3em;
     margin-bottom: 1em;
@@ -98,18 +117,13 @@ img {
 
 /* --- 8. INTERNAL TITLE PAGE --- */
 .titlepage {
-    min-height: 72vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    display: block;
     text-align: center;
-    margin: 2.2em auto;
-    padding: 2.8em 8% 2.6em;
-    max-width: 31em;
-    border: 1px solid #6e604d !important;
-    outline: 1px solid #c9b9a0;
-    outline-offset: -6px;
+    margin: 0 auto;
+    padding: 5em 0 3em;
+    max-width: 34em;
+    margin-left: auto;
+    margin-right: auto;
     break-inside: avoid;
     page-break-inside: avoid;
     -webkit-column-break-inside: avoid;
@@ -117,58 +131,44 @@ img {
     page-break-after: always;
 }
 
-.titlepage::before {
-    content: "✦";
-    display: block;
-    letter-spacing: 0;
-    color: #7a6a52 !important;
-    margin-bottom: 1.3em;
-}
-
-.titlepage::after {
-    content: "⸻ ❦ ⸻";
-    display: block;
-    letter-spacing: 0.06em;
-    color: #7a6a52 !important;
-    margin-top: 1.8em;
-}
-
-.titlepage.titlepage-has-series-stars::before {
-    content: "";
-    margin: 0;
+.titlepage > * {
+    text-indent: 0;
+    margin-left: auto;
+    margin-right: auto;
+    break-inside: avoid;
+    page-break-inside: avoid;
 }
 
 .titlepage-top-stars {
-    margin: 0 0 1.3em;
-    letter-spacing: 0.24em;
-    color: #7a6a52 !important;
-    text-indent: 0;
+    margin: 0 0 1.4em;
+    font-size: 1.15em;
+    letter-spacing: 0.28em;
 }
 
 .titlepage .title {
     margin: 0;
     font-size: 2.2em;
-    line-height: 1.25;
-    letter-spacing: 0.06em;
+    line-height: 1.2;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
-    color: #7a6a52;
+    page-break-before: auto !important;
+    -webkit-column-break-before: auto !important;
+    break-before: auto !important;
 }
 
 .titlepage .author {
-    margin-top: 1.5em;
-    font-size: 1em;
+    margin-top: 2.6em;
+    font-size: 1.02em;
     text-transform: uppercase;
-    letter-spacing: 0.18em;
-    text-indent: 0;
+    letter-spacing: 0.2em;
 }
 
 .titlepage-series {
-    margin-top: 1.2em;
-    font-size: 0.9em;
+    margin-top: 1.4em;
+    font-size: 0.95em;
     text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: #6e604d !important;
-    text-indent: 0;
+    letter-spacing: 0.12em;
+    line-height: 1.5;
 }
 
 .titlepage .rights {
@@ -179,10 +179,6 @@ img {
 }
 
 /* Metadata-driven variants: title-page-style: classic|minimal|ornate */
-.titlepage.title-style-classic::before,
-.titlepage.title-style-classic::after {
-    color: #7a6a52;
-}
 
 .titlepage.title-style-minimal::before,
 .titlepage.title-style-minimal::after {
@@ -191,42 +187,18 @@ img {
 }
 
 .titlepage.title-style-minimal .title {
-    font-size: 1.9em;
+    font-size: 2em;
     letter-spacing: 0.02em;
     text-transform: none;
 }
 
 .titlepage.title-style-minimal .author {
-    letter-spacing: 0.1em;
-}
-
-.titlepage.title-style-minimal .titlepage-series,
-.titlepage.title-style-minimal .titlepage-series {
     letter-spacing: 0.12em;
-    color: #5f5f5f;
+    margin-top: 2.2em;
 }
 
-.titlepage.title-style-ornate::before,
-.titlepage.title-style-ornate::after {
-    font-size: 1.35em;
-    letter-spacing: 0;
-    color: #6b4f2a;
-}
-
-.titlepage.title-style-ornate::before {
-    content: "✦";
-}
-
-.titlepage.title-style-ornate::after {
-    content: "⸻ ❦ ⸻";
-}
-
-.titlepage.title-style-ornate .titlepage-top-stars {
-    color: #6b4f2a;
-}
-
-.titlepage.title-style-ornate .title {
-    color: #6b4f2a;
+.titlepage.title-style-minimal .titlepage-series {
+    letter-spacing: 0.08em;
 }
 
 .titlepage.title-style-ornate .title {
@@ -238,9 +210,8 @@ img {
     letter-spacing: 0.24em;
 }
 
-.titlepage.title-style-ornate .titlepage-series,
 .titlepage.title-style-ornate .titlepage-series {
-    color: #6b4f2a;
+    letter-spacing: 0.16em;
 }
 
 /* --- 9. DEDICATION PAGE (Italic H3) --- */
@@ -285,10 +256,10 @@ h1.copyright-page {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    align-items: center;
+    align-items: stretch;
     min-height: 80vh;
-    text-align: center;
-    padding-top: 5em;
+    text-align: left;
+    padding-top: 4em;
 }
 
 .copyright p {
@@ -310,7 +281,8 @@ h1.copyright-page {
 .copyright-disclaimer {
     font-size: 0.85em;
     line-height: 1.6;
-    max-width: 80%;
+    max-width: 100%;
+    width: 100%;
     text-align: justify;
 }
 

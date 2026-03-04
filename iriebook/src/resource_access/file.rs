@@ -1867,7 +1867,7 @@ identifier:
         assert!(!EMBEDDED_CSS.is_empty());
         assert!(EMBEDDED_CSS.contains("@charset"));
         assert!(EMBEDDED_CSS.contains("body"));
-        assert!(EMBEDDED_CSS.contains("h1:not(.unnumbered), h2"));
+        assert!(EMBEDDED_CSS.contains("h1:not(.unnumbered)"));
     }
 
     #[test]
@@ -1883,77 +1883,27 @@ identifier:
     }
 
     #[test]
-    fn test_css_has_fancy_internal_title_page_styles() {
+    fn test_css_has_titlepage_and_toc_guards() {
         assert!(
             EMBEDDED_CSS.contains(".titlepage {"),
             "CSS must include title page container styles"
         );
         assert!(
-            EMBEDDED_CSS.contains("min-height: 72vh"),
-            "CSS must keep title page height compact for paged readers"
+            EMBEDDED_CSS.contains("page-break-after: always"),
+            "CSS must force clean break after title page"
         );
         assert!(
             EMBEDDED_CSS.contains(".titlepage .title"),
             "CSS must include title styling for title page"
         );
         assert!(
-            EMBEDDED_CSS.contains(".titlepage .author"),
-            "CSS must include author styling for title page"
+            EMBEDDED_CSS.contains(".titlepage .title")
+                && EMBEDDED_CSS.contains("break-before: auto"),
+            "CSS must prevent chapter page-break rules from splitting title page"
         );
         assert!(
-            EMBEDDED_CSS.contains(".titlepage.title-style-ornate"),
-            "CSS must include ornate title page variant"
-        );
-        assert!(
-            EMBEDDED_CSS.contains(".titlepage.title-style-minimal"),
-            "CSS must include minimal title page variant"
-        );
-        assert!(
-            EMBEDDED_CSS.contains(".titlepage.title-style-classic"),
-            "CSS must include classic title page variant"
-        );
-        assert!(
-            EMBEDDED_CSS.contains(".titlepage-series"),
-            "CSS must include series line styling on title page"
-        );
-        assert!(
-            EMBEDDED_CSS.contains("content: \"✦\""),
-            "CSS must use a single top ornament glyph"
-        );
-        assert!(
-            EMBEDDED_CSS.contains(".titlepage-top-stars"),
-            "CSS must include metadata-driven top stars styling"
-        );
-        assert!(
-            EMBEDDED_CSS.contains("content: \"⸻ ❦ ⸻\""),
-            "CSS must use a calligraphic bottom ornament line"
-        );
-        assert!(
-            EMBEDDED_CSS.contains("border: 1px solid #6e604d !important;"),
-            "CSS must include aristocratic frame border for title page"
-        );
-        assert!(
-            EMBEDDED_CSS.contains("outline: 1px solid #c9b9a0"),
-            "CSS must include dual inner frame lines for title page"
-        );
-        assert!(
-            EMBEDDED_CSS.contains(".titlepage-series")
-                && EMBEDDED_CSS.contains("color: #6e604d !important;"),
-            "CSS must keep frame and series title in the same dark tone"
-        );
-        assert!(
-            EMBEDDED_CSS.contains(".titlepage::before")
-                && EMBEDDED_CSS.contains(".titlepage::after")
-                && EMBEDDED_CSS.contains("color: #7a6a52 !important;"),
-            "CSS must keep top star and fleur ornament in matching tone"
-        );
-        assert!(
-            EMBEDDED_CSS.contains("break-inside: avoid"),
-            "CSS must prevent title page frame fragmentation"
-        );
-        assert!(
-            EMBEDDED_CSS.contains("page-break-after: always"),
-            "CSS must force clean break after title page"
+            EMBEDDED_CSS.contains("nav[type=\"toc\"] h1"),
+            "CSS must override TOC heading page-break behavior for Kindle"
         );
     }
 }

@@ -3,9 +3,9 @@
 //! Provides access to Calibre command-line tools (ebook-convert, ebook-meta)
 //! for converting EPUB to Kindle format and stamping series metadata.
 
-use crate::utilities::error::IrieBookError;
-use crate::resource_access::{file, command};
 use crate::resource_access::traits::CalibreAccess;
+use crate::resource_access::{command, file};
+use crate::utilities::error::IrieBookError;
 use crate::utilities::types::BookMetadata;
 use std::path::Path;
 use std::process::Command;
@@ -14,11 +14,20 @@ use std::process::Command;
 pub struct CalibreConverter;
 
 impl CalibreAccess for CalibreConverter {
-    fn convert_to_kindle(&self, input_md: &Path, input_epub: &Path) -> Result<String, IrieBookError> {
+    fn convert_to_kindle(
+        &self,
+        input_md: &Path,
+        input_epub: &Path,
+    ) -> Result<String, IrieBookError> {
         convert_to_kindle_impl(input_md, input_epub)
     }
 
-    fn stamp_metadata(&self, file_path: &Path, series: &str, index: u32) -> Result<String, IrieBookError> {
+    fn stamp_metadata(
+        &self,
+        file_path: &Path,
+        series: &str,
+        index: u32,
+    ) -> Result<String, IrieBookError> {
         stamp_metadata_impl(file_path, series, index)
     }
 
@@ -32,13 +41,12 @@ fn convert_to_kindle_impl(input_md: &Path, input_epub: &Path) -> Result<String, 
     let output_kindle = file::change_extension(input_epub, "azw3");
 
     // Read and parse metadata from book root folder
-    let metadata_path =
-        file::get_book_folder_file(input_md, "metadata.yaml").map_err(|e| {
-            IrieBookError::FileRead {
-                path: "metadata.yaml".into(),
-                source: std::io::Error::other(e),
-            }
-        })?;
+    let metadata_path = file::get_book_folder_file(input_md, "metadata.yaml").map_err(|e| {
+        IrieBookError::FileRead {
+            path: "metadata.yaml".into(),
+            source: std::io::Error::other(e),
+        }
+    })?;
 
     let metadata_content =
         file::read_file(&metadata_path).map_err(|e| IrieBookError::FileRead {
@@ -65,6 +73,7 @@ fn convert_to_kindle_impl(input_md: &Path, input_epub: &Path) -> Result<String, 
         .arg(&output_kindle)
         .arg("--output-profile")
         .arg("kindle_pw")
+        .arg("--no-inline-toc")
         .arg("--title")
         .arg(&metadata.title)
         .arg("--authors")
@@ -90,7 +99,11 @@ fn convert_to_kindle_impl(input_md: &Path, input_epub: &Path) -> Result<String, 
 }
 
 /// Implementation of metadata stamping using ebook-meta
-fn stamp_metadata_impl(file_path: &Path, series: &str, index: u32) -> Result<String, IrieBookError> {
+fn stamp_metadata_impl(
+    file_path: &Path,
+    series: &str,
+    index: u32,
+) -> Result<String, IrieBookError> {
     let output = Command::new("ebook-meta")
         .arg(file_path)
         .arg("--series")
@@ -112,10 +125,7 @@ fn view_ebook_impl(epub_path: &Path) -> Result<String, IrieBookError> {
     if !epub_path.exists() {
         return Err(IrieBookError::FileRead {
             path: epub_path.display().to_string(),
-            source: std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "EPUB file not found",
-            ),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "EPUB file not found"),
         });
     }
 
@@ -128,7 +138,10 @@ fn view_ebook_impl(epub_path: &Path) -> Result<String, IrieBookError> {
             source: e,
         })?;
 
-    Ok(format!("Launched ebook-viewer for: {}", epub_path.display()))
+    Ok(format!(
+        "Launched ebook-viewer for: {}",
+        epub_path.display()
+    ))
 }
 
 #[cfg(test)]
