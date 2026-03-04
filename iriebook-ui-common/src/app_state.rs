@@ -319,7 +319,7 @@ impl AppStateBuilder {
             .expect("google_authenticator is required");
 
         // Build managers with injected dependencies
-        let repository_manager = Arc::new(RepositoryManager::new(git_access));
+        let repository_manager = Arc::new(RepositoryManager::new(git_access.clone()));
         let google_docs_manager = Arc::new(GoogleDocsSyncManager::new(google_docs_access.clone()));
         let diff_manager = Arc::new(DiffManager::new(diff_source, differ));
         let ebook_publication_manager = Arc::new(EbookPublicationManager::new(
@@ -332,6 +332,7 @@ impl AppStateBuilder {
             pandoc_access,
             calibre_access.clone(),
             archive_access,
+            git_access,
         ));
         let book_ui_manager = Arc::new(Mutex::new(BookUIManager::new(self.use_mock_book_ui)));
 

@@ -275,7 +275,7 @@ pub fn process_single_book(
     publish: PublishEnabled,
     word_stats: WordStatsEnabled,
 ) -> ProcessingResult {
-    use iriebook::{engines::{analysis::word_analyzer::WordAnalyzer, text_processing::{markdown_transform::MarkdownTransformer, quote_fixer::QuoteFixer, whitespace_trimmer::WhitespaceTrimmer, word_replacement::WordReplacer}, validation::validator::Validator}, managers::ebook_publication::{EbookPublicationManager, PublishArgs}, resource_access::{archive::ZipArchiver, calibre::CalibreConverter, pandoc::PandocConverter}};
+    use iriebook::{engines::{analysis::word_analyzer::WordAnalyzer, text_processing::{markdown_transform::MarkdownTransformer, quote_fixer::QuoteFixer, whitespace_trimmer::WhitespaceTrimmer, word_replacement::WordReplacer}, validation::validator::Validator}, managers::ebook_publication::{EbookPublicationManager, PublishArgs}, resource_access::{archive::ZipArchiver, calibre::CalibreConverter, git::GitClient, pandoc::PandocConverter}};
                                 
     // Create the manager with all dependencies
     let manager = EbookPublicationManager::new(
@@ -288,6 +288,7 @@ pub fn process_single_book(
         Arc::new(PandocConverter),
         Arc::new(CalibreConverter),
         Arc::new(ZipArchiver),
+        Arc::new(GitClient),
     );
 
     // Load metadata to get replace pairs

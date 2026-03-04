@@ -3,7 +3,7 @@ use crate::engines::text_processing::quote_fixer::ConversionResult;
 use crate::engines::text_processing::whitespace_trimmer::TrimmingResult;
 use crate::resource_access::config::WordAnalysisConfig;
 use crate::utilities::error::IrieBookError;
-use crate::utilities::types::{BookMetadata, DiffResult, ReplacePair};
+use crate::utilities::types::{BookMetadata, BookRevisionInfo, DiffResult, ReplacePair};
 
 /// Trait for quote validation engines
 ///
@@ -103,6 +103,7 @@ pub trait MarkdownTransformEngine: Send + Sync {
         &self,
         book_folder: &std::path::Path,
         metadata: &BookMetadata,
+        revision_info: Option<&BookRevisionInfo>,
     ) -> Result<Option<String>, IrieBookError>;
 }
 

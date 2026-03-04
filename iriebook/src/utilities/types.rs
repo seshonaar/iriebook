@@ -110,6 +110,13 @@ pub struct BookMetadata {
     pub identifier: Option<Vec<Identifier>>,
 }
 
+/// Source control revision information for publication artifacts
+#[derive(Debug, Clone, PartialEq, Default, serde::Deserialize, serde::Serialize, Type)]
+pub struct BookRevisionInfo {
+    pub short_hash: String,
+    pub commit_date: String, // YYYY-MM-DD
+}
+
 /// A single word replacement pair (case-sensitive, whole-word)
 #[derive(Debug, Clone, PartialEq, Default, serde::Deserialize, serde::Serialize, Type)]
 pub struct ReplacePair {

@@ -8,7 +8,7 @@
 
 use crate::engines::traits::MarkdownTransformEngine;
 use crate::utilities::error::IrieBookError;
-use crate::utilities::types::BookMetadata;
+use crate::utilities::types::{BookMetadata, BookRevisionInfo};
 use chrono::Datelike;
 use nom::{
     branch::alt,
@@ -216,6 +216,7 @@ impl MarkdownTransformEngine for MarkdownTransformer {
         &self,
         book_folder: &Path,
         metadata: &BookMetadata,
+        revision_info: Option<&BookRevisionInfo>,
     ) -> Result<Option<String>, IrieBookError> {
         let copyright_path = book_folder.join("copyright.txt");
 
@@ -250,6 +251,15 @@ impl MarkdownTransformEngine for MarkdownTransformer {
             String::new()
         };
 
+        let revision_line = if let Some(info) = revision_info {
+            format!(
+                r#"<p class="copyright-isbn">IrieBook revision: {} ({})</p>"#,
+                info.short_hash, info.commit_date
+            )
+        } else {
+            String::new()
+        };
+
         let copyright_page = format!(
             r#"# {{.copyright-page .unnumbered .unlisted}}
 
@@ -258,8 +268,9 @@ impl MarkdownTransformEngine for MarkdownTransformer {
 <p class="copyright-rights">{}</p>
 <div class="copyright-disclaimer">{}</div>
 {}
+{}
 "#,
-            year, author, rights_text, disclaimer_text, isbn_line
+            year, author, rights_text, disclaimer_text, isbn_line, revision_line
         );
 
         Ok(Some(copyright_page))
@@ -1556,7 +1567,7 @@ More text.
         };
 
         let result = transformer
-            .generate_copyright_page(book_folder, &metadata)
+            .generate_copyright_page(book_folder, &metadata, None)
             .unwrap();
         assert!(result.is_none());
     }
@@ -1577,7 +1588,7 @@ More text.
         };
 
         let result = transformer
-            .generate_copyright_page(book_folder, &metadata)
+            .generate_copyright_page(book_folder, &metadata, None)
             .unwrap();
         assert!(result.is_some());
         let page = result.unwrap();
@@ -1604,7 +1615,7 @@ More text.
         };
 
         let page = transformer
-            .generate_copyright_page(book_folder, &metadata)
+            .generate_copyright_page(book_folder, &metadata, None)
             .unwrap()
             .unwrap();
 
@@ -1627,7 +1638,7 @@ More text.
         };
 
         let page = transformer
-            .generate_copyright_page(book_folder, &metadata)
+            .generate_copyright_page(book_folder, &metadata, None)
             .unwrap()
             .unwrap();
 
@@ -1655,7 +1666,7 @@ More text.
         };
 
         let result = transformer
-            .generate_copyright_page(book_folder, &metadata)
+            .generate_copyright_page(book_folder, &metadata, None)
             .unwrap();
         assert!(result.is_some());
         let page = result.unwrap();
@@ -1682,12 +1693,45 @@ More text.
         };
 
         let result = transformer
-            .generate_copyright_page(book_folder, &metadata)
+            .generate_copyright_page(book_folder, &metadata, None)
             .unwrap();
         assert!(result.is_some());
         let page = result.unwrap();
 
         // Should NOT contain ISBN
         assert!(!page.contains("copyright-isbn"));
+    }
+
+    #[test]
+    fn generate_copyright_page_includes_revision_when_provided() {
+        let transformer = MarkdownTransformer;
+        let temp_dir = TempDir::new().unwrap();
+        let book_folder = temp_dir.path();
+
+        fs::write(book_folder.join("copyright.txt"), "All rights reserved.").unwrap();
+
+        let metadata = BookMetadata {
+            title: "Test Book".to_string(),
+            author: "Jane Doe".to_string(),
+            identifier: Some(vec![Identifier {
+                scheme: Some("ISBN-13".to_string()),
+                text: Some("978-0-123456-78-9".to_string()),
+            }]),
+            ..Default::default()
+        };
+
+        let revision = BookRevisionInfo {
+            short_hash: "abc123".to_string(),
+            commit_date: "2026-03-04".to_string(),
+        };
+
+        let result = transformer
+            .generate_copyright_page(book_folder, &metadata, Some(&revision))
+            .unwrap();
+        assert!(result.is_some());
+        let page = result.unwrap();
+
+        assert!(page.contains("ISBN-13: 978-0-123456-78-9"));
+        assert!(page.contains("IrieBook revision: abc123 (2026-03-04)"));
     }
 }

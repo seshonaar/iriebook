@@ -18,6 +18,7 @@ use iriebook::managers::ebook_publication::{EbookPublicationManager, PublishArgs
 use iriebook::resource_access::archive::ZipArchiver;
 use iriebook::resource_access::calibre::CalibreConverter;
 use iriebook::resource_access::file;
+use iriebook::resource_access::git::GitClient;
 use iriebook::resource_access::pandoc::PandocConverter;
 
 fn main() -> Result<()> {
@@ -62,6 +63,7 @@ fn main() -> Result<()> {
         Arc::new(PandocConverter),
         Arc::new(CalibreConverter),
         Arc::new(ZipArchiver),
+        Arc::new(GitClient),
     );
 
     // Execute publication pipeline

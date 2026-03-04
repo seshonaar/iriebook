@@ -11,6 +11,7 @@
 //! 4. Results Display
 
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -18,9 +19,9 @@ use crate::engines::traits::{
     MarkdownTransformEngine, QuoteFixerEngine, ValidatorEngine, WhitespaceTrimmerEngine,
     WordAnalyzerEngine, WordReplacementEngine,
 };
-use crate::resource_access::traits::{ArchiveAccess, CalibreAccess, PandocAccess};
+use crate::resource_access::traits::{ArchiveAccess, CalibreAccess, GitAccess, PandocAccess};
 use crate::resource_access::{config, file};
-use crate::utilities::types::ReplacePair;
+use crate::utilities::types::{BookRevisionInfo, ReplacePair};
 
 /// Result of the complete ebook publication process
 /// Contains all data produced by the pipeline for the Client to display
@@ -113,6 +114,7 @@ pub struct EbookPublicationManager {
     pandoc_access: Arc<dyn PandocAccess>,
     calibre_access: Arc<dyn CalibreAccess>,
     archive_access: Arc<dyn ArchiveAccess>,
+    git_access: Arc<dyn GitAccess>,
 }
 
 impl EbookPublicationManager {
@@ -128,6 +130,7 @@ impl EbookPublicationManager {
         pandoc_access: Arc<dyn PandocAccess>,
         calibre_access: Arc<dyn CalibreAccess>,
         archive_access: Arc<dyn ArchiveAccess>,
+        git_access: Arc<dyn GitAccess>,
     ) -> Self {
         Self {
             validator,
@@ -139,6 +142,7 @@ impl EbookPublicationManager {
             pandoc_access,
             calibre_access,
             archive_access,
+            git_access,
         }
     }
 
@@ -238,9 +242,12 @@ impl EbookPublicationManager {
             let metadata = file::load_metadata(input_path)?.unwrap_or_default();
 
             // Generate copyright page if copyright.txt exists
-            let copyright_page = self
-                .markdown_transformer
-                .generate_copyright_page(book_folder, &metadata)?;
+            let revision_info = self.get_book_revision_info(book_folder);
+            let copyright_page = self.markdown_transformer.generate_copyright_page(
+                book_folder,
+                &metadata,
+                revision_info.as_ref(),
+            )?;
 
             // Prepend copyright page to content if it exists
             let has_copyright_page = copyright_page.is_some();
@@ -343,6 +350,44 @@ impl EbookPublicationManager {
             command_outputs,
         })
     }
+
+    fn get_book_revision_info(&self, book_folder: &Path) -> Option<BookRevisionInfo> {
+        for repo_candidate in book_folder.ancestors() {
+            if !self.git_access.is_repository(repo_candidate) {
+                continue;
+            }
+
+            let Some(commit) = self
+                .git_access
+                .get_log(repo_candidate, 1)
+                .ok()
+                .and_then(|mut commits| commits.drain(..).next())
+            else {
+                continue;
+            };
+
+            let short_hash = commit.hash.chars().take(6).collect::<String>();
+            if short_hash.is_empty() {
+                continue;
+            }
+
+            let timestamp = match commit.timestamp.parse::<i64>() {
+                Ok(ts) => ts,
+                Err(_) => continue,
+            };
+
+            let Some(date) = DateTime::<Utc>::from_timestamp(timestamp, 0) else {
+                continue;
+            };
+
+            return Some(BookRevisionInfo {
+                short_hash,
+                commit_date: date.date_naive().format("%Y-%m-%d").to_string(),
+            });
+        }
+
+        None
+    }
 }
 
 #[cfg(test)]
@@ -356,6 +401,7 @@ mod tests {
     use crate::engines::validation::validator::Validator;
     use crate::resource_access::archive::ZipArchiver;
     use crate::resource_access::calibre::CalibreConverter;
+    use crate::resource_access::git::GitClient;
     use crate::resource_access::pandoc::PandocConverter;
     use std::fs;
     use tempfile::TempDir;
@@ -372,6 +418,7 @@ mod tests {
             Arc::new(PandocConverter),
             Arc::new(CalibreConverter),
             Arc::new(ZipArchiver),
+            Arc::new(GitClient),
         )
     }
 
