@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { commands } from "../bindings";
 import { BookUp, Upload, RefreshCw } from "lucide-react";
 import { Button } from "./ui/button";
+import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import { useAppContext } from "../contexts/AppContext";
 import {
   setBooks,
@@ -17,6 +20,7 @@ import { useGitOperations } from "../hooks/useGitOperations";
 
 export function ProcessingPanel() {
   const { t } = useTranslation();
+  const [embedCover, setEmbedCover] = useState(true);
   const { state, dispatch } = useAppContext();
   const { targetBooks } = useActionTarget();
   const {
@@ -60,7 +64,8 @@ export function ProcessingPanel() {
       const result = await commands.startProcessing(
         targetBooks,
         publish,
-        stats
+        stats,
+        embedCover
       );
       if (result.status === "error") {
         throw new Error(result.error);
@@ -114,6 +119,18 @@ export function ProcessingPanel() {
             ? t('processing.panel.button.processing')
             : t('processing.panel.button.publish')}</span>
         </Button>
+
+        <div className="flex items-center gap-2 min-w-max">
+          <Checkbox
+            id="embed-cover"
+            checked={embedCover}
+            onCheckedChange={setEmbedCover}
+            disabled={state.isProcessing}
+          />
+          <Label htmlFor="embed-cover">
+            {t('processing.panel.options.embedCover')}
+          </Label>
+        </div>
       </div>
 
       {/* Commit Dialog */}

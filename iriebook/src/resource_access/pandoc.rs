@@ -25,8 +25,15 @@ impl PandocAccess for PandocConverter {
         fixed_md: &Path,
         output_epub: &Path,
         custom_metadata_path: Option<&Path>,
+        embed_cover: bool,
     ) -> Result<String, IrieBookError> {
-        convert_to_epub_impl(original_input, fixed_md, output_epub, custom_metadata_path)
+        convert_to_epub_impl(
+            original_input,
+            fixed_md,
+            output_epub,
+            custom_metadata_path,
+            embed_cover,
+        )
     }
 }
 
@@ -40,6 +47,7 @@ fn convert_to_epub_impl(
     fixed_md: &Path,
     output_epub: &Path,
     custom_metadata_path: Option<&Path>,
+    embed_cover: bool,
 ) -> Result<String, IrieBookError> {
     let css_path = file::get_css_path().map_err(|e| IrieBookError::FileRead {
         path: "css".into(),
@@ -58,12 +66,7 @@ fn convert_to_epub_impl(
         })?
     };
 
-    let cover_path = file::get_book_folder_file(original_input, "cover.jpg").map_err(|e| {
-        IrieBookError::FileRead {
-            path: "cover.jpg".into(),
-            source: std::io::Error::other(e),
-        }
-    })?;
+    let cover_path = resolve_cover_path(original_input, embed_cover)?;
 
     // Verify all required files exist before running Pandoc
     if !Path::new(&css_path).exists() {
@@ -83,41 +86,27 @@ fn convert_to_epub_impl(
         });
     }
 
-    if !cover_path.exists() {
-        return Err(IrieBookError::FileRead {
-            path: cover_path.to_string_lossy().to_string(),
-            source: std::io::Error::new(std::io::ErrorKind::NotFound, "cover.jpg file not found"),
-        });
-    }
-
     // Convert the fixed markdown content
     debug!(fixed_md = %fixed_md.display(), css = %css_path, "Starting EPUB conversion");
-    let pandoc_output = Command::new("pandoc")
-        .arg(fixed_md)
-        .arg("-o")
-        .arg(output_epub)
-        .arg("--toc")
-        .arg("-t")
-        .arg("epub3")
-        .arg("--css")
-        .arg(css_path)
-        .arg("--metadata-file")
-        .arg(&metadata_path)
-        .arg("--epub-cover-image")
-        .arg(cover_path)
-        .arg("--standalone")
-        .arg("--split-level=1")
-        .output()
-        .map_err(|e| IrieBookError::FileRead {
-            path: "pandoc".into(),
-            source: e,
-        })?;
+    let mut command = build_pandoc_command(
+        fixed_md,
+        output_epub,
+        &css_path,
+        &metadata_path,
+        cover_path.as_deref(),
+    );
+    let pandoc_output = command.output().map_err(|e| IrieBookError::FileRead {
+        path: "pandoc".into(),
+        source: e,
+    })?;
 
     let mut output = command::format_output(pandoc_output);
 
-    if let Some((series_name, series_position)) = read_title_page_series_from_metadata(&metadata_path)?
+    if let Some((series_name, series_position)) =
+        read_title_page_series_from_metadata(&metadata_path)?
     {
-        let series_added = apply_title_page_series_to_epub(output_epub, &series_name, series_position)?;
+        let series_added =
+            apply_title_page_series_to_epub(output_epub, &series_name, series_position)?;
         if series_added {
             output.push_str(" | injected series info on title page");
         }
@@ -144,7 +133,62 @@ fn convert_to_epub_impl(
     Ok(output)
 }
 
-fn read_title_page_style_from_metadata(metadata_path: &Path) -> Result<Option<String>, IrieBookError> {
+fn resolve_cover_path(
+    original_input: &Path,
+    embed_cover: bool,
+) -> Result<Option<PathBuf>, IrieBookError> {
+    if !embed_cover {
+        return Ok(None);
+    }
+
+    let cover_path = file::get_book_folder_file(original_input, "cover.jpg").map_err(|e| {
+        IrieBookError::FileRead {
+            path: "cover.jpg".into(),
+            source: std::io::Error::other(e),
+        }
+    })?;
+
+    if !cover_path.exists() {
+        return Err(IrieBookError::FileRead {
+            path: cover_path.to_string_lossy().to_string(),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "cover.jpg file not found"),
+        });
+    }
+
+    Ok(Some(cover_path))
+}
+
+fn build_pandoc_command(
+    fixed_md: &Path,
+    output_epub: &Path,
+    css_path: &str,
+    metadata_path: &Path,
+    cover_path: Option<&Path>,
+) -> Command {
+    let mut command = Command::new("pandoc");
+    command
+        .arg(fixed_md)
+        .arg("-o")
+        .arg(output_epub)
+        .arg("--toc")
+        .arg("-t")
+        .arg("epub3")
+        .arg("--css")
+        .arg(css_path)
+        .arg("--metadata-file")
+        .arg(metadata_path);
+
+    if let Some(cover_path) = cover_path {
+        command.arg("--epub-cover-image").arg(cover_path);
+    }
+
+    command.arg("--standalone").arg("--split-level=1");
+    command
+}
+
+fn read_title_page_style_from_metadata(
+    metadata_path: &Path,
+) -> Result<Option<String>, IrieBookError> {
     let yaml_value = read_metadata_yaml_value(metadata_path)?;
 
     let style = yaml_value
@@ -257,7 +301,8 @@ fn apply_title_page_series_to_epub(
         }
     })?;
 
-    let Some(updated_title_page) = inject_title_page_series(&title_page, series_name, series_position)
+    let Some(updated_title_page) =
+        inject_title_page_series(&title_page, series_name, series_position)
     else {
         return Ok(false);
     };
@@ -268,10 +313,8 @@ fn apply_title_page_series_to_epub(
 }
 
 fn inject_title_page_style_class(title_page_xhtml: &str, style: &str) -> Option<String> {
-    let section_re = Regex::new(
-        r#"(<section\b[^>]*epub:type="titlepage"[^>]*\bclass=")([^"]*)(")"#,
-    )
-    .ok()?;
+    let section_re =
+        Regex::new(r#"(<section\b[^>]*epub:type="titlepage"[^>]*\bclass=")([^"]*)(")"#).ok()?;
     let captures = section_re.captures(title_page_xhtml)?;
     let full_match = captures.get(0)?;
     let prefix = captures.get(1)?.as_str();
@@ -338,10 +381,8 @@ fn build_top_star_group(series_position: Option<u32>) -> String {
 }
 
 fn add_class_to_titlepage_section(title_page_xhtml: &str, class_name: &str) -> Option<String> {
-    let section_re = Regex::new(
-        r#"(<section\b[^>]*epub:type="titlepage"[^>]*\bclass=")([^"]*)(")"#,
-    )
-    .ok()?;
+    let section_re =
+        Regex::new(r#"(<section\b[^>]*epub:type="titlepage"[^>]*\bclass=")([^"]*)(")"#).ok()?;
     let captures = section_re.captures(title_page_xhtml)?;
     let full_match = captures.get(0)?;
     let prefix = captures.get(1)?.as_str();
@@ -574,8 +615,8 @@ mod tests {
     use std::io::Read;
     use std::io::Write;
     use tempfile::TempDir;
-    use zip::write::FileOptions;
     use zip::ZipWriter;
+    use zip::write::FileOptions;
 
     #[test]
     fn pandoc_converter_implements_trait() {
@@ -583,6 +624,66 @@ mod tests {
         // This test just verifies the trait is implemented correctly
         // Actual pandoc execution would require pandoc to be installed
         let _ = converter;
+    }
+
+    #[test]
+    fn build_pandoc_command_includes_cover_arg_when_cover_path_is_present() {
+        let command = build_pandoc_command(
+            Path::new("fixed.md"),
+            Path::new("book.epub"),
+            "default.css",
+            Path::new("metadata.yaml"),
+            Some(Path::new("cover.jpg")),
+        );
+
+        let args = command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+
+        assert!(args.contains(&"--epub-cover-image".to_string()));
+        assert!(args.contains(&"cover.jpg".to_string()));
+    }
+
+    #[test]
+    fn build_pandoc_command_omits_cover_arg_when_cover_path_is_absent() {
+        let command = build_pandoc_command(
+            Path::new("fixed.md"),
+            Path::new("book.epub"),
+            "default.css",
+            Path::new("metadata.yaml"),
+            None,
+        );
+
+        let args = command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+
+        assert!(!args.contains(&"--epub-cover-image".to_string()));
+        assert!(!args.contains(&"cover.jpg".to_string()));
+    }
+
+    #[test]
+    fn resolve_cover_path_allows_missing_cover_when_embedding_disabled() {
+        let temp_dir = TempDir::new().unwrap();
+        let input_path = temp_dir.path().join("book.md");
+        std::fs::write(&input_path, "# Book").unwrap();
+
+        let cover_path = resolve_cover_path(&input_path, false).unwrap();
+
+        assert!(cover_path.is_none());
+    }
+
+    #[test]
+    fn resolve_cover_path_requires_cover_when_embedding_enabled() {
+        let temp_dir = TempDir::new().unwrap();
+        let input_path = temp_dir.path().join("book.md");
+        std::fs::write(&input_path, "# Book").unwrap();
+
+        let result = resolve_cover_path(&input_path, true);
+
+        assert!(result.is_err());
     }
 
     #[test]
@@ -692,7 +793,8 @@ mod tests {
 </html>
 "#;
 
-        zip.start_file("EPUB/text/title_page.xhtml", options).unwrap();
+        zip.start_file("EPUB/text/title_page.xhtml", options)
+            .unwrap();
         zip.write_all(title_page.as_bytes()).unwrap();
         zip.finish().unwrap();
 
@@ -734,7 +836,8 @@ mod tests {
 </html>
 "#;
 
-        zip.start_file("EPUB/text/title_page.xhtml", options).unwrap();
+        zip.start_file("EPUB/text/title_page.xhtml", options)
+            .unwrap();
         zip.write_all(title_page.as_bytes()).unwrap();
         zip.finish().unwrap();
 

@@ -125,9 +125,9 @@ async viewBook(bookPath: string) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async startProcessing(books: BookInfo[], publishEnabled: boolean, wordStatsEnabled: boolean) : Promise<Result<null, string>> {
+async startProcessing(books: BookInfo[], publishEnabled: boolean, wordStatsEnabled: boolean, embedCover: boolean) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("start_processing", { books, publishEnabled, wordStatsEnabled }) };
+    return { status: "ok", data: await TAURI_INVOKE("start_processing", { books, publishEnabled, wordStatsEnabled, embedCover }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

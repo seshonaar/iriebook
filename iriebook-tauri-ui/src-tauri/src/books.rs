@@ -3,11 +3,11 @@
 use crate::state::AppStateHolder;
 use iriebook_ui_common::ui_state::{BookInfo, PublishEnabled, WordStatsEnabled};
 use iriebook_ui_common::{
-    AddBookResult, AnalysisResponse, BatchProcessor, BookMetadata, ChangeBookResult,
-    BookListChangedEvent, CoverReloadEvent, CoverStatus, ProcessingUpdateEvent,
-    add_book_with_rescan, book_scanner, change_book_with_rescan, check_for_duplicate,
-    collect_distinct_authors, collect_distinct_series, delete_book_with_rescan,
-    get_or_compute_analysis, load_metadata, save_metadata,
+    AddBookResult, AnalysisResponse, BatchProcessor, BookListChangedEvent, BookMetadata,
+    ChangeBookResult, CoverReloadEvent, CoverStatus, ProcessingUpdateEvent, add_book_with_rescan,
+    book_scanner, change_book_with_rescan, check_for_duplicate, collect_distinct_authors,
+    collect_distinct_series, delete_book_with_rescan, get_or_compute_analysis, load_metadata,
+    save_metadata,
 };
 use std::path::PathBuf;
 use tauri::State;
@@ -134,12 +134,14 @@ pub async fn start_processing(
     books: Vec<BookInfo>,
     publish_enabled: bool,
     word_stats_enabled: bool,
+    embed_cover: bool,
 ) -> Result<(), String> {
     // Use BatchProcessor from ui-common - all orchestration logic is there
     BatchProcessor::process_books(
         books,
         PublishEnabled::new(publish_enabled),
         WordStatsEnabled::new(word_stats_enabled),
+        embed_cover,
         move |event| {
             let _ = ProcessingUpdateEvent(event).emit(&app);
         },

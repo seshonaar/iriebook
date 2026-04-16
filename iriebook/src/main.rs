@@ -7,7 +7,7 @@ use clap::Parser;
 use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
 
-use iriebook::client::cli::{display_results, format_summary, handle_validation_failure, Args};
+use iriebook::client::cli::{Args, display_results, format_summary, handle_validation_failure};
 use iriebook::engines::analysis::word_analyzer::WordAnalyzer;
 use iriebook::engines::text_processing::markdown_transform::MarkdownTransformer;
 use iriebook::engines::text_processing::quote_fixer::QuoteFixer;
@@ -72,6 +72,7 @@ fn main() -> Result<()> {
         output_path: args.output.as_deref(),
         enable_word_stats: args.word_stats,
         enable_publishing: args.publish,
+        embed_cover: true,
         replace_pairs: None,
     })?;
 

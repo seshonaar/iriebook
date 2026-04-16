@@ -1,5 +1,5 @@
 use crate::{
-    processing::{process_single_book, ProcessingEvent},
+    processing::{ProcessingEvent, process_single_book},
     ui_state::{BookInfo, PublishEnabled, WordStatsEnabled},
 };
 
@@ -25,6 +25,7 @@ impl BatchProcessor {
     /// * `books` - List of books to process
     /// * `publish` - Whether to enable publishing (generate ebook files)
     /// * `word_stats` - Whether to enable word statistics analysis
+    /// * `embed_cover` - Whether to embed cover.jpg in generated ebook files
     /// * `progress_callback` - Callback for progress events
     ///
     /// # Returns
@@ -33,6 +34,7 @@ impl BatchProcessor {
         books: Vec<BookInfo>,
         publish: PublishEnabled,
         word_stats: WordStatsEnabled,
+        embed_cover: bool,
         progress_callback: F,
     ) -> Result<(), String>
     where
@@ -53,7 +55,7 @@ impl BatchProcessor {
                 let word_stats_clone = word_stats;
 
                 let result = tokio::task::spawn_blocking(move || {
-                    process_single_book(&book_path, publish_clone, word_stats_clone)
+                    process_single_book(&book_path, publish_clone, word_stats_clone, embed_cover)
                 })
                 .await;
 
@@ -137,6 +139,7 @@ mod tests {
             books,
             PublishEnabled::new(false),
             WordStatsEnabled::new(false),
+            true,
             move |event| {
                 let mut ev = events_clone.lock().unwrap();
                 match &event {
@@ -186,6 +189,7 @@ mod tests {
             books,
             PublishEnabled::new(false),
             WordStatsEnabled::new(false),
+            true,
             move |event| match event {
                 ProcessingEvent::Completed { success, .. } => {
                     if success {
@@ -224,6 +228,7 @@ mod tests {
             books,
             PublishEnabled::new(false),
             WordStatsEnabled::new(false),
+            true,
             move |event| {
                 if matches!(event, ProcessingEvent::Completed { .. }) {
                     *completed_clone.lock().unwrap() += 1;

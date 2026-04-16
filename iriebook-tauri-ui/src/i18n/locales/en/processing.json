@@ -2,7 +2,8 @@
   "panel": {
     "options": {
       "publish": "Publish (EPUB/Kindle)",
-      "wordStats": "Word Statistics"
+      "wordStats": "Word Statistics",
+      "embedCover": "Embed cover"
     },
     "status": {
       "selected": "{{count}} book(s) selected",

@@ -40,6 +40,7 @@ pub trait PandocAccess: Send + Sync {
     ///   If provided, this will be used instead of the book's metadata.yaml.
     ///   Use this to suppress pandoc's auto-generated copyright page by providing
     ///   a metadata file without the `rights` field.
+    /// * `embed_cover` - Whether to embed cover.jpg in the generated EPUB.
     ///
     /// # Returns
     /// * `Ok(String)` with command output if conversion succeeds
@@ -50,6 +51,7 @@ pub trait PandocAccess: Send + Sync {
         fixed_md: &Path,
         output_epub: &Path,
         custom_metadata_path: Option<&Path>,
+        embed_cover: bool,
     ) -> Result<String, IrieBookError>;
 }
 
@@ -67,7 +69,11 @@ pub trait CalibreAccess: Send + Sync {
     /// # Returns
     /// * `Ok(String)` with command output if conversion succeeds
     /// * `Err(IrieBookError)` if conversion fails
-    fn convert_to_kindle(&self, input_md: &Path, input_epub: &Path) -> Result<String, IrieBookError>;
+    fn convert_to_kindle(
+        &self,
+        input_md: &Path,
+        input_epub: &Path,
+    ) -> Result<String, IrieBookError>;
 
     /// Stamps series metadata on a Kindle file using ebook-meta
     ///
@@ -79,7 +85,12 @@ pub trait CalibreAccess: Send + Sync {
     /// # Returns
     /// * `Ok(String)` with command output if stamping succeeds
     /// * `Err(IrieBookError)` if stamping fails
-    fn stamp_metadata(&self, file_path: &Path, series: &str, index: u32) -> Result<String, IrieBookError>;
+    fn stamp_metadata(
+        &self,
+        file_path: &Path,
+        series: &str,
+        index: u32,
+    ) -> Result<String, IrieBookError>;
 
     /// Launch ebook-viewer to display an EPUB file
     ///
@@ -230,7 +241,11 @@ pub trait GitAccess: Send + Sync {
     /// # Returns
     /// * `Ok(Vec<String>)` with relative file paths of changed files
     /// * `Err(IrieBookError)` if operation fails
-    fn get_changed_files(&self, repo_path: &Path, commit_hash: &str) -> Result<Vec<String>, IrieBookError>;
+    fn get_changed_files(
+        &self,
+        repo_path: &Path,
+        commit_hash: &str,
+    ) -> Result<Vec<String>, IrieBookError>;
 
     /// Discard all local changes (both tracked and untracked)
     ///
@@ -263,7 +278,11 @@ pub trait GitAccess: Send + Sync {
     /// * `Ok(true)` if any files in the folder have uncommitted changes (modified, added, deleted, or untracked)
     /// * `Ok(false)` if all files are unchanged, or if not in a git repository, or if folder is outside repository
     /// * `Err(IrieBookError)` if operation fails
-    fn get_folder_status(&self, repo_path: &Path, folder_path: &Path) -> Result<bool, IrieBookError>;
+    fn get_folder_status(
+        &self,
+        repo_path: &Path,
+        folder_path: &Path,
+    ) -> Result<bool, IrieBookError>;
 
     /// Get all files with uncommitted changes (for bulk status checking)
     ///
@@ -273,7 +292,10 @@ pub trait GitAccess: Send + Sync {
     /// # Returns
     /// * `Ok(Vec<PathBuf>)` with absolute paths to all files with uncommitted changes
     /// * `Err(IrieBookError)` if operation fails
-    fn get_all_changed_files(&self, repo_path: &Path) -> Result<Vec<std::path::PathBuf>, IrieBookError>;
+    fn get_all_changed_files(
+        &self,
+        repo_path: &Path,
+    ) -> Result<Vec<std::path::PathBuf>, IrieBookError>;
 }
 
 /// Trait for providing OAuth tokens (for testability)
@@ -322,13 +344,21 @@ pub trait DocumentSyncer: Send + Sync {
     /// # Returns
     /// * `Ok(SyncResult)` with sync details
     /// * `Err(IrieBookError)` if sync fails
-    async fn sync_document(&self, book_path: &Path, token: &str) -> Result<SyncResult, IrieBookError>;
+    async fn sync_document(
+        &self,
+        book_path: &Path,
+        token: &str,
+    ) -> Result<SyncResult, IrieBookError>;
 }
 
 /// Blanket implementation for Arc<T> where T: DocumentSyncer
 #[async_trait::async_trait]
 impl<T: DocumentSyncer + ?Sized> DocumentSyncer for std::sync::Arc<T> {
-    async fn sync_document(&self, book_path: &Path, token: &str) -> Result<SyncResult, IrieBookError> {
+    async fn sync_document(
+        &self,
+        book_path: &Path,
+        token: &str,
+    ) -> Result<SyncResult, IrieBookError> {
         (**self).sync_document(book_path, token).await
     }
 }
@@ -347,7 +377,11 @@ pub trait GoogleDocsAccess: Send + Sync {
     /// # Returns
     /// * `Ok(Vec<GoogleDocInfo>)` with list of documents
     /// * `Err(IrieBookError)` if API call fails
-    async fn list_documents(&self, token: &str, max_results: u32) -> Result<Vec<GoogleDocInfo>, IrieBookError>;
+    async fn list_documents(
+        &self,
+        token: &str,
+        max_results: u32,
+    ) -> Result<Vec<GoogleDocInfo>, IrieBookError>;
 
     /// Export a Google Doc as markdown
     ///
@@ -360,4 +394,3 @@ pub trait GoogleDocsAccess: Send + Sync {
     /// * `Err(IrieBookError)` if export fails
     async fn export_as_markdown(&self, doc_id: &str, token: &str) -> Result<String, IrieBookError>;
 }
-

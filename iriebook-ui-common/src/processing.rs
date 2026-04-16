@@ -1,5 +1,5 @@
-use crate::ui_state::{PublishEnabled, WordStatsEnabled};
 use crate::load_metadata;
+use crate::ui_state::{PublishEnabled, WordStatsEnabled};
 use anyhow::Result;
 use iriebook::utilities::types::ReplacePair;
 use serde::{Deserialize, Serialize};
@@ -61,7 +61,7 @@ impl BookProcessor for DefaultBookProcessor {
         publish: PublishEnabled,
         word_stats: WordStatsEnabled,
     ) -> ProcessingResult {
-        process_single_book(book_path, publish, word_stats)
+        process_single_book(book_path, publish, word_stats, true)
     }
 }
 
@@ -274,9 +274,24 @@ pub fn process_single_book(
     book_path: &Path,
     publish: PublishEnabled,
     word_stats: WordStatsEnabled,
+    embed_cover: bool,
 ) -> ProcessingResult {
-    use iriebook::{engines::{analysis::word_analyzer::WordAnalyzer, text_processing::{markdown_transform::MarkdownTransformer, quote_fixer::QuoteFixer, whitespace_trimmer::WhitespaceTrimmer, word_replacement::WordReplacer}, validation::validator::Validator}, managers::ebook_publication::{EbookPublicationManager, PublishArgs}, resource_access::{archive::ZipArchiver, calibre::CalibreConverter, git::GitClient, pandoc::PandocConverter}};
-                                
+    use iriebook::{
+        engines::{
+            analysis::word_analyzer::WordAnalyzer,
+            text_processing::{
+                markdown_transform::MarkdownTransformer, quote_fixer::QuoteFixer,
+                whitespace_trimmer::WhitespaceTrimmer, word_replacement::WordReplacer,
+            },
+            validation::validator::Validator,
+        },
+        managers::ebook_publication::{EbookPublicationManager, PublishArgs},
+        resource_access::{
+            archive::ZipArchiver, calibre::CalibreConverter, git::GitClient,
+            pandoc::PandocConverter,
+        },
+    };
+
     // Create the manager with all dependencies
     let manager = EbookPublicationManager::new(
         Arc::new(Validator),
@@ -303,6 +318,7 @@ pub fn process_single_book(
         output_path: None,
         enable_word_stats: word_stats.is_enabled(),
         enable_publishing: publish.is_enabled(),
+        embed_cover,
         replace_pairs: replace_pairs.as_deref(),
     })?;
 
@@ -316,10 +332,11 @@ pub fn process_single_book(
     ));
 
     if !result.validation_passed
-        && let Some(error) = &result.validation_error {
-            output.push_str(&format!("  ✗ Validation failed: {}\n", error));
-            return Ok((output, None, None));
-        }
+        && let Some(error) = &result.validation_error
+    {
+        output.push_str(&format!("  ✗ Validation failed: {}\n", error));
+        return Ok((output, None, None));
+    }
 
     output.push_str(&format!(
         "  - Quotes converted: {}\n",
@@ -341,10 +358,7 @@ pub fn process_single_book(
     ));
 
     if let Some(word_analysis) = &result.word_analysis {
-        output.push_str(&format!(
-            "  - Total words: {}\n",
-            word_analysis.total_words
-        ));
+        output.push_str(&format!("  - Total words: {}\n", word_analysis.total_words));
         output.push_str(&format!(
             "  - Unique words: {}\n",
             word_analysis.unique_words
@@ -352,7 +366,8 @@ pub fn process_single_book(
 
         // Extract top words for UI display (limit to 100)
         const TOP_WORDS_COUNT_IN_UI: usize = 100;
-        let top_words: Vec<(String, usize)> = word_analysis.top_words
+        let top_words: Vec<(String, usize)> = word_analysis
+            .top_words
             .iter()
             .take(TOP_WORDS_COUNT_IN_UI)
             .map(|(w, c)| (w.clone(), *c))
@@ -422,6 +437,7 @@ mod tests {
             &path,
             PublishEnabled::new(false),
             WordStatsEnabled::new(false),
+            true,
         );
         assert!(result.is_err());
     }

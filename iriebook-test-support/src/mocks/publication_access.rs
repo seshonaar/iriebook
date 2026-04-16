@@ -13,6 +13,8 @@ pub struct PandocCall {
     pub original_input: String,
     pub fixed_md: String,
     pub output_epub: String,
+    pub custom_metadata_content: Option<String>,
+    pub embed_cover: bool,
 }
 
 /// Mock PandocAccess implementation
@@ -60,12 +62,18 @@ impl PandocAccess for MockPandocAccess {
         original_input: &Path,
         fixed_md: &Path,
         output_epub: &Path,
-        _custom_metadata_path: Option<&Path>,
+        custom_metadata_path: Option<&Path>,
+        embed_cover: bool,
     ) -> Result<String, IrieBookError> {
+        let custom_metadata_content =
+            custom_metadata_path.and_then(|path| std::fs::read_to_string(path).ok());
+
         self.calls.lock().unwrap().push(PandocCall {
             original_input: original_input.to_string_lossy().to_string(),
             fixed_md: fixed_md.to_string_lossy().to_string(),
             output_epub: output_epub.to_string_lossy().to_string(),
+            custom_metadata_content,
+            embed_cover,
         });
 
         if self.should_fail {
@@ -286,6 +294,7 @@ mod tests {
             Path::new("/tmp/fixed.md"),
             &output_path,
             None,
+            true,
         );
 
         assert!(result.is_ok());
@@ -293,6 +302,7 @@ mod tests {
 
         let calls = mock.get_calls();
         assert_eq!(calls.len(), 1);
+        assert!(calls[0].embed_cover);
     }
 
     #[test]

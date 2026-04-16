@@ -4,6 +4,7 @@
 //! using mocked external dependencies.
 
 use iriebook::managers::ebook_publication::PublishArgs;
+use iriebook::resource_access::pandoc::PandocConverter;
 use iriebook_test_support::{
     GitCall, MockArchiveAccess, MockCalibreAccess, MockGitAccess, MockGoogleDocsAccess,
     MockPandocAccess, TestWorkspace,
@@ -73,6 +74,7 @@ async fn test_complete_publication_workflow() {
         output_path: None,
         enable_word_stats: true,
         enable_publishing: true,
+        embed_cover: true,
         replace_pairs: None,
     });
 
@@ -135,6 +137,7 @@ The end.
         output_path: None,
         enable_word_stats: true,
         enable_publishing: true,
+        embed_cover: true,
         replace_pairs: None,
     });
 
@@ -186,6 +189,7 @@ async fn test_publication_handles_pandoc_failure() {
         output_path: None,
         enable_word_stats: true,
         enable_publishing: true,
+        embed_cover: true,
         replace_pairs: None,
     });
 
@@ -233,6 +237,7 @@ async fn test_publication_generates_all_formats() {
         output_path: None,
         enable_word_stats: false,
         enable_publishing: true,
+        embed_cover: true,
         replace_pairs: None,
     });
 
@@ -251,6 +256,118 @@ async fn test_publication_generates_all_formats() {
         !mock_archive.get_calls().is_empty(),
         "Archive should be called"
     );
+}
+
+/// Test: Publication forwards cover embedding choice to Pandoc
+#[tokio::test]
+async fn test_publication_can_disable_cover_embedding() {
+    let mut workspace = TestWorkspace::new().unwrap();
+    let workspace_path = workspace.workspace_path.clone();
+    let book = workspace.add_book("no-cover-embed").unwrap();
+    std::fs::write(
+        book.path.join("metadata.yaml"),
+        r#"title: "no-cover-embed"
+author: "Test Author"
+language: en
+cover-image: cover.jpg
+"#,
+    )
+    .unwrap();
+    std::fs::remove_file(book.path.join("cover.jpg")).unwrap();
+
+    let mock_pandoc = Arc::new(MockPandocAccess::new());
+    let mock_calibre = Arc::new(MockCalibreAccess::new());
+    let mock_archive = Arc::new(MockArchiveAccess::new());
+
+    let app_state = AppStateBuilder::new()
+        .workspace_path(workspace_path)
+        .with_pandoc_access(mock_pandoc.clone())
+        .with_calibre_access(mock_calibre)
+        .with_archive_access(mock_archive)
+        .with_defaults_for_remaining()
+        .build();
+
+    let pub_manager = app_state.ebook_publication_manager();
+    let result = pub_manager.publish(PublishArgs {
+        input_path: &book.md_path,
+        output_path: None,
+        enable_word_stats: false,
+        enable_publishing: true,
+        embed_cover: false,
+        replace_pairs: None,
+    });
+
+    assert!(result.is_ok());
+
+    let pandoc_calls = mock_pandoc.get_calls();
+    assert_eq!(pandoc_calls.len(), 1);
+    assert!(
+        !pandoc_calls[0].embed_cover,
+        "Pandoc should receive cover embedding disabled"
+    );
+    let custom_metadata = pandoc_calls[0]
+        .custom_metadata_content
+        .as_ref()
+        .expect("Pandoc should receive temporary metadata when cover embedding is disabled");
+    assert!(
+        !custom_metadata.contains("cover-image"),
+        "Temporary metadata must remove cover-image so Pandoc does not try to embed cover.jpg"
+    );
+}
+
+/// Test: Disabling cover embedding still creates an EPUB when metadata names a missing cover
+#[tokio::test]
+async fn test_publication_without_cover_embedding_generates_epub_with_missing_cover_file() {
+    if std::process::Command::new("pandoc")
+        .arg("--version")
+        .output()
+        .is_err()
+    {
+        eprintln!("Skipping test: pandoc is not installed");
+        return;
+    }
+
+    let mut workspace = TestWorkspace::new().unwrap();
+    let workspace_path = workspace.workspace_path.clone();
+    let book = workspace.add_book("missing-cover").unwrap();
+    std::fs::write(
+        book.path.join("metadata.yaml"),
+        r#"title: "missing-cover"
+author: "Test Author"
+language: en
+cover-image: cover.jpg
+"#,
+    )
+    .unwrap();
+    std::fs::remove_file(book.path.join("cover.jpg")).unwrap();
+
+    let app_state = AppStateBuilder::new()
+        .workspace_path(workspace_path)
+        .with_pandoc_access(Arc::new(PandocConverter))
+        .with_calibre_access(Arc::new(MockCalibreAccess::new()))
+        .with_archive_access(Arc::new(MockArchiveAccess::new()))
+        .with_defaults_for_remaining()
+        .build();
+
+    let result = app_state.ebook_publication_manager().publish(PublishArgs {
+        input_path: &book.md_path,
+        output_path: None,
+        enable_word_stats: false,
+        enable_publishing: true,
+        embed_cover: false,
+        replace_pairs: None,
+    });
+
+    assert!(
+        result.is_ok(),
+        "Publication without cover embedding should not require cover.jpg: {:?}",
+        result.err()
+    );
+    let output_path = result
+        .unwrap()
+        .output_path
+        .expect("Expected EPUB output path");
+    assert!(output_path.exists(), "Expected generated EPUB to exist");
 }
 
 #[cfg(test)]
@@ -297,6 +414,7 @@ The end.
             output_path: None,
             enable_word_stats: false,
             enable_publishing: true,
+            embed_cover: true,
             replace_pairs: None,
         });
 

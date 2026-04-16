@@ -21,7 +21,7 @@ use crate::engines::traits::{
 };
 use crate::resource_access::traits::{ArchiveAccess, CalibreAccess, GitAccess, PandocAccess};
 use crate::resource_access::{config, file};
-use crate::utilities::types::{BookRevisionInfo, ReplacePair};
+use crate::utilities::types::{BookMetadata, BookRevisionInfo, ReplacePair};
 
 /// Result of the complete ebook publication process
 /// Contains all data produced by the pipeline for the Client to display
@@ -88,6 +88,7 @@ pub struct PublishArgs<'a> {
     pub output_path: Option<&'a Path>,
     pub enable_word_stats: bool,
     pub enable_publishing: bool,
+    pub embed_cover: bool,
     pub replace_pairs: Option<&'a [ReplacePair]>,
 }
 
@@ -98,6 +99,7 @@ impl<'a> Default for PublishArgs<'a> {
             output_path: None,
             enable_word_stats: false,
             enable_publishing: false,
+            embed_cover: true,
             replace_pairs: None,
         }
     }
@@ -165,6 +167,7 @@ impl EbookPublicationManager {
         let output_path = args.output_path;
         let enable_word_stats = args.enable_word_stats;
         let enable_publishing = args.enable_publishing;
+        let embed_cover = args.embed_cover;
         let replace_pairs = args.replace_pairs;
 
         // Vector to collect command outputs
@@ -281,13 +284,12 @@ impl EbookPublicationManager {
             // Generate ebook artifacts if metadata exists
             match file::get_output_file_name(input_path) {
                 Ok(output_epub) => {
-                    // Create temp metadata file without rights field if copyright page was generated
-                    // This suppresses pandoc's auto-generated copyright page
-                    let temp_metadata_path = if has_copyright_page {
-                        let mut metadata_without_rights = metadata.clone();
-                        metadata_without_rights.rights = None;
-                        let temp_yaml = serde_yaml::to_string(&metadata_without_rights)
-                            .map_err(|e| anyhow::anyhow!("Failed to serialize metadata: {}", e))?;
+                    // Create temp metadata when we need to suppress Pandoc's
+                    // own frontmatter generation or metadata-driven cover lookup.
+                    let temp_metadata_path = if let Some(pandoc_metadata) =
+                        prepare_pandoc_metadata(&metadata, has_copyright_page, embed_cover)
+                    {
+                        let temp_yaml = serialize_pandoc_metadata(&pandoc_metadata)?;
                         let temp_path = final_output_path
                             .parent()
                             .unwrap_or(Path::new("."))
@@ -304,6 +306,7 @@ impl EbookPublicationManager {
                         &final_output_path,
                         &output_epub,
                         temp_metadata_path.as_deref(),
+                        embed_cover,
                     )?;
                     command_outputs.push(format!("pandoc: {}", pandoc_output));
 
@@ -390,6 +393,38 @@ impl EbookPublicationManager {
     }
 }
 
+fn prepare_pandoc_metadata(
+    metadata: &BookMetadata,
+    has_copyright_page: bool,
+    embed_cover: bool,
+) -> Option<BookMetadata> {
+    if !has_copyright_page && embed_cover {
+        return None;
+    }
+
+    let mut pandoc_metadata = metadata.clone();
+    if has_copyright_page {
+        pandoc_metadata.rights = None;
+    }
+    if !embed_cover {
+        pandoc_metadata.cover_image = None;
+    }
+
+    Some(pandoc_metadata)
+}
+
+fn serialize_pandoc_metadata(metadata: &BookMetadata) -> Result<String> {
+    let mut yaml_value = serde_yaml::to_value(metadata)
+        .map_err(|e| anyhow::anyhow!("Failed to serialize metadata: {}", e))?;
+
+    if let Some(mapping) = yaml_value.as_mapping_mut() {
+        mapping.retain(|_, value| !value.is_null());
+    }
+
+    serde_yaml::to_string(&yaml_value)
+        .map_err(|e| anyhow::anyhow!("Failed to serialize metadata: {}", e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -440,6 +475,7 @@ mod tests {
             output_path: None,
             enable_word_stats: false,
             enable_publishing: false,
+            embed_cover: true,
             replace_pairs: None,
         })?;
 
@@ -455,6 +491,37 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn test_pandoc_metadata_removes_cover_image_when_embedding_disabled() {
+        let metadata = BookMetadata {
+            title: "Book".to_string(),
+            author: "Author".to_string(),
+            rights: Some("Copyright".to_string()),
+            cover_image: Some("cover.jpg".to_string()),
+            ..Default::default()
+        };
+
+        let pandoc_metadata = prepare_pandoc_metadata(&metadata, false, false).unwrap();
+
+        assert_eq!(pandoc_metadata.rights, Some("Copyright".to_string()));
+        assert_eq!(pandoc_metadata.cover_image, None);
+
+        let temp_yaml = serialize_pandoc_metadata(&pandoc_metadata).unwrap();
+        assert!(!temp_yaml.contains("cover-image"));
+    }
+
+    #[test]
+    fn test_pandoc_metadata_keeps_original_metadata_when_no_suppression_needed() {
+        let metadata = BookMetadata {
+            title: "Book".to_string(),
+            author: "Author".to_string(),
+            cover_image: Some("cover.jpg".to_string()),
+            ..Default::default()
+        };
+
+        assert!(prepare_pandoc_metadata(&metadata, false, true).is_none());
     }
 
     #[test]
@@ -476,6 +543,7 @@ mod tests {
             output_path: Some(&output_path),
             enable_word_stats: false,
             enable_publishing: true,
+            embed_cover: true,
             replace_pairs: None,
         })?;
 
@@ -520,6 +588,7 @@ mod tests {
             output_path: Some(&custom_output),
             enable_word_stats: false,
             enable_publishing: true,
+            embed_cover: true,
             replace_pairs: None,
         })?;
 
@@ -561,6 +630,7 @@ mod tests {
             output_path: None,
             enable_word_stats: false,
             enable_publishing: false,
+            embed_cover: true,
             replace_pairs: None,
         })?;
 
@@ -590,6 +660,7 @@ mod tests {
             output_path: Some(&output_path),
             enable_word_stats: false,
             enable_publishing: true,
+            embed_cover: true,
             replace_pairs: None,
         })?;
 
@@ -627,6 +698,7 @@ mod tests {
             output_path: None,
             enable_word_stats: false,
             enable_publishing: true,
+            embed_cover: true,
             replace_pairs: None,
         })?;
 
@@ -666,6 +738,7 @@ mod tests {
             output_path: None,
             enable_word_stats: false,
             enable_publishing: false,
+            embed_cover: true,
             replace_pairs: None,
         })?;
 
@@ -697,6 +770,7 @@ mod tests {
             output_path: None,
             enable_word_stats: true,
             enable_publishing: true,
+            embed_cover: true,
             replace_pairs: None,
         })?;
 
@@ -732,6 +806,7 @@ mod tests {
             output_path: None,
             enable_word_stats: false,
             enable_publishing: false,
+            embed_cover: true,
             replace_pairs: None,
         })?;
 
@@ -774,6 +849,7 @@ mod tests {
             output_path: Some(&output_path),
             enable_word_stats: false,
             enable_publishing: true,
+            embed_cover: true,
             replace_pairs: None,
         })?;
 
@@ -816,6 +892,7 @@ mod tests {
             output_path: None,
             enable_word_stats: true,
             enable_publishing: false,
+            embed_cover: true,
             replace_pairs: None,
         })?;
 
@@ -865,6 +942,7 @@ mod tests {
             output_path: Some(&output_path),
             enable_word_stats: false,
             enable_publishing: true,
+            embed_cover: true,
             replace_pairs: Some(&replace_pairs),
         })?;
 
@@ -910,6 +988,7 @@ mod tests {
             output_path: Some(&output_path),
             enable_word_stats: false,
             enable_publishing: true,
+            embed_cover: true,
             replace_pairs: Some(&replace_pairs),
         })?;
 
