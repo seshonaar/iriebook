@@ -231,6 +231,7 @@ pub async fn google_sync_doc(
 
     iriebook_ui_common::sync_document(
         &path,
+        Some(app_state.workspace_path()),
         &app_state.google_authenticator(),
         &app_state.google_docs_manager(),
         &iriebook_ui_common::processing::DefaultBookProcessor,
@@ -264,7 +265,7 @@ pub async fn google_sync_selected(
         .get()
         .ok_or_else(|| "App state not initialized".to_string())?;
 
-    BatchGoogleDocsSyncProcessor::sync_books(
+    BatchGoogleDocsSyncProcessor::new(app_state.workspace_path().to_path_buf()).sync_books(
         books,
         app_state.google_authenticator(),
         app_state.google_docs_manager(),

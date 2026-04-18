@@ -131,14 +131,20 @@ pub fn view_book(book_path: String, app_state_holder: State<AppStateHolder>) -> 
 #[specta::specta]
 pub async fn start_processing(
     app: tauri::AppHandle,
+    app_state_holder: State<'_, AppStateHolder>,
     books: Vec<BookInfo>,
     publish_enabled: bool,
     word_stats_enabled: bool,
     embed_cover: bool,
 ) -> Result<(), String> {
+    let app_state = app_state_holder
+        .get()
+        .ok_or_else(|| "App state not initialized".to_string())?;
+
     // Use BatchProcessor from ui-common - all orchestration logic is there
     BatchProcessor::process_books(
         books,
+        Some(app_state.workspace_path().to_path_buf()),
         PublishEnabled::new(publish_enabled),
         WordStatsEnabled::new(word_stats_enabled),
         embed_cover,

@@ -23,6 +23,7 @@ impl BatchProcessor {
     ///
     /// # Arguments
     /// * `books` - List of books to process
+    /// * `config_root` - Library root containing editable config.json settings
     /// * `publish` - Whether to enable publishing (generate ebook files)
     /// * `word_stats` - Whether to enable word statistics analysis
     /// * `embed_cover` - Whether to embed cover.jpg in generated ebook files
@@ -32,6 +33,7 @@ impl BatchProcessor {
     /// Ok(()) if the batch processing task was spawned successfully
     pub async fn process_books<F>(
         books: Vec<BookInfo>,
+        config_root: Option<std::path::PathBuf>,
         publish: PublishEnabled,
         word_stats: WordStatsEnabled,
         embed_cover: bool,
@@ -51,11 +53,18 @@ impl BatchProcessor {
 
                 // Process the book on a blocking thread (CPU-intensive work)
                 let book_path = book.path.as_path().to_path_buf();
+                let config_root_clone = config_root.clone();
                 let publish_clone = publish;
                 let word_stats_clone = word_stats;
 
                 let result = tokio::task::spawn_blocking(move || {
-                    process_single_book(&book_path, publish_clone, word_stats_clone, embed_cover)
+                    process_single_book(
+                        &book_path,
+                        config_root_clone.as_deref(),
+                        publish_clone,
+                        word_stats_clone,
+                        embed_cover,
+                    )
                 })
                 .await;
 
@@ -137,6 +146,7 @@ mod tests {
 
         let result = BatchProcessor::process_books(
             books,
+            None,
             PublishEnabled::new(false),
             WordStatsEnabled::new(false),
             true,
@@ -187,6 +197,7 @@ mod tests {
 
         let result = BatchProcessor::process_books(
             books,
+            None,
             PublishEnabled::new(false),
             WordStatsEnabled::new(false),
             true,
@@ -226,6 +237,7 @@ mod tests {
 
         let result = BatchProcessor::process_books(
             books,
+            None,
             PublishEnabled::new(false),
             WordStatsEnabled::new(false),
             true,

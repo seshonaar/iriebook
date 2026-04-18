@@ -98,6 +98,9 @@ pub fn display_results(result: &PublicationResult, verbose: bool) {
     } else if let Some(output_path) = &result.output_path {
         println!("\n✅ Success!");
         println!("   Output: {}", output_path.display());
+        if let Some(pdf_output_path) = &result.pdf_output_path {
+            println!("   PDF: {}", pdf_output_path.display());
+        }
     }
 }
 
@@ -106,18 +109,22 @@ pub fn format_summary(result: &PublicationResult) -> String {
     let mut summary = String::new();
 
     if !result.validation_passed
-        && let Some(error) = &result.validation_error {
-            summary.push_str("❌ Validation failed!\n\n");
-            summary.push_str(error);
-            return summary;
-        }
+        && let Some(error) = &result.validation_error
+    {
+        summary.push_str("❌ Validation failed!\n\n");
+        summary.push_str(error);
+        return summary;
+    }
 
     summary.push_str(&format!(
         "✅ Converted {} quotes and {} apostrophes\n",
         result.quotes_converted, result.apostrophes_converted
     ));
     summary.push_str("✅ Trimmed whitespace:\n");
-    summary.push_str(&format!("   {} spaces collapsed\n", result.spaces_collapsed));
+    summary.push_str(&format!(
+        "   {} spaces collapsed\n",
+        result.spaces_collapsed
+    ));
     summary.push_str(&format!("   {} tabs converted\n", result.tabs_converted));
     summary.push_str(&format!(
         "   {} blank lines removed\n",
@@ -131,7 +138,10 @@ pub fn format_summary(result: &PublicationResult) -> String {
             summary.push_str("📊 Word Analysis:\n");
             summary.push_str(&format!("   {} total words\n", analysis.total_words));
             summary.push_str(&format!("   {} unique words\n", analysis.unique_words));
-            summary.push_str(&format!("   {} stopwords excluded\n", analysis.excluded_count));
+            summary.push_str(&format!(
+                "   {} stopwords excluded\n",
+                analysis.excluded_count
+            ));
 
             if !analysis.top_words.is_empty() {
                 summary.push_str("   Top words:\n");
@@ -152,6 +162,9 @@ pub fn format_summary(result: &PublicationResult) -> String {
     } else if let Some(output_path) = &result.output_path {
         summary.push_str("\n✅ Success!\n");
         summary.push_str(&format!("   Output: {}\n", output_path.display()));
+        if let Some(pdf_output_path) = &result.pdf_output_path {
+            summary.push_str(&format!("   PDF: {}\n", pdf_output_path.display()));
+        }
     }
 
     summary

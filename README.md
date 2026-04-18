@@ -106,9 +106,16 @@ Before the Irie can work its magic, certain spirits must be present in your real
 
 **Pandoc** - The universal document converter
 
-- This alchemist transforms markdown into EPUB with elegance
+- This alchemist transforms markdown into EPUB and PDF with elegance
 - In the Ubuntu/Debian lands, invoke: `sudo apt install pandoc`
 - All realms are welcome at pandoc.org
+
+**XeLaTeX** - The print PDF engine
+
+- This typesetting engine gives Pandoc the power to create print-quality PDFs
+- In the Ubuntu/Debian lands, invoke: `sudo apt install texlive-xetex`
+- PDF defaults use EB Garamond; in the Ubuntu/Debian lands, invoke: `sudo apt install fonts-ebgaramond`
+- If you prefer a font that is already commonly installed on Ubuntu, set `pdf.font_family` to `Liberation Serif` in your library `config.json`
 
 **Calibre** - The ebook craftsman
 

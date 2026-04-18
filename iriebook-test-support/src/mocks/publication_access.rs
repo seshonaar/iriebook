@@ -2,6 +2,7 @@
 //!
 //! These mocks simulate the external tools used for ebook generation.
 
+use iriebook::resource_access::config::PdfConfig;
 use iriebook::resource_access::traits::{ArchiveAccess, CalibreAccess, PandocAccess};
 use iriebook::utilities::error::IrieBookError;
 use std::path::Path;
@@ -17,6 +18,16 @@ pub struct PandocCall {
     pub embed_cover: bool,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct PdfPandocCall {
+    pub original_input: String,
+    pub fixed_md: String,
+    pub output_pdf: String,
+    pub metadata_content: String,
+    pub pdf_config: PdfConfig,
+    pub embed_cover: bool,
+}
+
 /// Mock PandocAccess implementation
 pub struct MockPandocAccess {
     /// Whether operations should fail
@@ -25,8 +36,11 @@ pub struct MockPandocAccess {
     pub error_message: String,
     /// Simulated EPUB content (bytes)
     pub epub_content: Vec<u8>,
+    /// Simulated PDF content (bytes)
+    pub pdf_content: Vec<u8>,
     /// Recorded calls
     calls: Mutex<Vec<PandocCall>>,
+    pdf_calls: Mutex<Vec<PdfPandocCall>>,
 }
 
 impl Default for MockPandocAccess {
@@ -41,7 +55,9 @@ impl MockPandocAccess {
             should_fail: false,
             error_message: "Mock Pandoc error".to_string(),
             epub_content: b"MOCK_EPUB_CONTENT".to_vec(),
+            pdf_content: b"MOCK_PDF_CONTENT".to_vec(),
             calls: Mutex::new(vec![]),
+            pdf_calls: Mutex::new(vec![]),
         }
     }
 
@@ -53,6 +69,10 @@ impl MockPandocAccess {
 
     pub fn get_calls(&self) -> Vec<PandocCall> {
         self.calls.lock().unwrap().clone()
+    }
+
+    pub fn get_pdf_calls(&self) -> Vec<PdfPandocCall> {
+        self.pdf_calls.lock().unwrap().clone()
     }
 }
 
@@ -91,6 +111,42 @@ impl PandocAccess for MockPandocAccess {
             .map_err(|e| IrieBookError::Validation(format!("Pandoc: {}", e)))?;
 
         Ok("EPUB created successfully".to_string())
+    }
+
+    fn convert_to_pdf(
+        &self,
+        original_input: &Path,
+        fixed_md: &Path,
+        output_pdf: &Path,
+        metadata_path: &Path,
+        pdf_config: &PdfConfig,
+        embed_cover: bool,
+    ) -> Result<String, IrieBookError> {
+        let metadata_content = std::fs::read_to_string(metadata_path).unwrap_or_default();
+
+        self.pdf_calls.lock().unwrap().push(PdfPandocCall {
+            original_input: original_input.to_string_lossy().to_string(),
+            fixed_md: fixed_md.to_string_lossy().to_string(),
+            output_pdf: output_pdf.to_string_lossy().to_string(),
+            metadata_content,
+            pdf_config: pdf_config.clone(),
+            embed_cover,
+        });
+
+        if self.should_fail {
+            return Err(IrieBookError::Validation(format!(
+                "Pandoc PDF: {}",
+                self.error_message
+            )));
+        }
+
+        if let Some(parent) = output_pdf.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        std::fs::write(output_pdf, &self.pdf_content)
+            .map_err(|e| IrieBookError::Validation(format!("Pandoc PDF: {}", e)))?;
+
+        Ok("PDF created successfully".to_string())
     }
 }
 
@@ -218,6 +274,7 @@ impl CalibreAccess for MockCalibreAccess {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ArchiveCall {
     pub input_epub: String,
+    pub input_pdf: Option<String>,
 }
 
 /// Mock ArchiveAccess implementation
@@ -254,9 +311,14 @@ impl MockArchiveAccess {
 }
 
 impl ArchiveAccess for MockArchiveAccess {
-    fn create_book_archive(&self, input_epub: &Path) -> Result<String, IrieBookError> {
+    fn create_book_archive(
+        &self,
+        input_epub: &Path,
+        input_pdf: Option<&Path>,
+    ) -> Result<String, IrieBookError> {
         self.calls.lock().unwrap().push(ArchiveCall {
             input_epub: input_epub.to_string_lossy().to_string(),
+            input_pdf: input_pdf.map(|path| path.to_string_lossy().to_string()),
         });
 
         if self.should_fail {
@@ -306,6 +368,32 @@ mod tests {
     }
 
     #[test]
+    fn test_mock_pandoc_creates_pdf() {
+        let temp_dir = TempDir::new().unwrap();
+        let metadata_path = temp_dir.path().join("metadata.yaml");
+        let output_path = temp_dir.path().join("output.pdf");
+        std::fs::write(&metadata_path, "title: Test").unwrap();
+
+        let mock = MockPandocAccess::new();
+        let result = mock.convert_to_pdf(
+            Path::new("/input/book.md"),
+            Path::new("/tmp/fixed.md"),
+            &output_path,
+            &metadata_path,
+            &PdfConfig::default(),
+            true,
+        );
+
+        assert!(result.is_ok());
+        assert!(output_path.exists());
+
+        let calls = mock.get_pdf_calls();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].pdf_config, PdfConfig::default());
+        assert!(calls[0].embed_cover);
+    }
+
+    #[test]
     fn test_mock_calibre_creates_azw3() {
         let temp_dir = TempDir::new().unwrap();
         let epub_path = temp_dir.path().join("book.epub");
@@ -327,11 +415,19 @@ mod tests {
         std::fs::write(&epub_path, b"fake epub").unwrap();
 
         let mock = MockArchiveAccess::new();
-        let result = mock.create_book_archive(&epub_path);
+        let pdf_path = epub_path.with_extension("pdf");
+        std::fs::write(&pdf_path, b"fake pdf").unwrap();
+
+        let result = mock.create_book_archive(&epub_path, Some(&pdf_path));
 
         assert!(result.is_ok());
 
         let zip_path = epub_path.with_extension("zip");
         assert!(zip_path.exists());
+        let calls = mock.get_calls();
+        assert_eq!(
+            calls[0].input_pdf,
+            Some(pdf_path.to_string_lossy().to_string())
+        );
     }
 }

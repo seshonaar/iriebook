@@ -37,6 +37,7 @@ pub trait BookProcessor: Send + Sync {
     ///
     /// # Arguments
     /// * `book_path` - Path to the book's markdown file
+    /// * `config_root` - Library root containing config.json overrides
     /// * `publish` - Whether to generate ebook files (EPUB/Kindle)
     /// * `word_stats` - Whether to generate word frequency statistics
     ///
@@ -46,6 +47,7 @@ pub trait BookProcessor: Send + Sync {
     fn process(
         &self,
         book_path: &Path,
+        config_root: Option<&Path>,
         publish: PublishEnabled,
         word_stats: WordStatsEnabled,
     ) -> ProcessingResult;
@@ -58,10 +60,11 @@ impl BookProcessor for DefaultBookProcessor {
     fn process(
         &self,
         book_path: &Path,
+        config_root: Option<&Path>,
         publish: PublishEnabled,
         word_stats: WordStatsEnabled,
     ) -> ProcessingResult {
-        process_single_book(book_path, publish, word_stats, true)
+        process_single_book(book_path, config_root, publish, word_stats, true)
     }
 }
 
@@ -272,6 +275,7 @@ impl BookProcessingQueue {
 /// according to the provided options.
 pub fn process_single_book(
     book_path: &Path,
+    config_root: Option<&Path>,
     publish: PublishEnabled,
     word_stats: WordStatsEnabled,
     embed_cover: bool,
@@ -319,6 +323,7 @@ pub fn process_single_book(
         enable_word_stats: word_stats.is_enabled(),
         enable_publishing: publish.is_enabled(),
         embed_cover,
+        config_root,
         replace_pairs: replace_pairs.as_deref(),
     })?;
 
@@ -387,6 +392,10 @@ pub fn process_single_book(
         output.push_str(&format!("  - Output: {}\n", output_path.display()));
     }
 
+    if let Some(pdf_output_path) = &result.pdf_output_path {
+        output.push_str(&format!("  - PDF: {}\n", pdf_output_path.display()));
+    }
+
     if let Some(summary_path) = &result.summary_path {
         output.push_str(&format!("  - Summary: {}\n", summary_path.display()));
     }
@@ -435,6 +444,7 @@ mod tests {
         let path = PathBuf::from("/nonexistent/file.md");
         let result = process_single_book(
             &path,
+            None,
             PublishEnabled::new(false),
             WordStatsEnabled::new(false),
             true,

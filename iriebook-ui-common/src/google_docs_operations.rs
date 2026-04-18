@@ -62,6 +62,7 @@ pub fn link_document(
 ///
 /// # Arguments
 /// * `book_path` - Path to the book's markdown file
+/// * `config_root` - Library root containing config.json overrides
 /// * `token_provider` - Token provider for getting valid OAuth token
 /// * `document_syncer` - Document syncer for fetching content from remote source
 /// * `book_processor` - Book processor for generating ebook files
@@ -97,6 +98,7 @@ pub fn link_document(
 ///
 /// let result = sync_document(
 ///     Path::new("/path/to/book.md"),
+///     None,
 ///     &authenticator,  // implements TokenProvider
 ///     &manager,        // implements DocumentSyncer
 ///     &processor,      // implements BookProcessor
@@ -107,6 +109,7 @@ pub fn link_document(
 /// ```
 pub async fn sync_document<F, T, S, P>(
     book_path: &Path,
+    config_root: Option<&Path>,
     token_provider: &T,
     document_syncer: &S,
     book_processor: &P,
@@ -150,6 +153,7 @@ where
             // Auto-process the book after sync (generate ebook for viewing)
             let processing_result = book_processor.process(
                 book_path,
+                config_root,
                 PublishEnabled::new(true),
                 WordStatsEnabled::new(false),
             );
@@ -333,6 +337,7 @@ mod tests {
         fn process(
             &self,
             _book_path: &Path,
+            _config_root: Option<&Path>,
             _publish: PublishEnabled,
             _word_stats: WordStatsEnabled,
         ) -> ProcessingResult {
@@ -360,6 +365,7 @@ mod tests {
 
         let result = sync_document(
             Path::new("/test/book.md"),
+            None,
             &token_provider,
             &syncer,
             &processor,
@@ -391,6 +397,7 @@ mod tests {
 
         let result = sync_document(
             Path::new("/test/book.md"),
+            None,
             &token_provider,
             &syncer,
             &processor,
@@ -418,6 +425,7 @@ mod tests {
 
         let result = sync_document(
             Path::new("/test/book.md"),
+            None,
             &token_provider,
             &syncer,
             &processor,
@@ -445,6 +453,7 @@ mod tests {
 
         let result = sync_document(
             Path::new("/test/book.md"),
+            None,
             &token_provider,
             &syncer,
             &processor,
@@ -474,6 +483,7 @@ mod tests {
 
         let result = sync_document(
             Path::new("/test/book.md"),
+            None,
             &token_provider,
             &syncer,
             &processor,
@@ -511,6 +521,7 @@ mod tests {
 
         let _ = sync_document(
             Path::new("/test/book.md"),
+            None,
             &token_provider,
             &syncer,
             &processor,

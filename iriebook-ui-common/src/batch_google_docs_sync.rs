@@ -14,12 +14,19 @@ use crate::{
     ui_state::BookInfo,
 };
 use iriebook::resource_access::traits::{DocumentSyncer, TokenProvider};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 /// Batch processor for syncing multiple books from Google Docs
-pub struct BatchGoogleDocsSyncProcessor;
+pub struct BatchGoogleDocsSyncProcessor {
+    config_root: PathBuf,
+}
 
 impl BatchGoogleDocsSyncProcessor {
+    pub fn new(config_root: PathBuf) -> Self {
+        Self { config_root }
+    }
+
     /// Sync multiple books from their linked Google Docs
     ///
     /// Spawns background task that:
@@ -41,6 +48,7 @@ impl BatchGoogleDocsSyncProcessor {
     /// * `Ok(())` if batch sync task spawned successfully
     /// * `Err(String)` if no books are linked to Google Docs
     pub async fn sync_books<F, T, S, P>(
+        &self,
         books: Vec<BookInfo>,
         token_provider: Arc<T>,
         document_syncer: Arc<S>,
@@ -64,6 +72,8 @@ impl BatchGoogleDocsSyncProcessor {
         }
 
         // Spawn background task
+        let config_root = self.config_root.clone();
+
         tokio::spawn(async move {
             let mut success_count = 0;
             let mut fail_count = 0;
@@ -89,6 +99,7 @@ impl BatchGoogleDocsSyncProcessor {
                 // Sync document (handles auth + sync + process)
                 let result = sync_document(
                     book.path.as_path(),
+                    Some(config_root.as_path()),
                     &*token_provider,
                     &*document_syncer,
                     &*book_processor,
@@ -222,6 +233,7 @@ mod tests {
         fn process(
             &self,
             _book_path: &Path,
+            _config_root: Option<&Path>,
             _publish: PublishEnabled,
             _word_stats: WordStatsEnabled,
         ) -> ProcessingResult {
@@ -258,7 +270,7 @@ mod tests {
         let process_called = Arc::new(AtomicBool::new(false));
         let processor = Arc::new(MockBookProcessor::new(process_called));
 
-        let result = BatchGoogleDocsSyncProcessor::sync_books(
+        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
             books,
             token_provider,
             syncer,
@@ -286,7 +298,7 @@ mod tests {
         let process_called = Arc::new(AtomicBool::new(false));
         let processor = Arc::new(MockBookProcessor::new(process_called));
 
-        let result = BatchGoogleDocsSyncProcessor::sync_books(
+        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
             books,
             token_provider,
             syncer,
@@ -332,7 +344,7 @@ mod tests {
         let process_called = Arc::new(AtomicBool::new(false));
         let processor = Arc::new(MockBookProcessor::new(process_called));
 
-        let result = BatchGoogleDocsSyncProcessor::sync_books(
+        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
             books,
             token_provider,
             syncer,
@@ -386,7 +398,7 @@ mod tests {
         let process_called = Arc::new(AtomicBool::new(false));
         let processor = Arc::new(MockBookProcessor::new(process_called));
 
-        let result = BatchGoogleDocsSyncProcessor::sync_books(
+        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
             books,
             token_provider,
             syncer,
@@ -451,7 +463,7 @@ mod tests {
         let process_called = Arc::new(AtomicBool::new(false));
         let processor = Arc::new(MockBookProcessor::new(process_called));
 
-        let result = BatchGoogleDocsSyncProcessor::sync_books(
+        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
             books,
             token_provider,
             syncer,

@@ -56,6 +56,7 @@ pub fn view_book(
                 enable_word_stats: false,
                 enable_publishing: true,
                 embed_cover: true,
+                config_root: None,
                 replace_pairs: replace_pairs.as_deref(),
             })
             .context("Failed to generate EPUB for viewing")?;

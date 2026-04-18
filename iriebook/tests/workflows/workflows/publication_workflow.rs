@@ -75,6 +75,7 @@ async fn test_complete_publication_workflow() {
         enable_word_stats: true,
         enable_publishing: true,
         embed_cover: true,
+        config_root: Some(&workspace.workspace_path),
         replace_pairs: None,
     });
 
@@ -86,11 +87,33 @@ async fn test_complete_publication_workflow() {
     }));
 
     // Publication should succeed (mocks create the output files)
-    assert!(result.is_ok(), "Publication failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Publication failed: {:?}",
+        result.as_ref().err()
+    );
 
     // Verify Pandoc was called to create EPUB
     let pandoc_calls = mock_pandoc.get_calls();
     assert!(!pandoc_calls.is_empty(), "Pandoc should have been called");
+
+    // Verify Pandoc was called to create PDF from the library-root config
+    let pdf_calls = mock_pandoc.get_pdf_calls();
+    assert!(!pdf_calls.is_empty(), "Pandoc PDF should have been called");
+    assert_eq!(pdf_calls[0].pdf_config.font_family, "Liberation Serif");
+    assert!(
+        pdf_calls[0].embed_cover,
+        "PDF generation should receive cover embedding enabled"
+    );
+    let publication_result = result.unwrap();
+    assert!(
+        publication_result.pdf_output_path.is_some(),
+        "Expected PDF output path"
+    );
+    assert!(
+        workspace.workspace_path.join("config.json").exists(),
+        "Expected editable root config.json to be created"
+    );
 
     // Verify Calibre was called to create Kindle version
     let calibre_calls = mock_calibre.get_calls();
@@ -99,6 +122,10 @@ async fn test_complete_publication_workflow() {
     // Verify Archive was called to create ZIP
     let archive_calls = mock_archive.get_calls();
     assert!(!archive_calls.is_empty(), "Archive should have been called");
+    assert!(
+        archive_calls[0].input_pdf.is_some(),
+        "Archive should receive the generated PDF"
+    );
 }
 
 /// Test: Publication workflow handles validation errors gracefully
@@ -138,6 +165,7 @@ The end.
         enable_word_stats: true,
         enable_publishing: true,
         embed_cover: true,
+        config_root: None,
         replace_pairs: None,
     });
 
@@ -190,6 +218,7 @@ async fn test_publication_handles_pandoc_failure() {
         enable_word_stats: true,
         enable_publishing: true,
         embed_cover: true,
+        config_root: None,
         replace_pairs: None,
     });
 
@@ -238,6 +267,7 @@ async fn test_publication_generates_all_formats() {
         enable_word_stats: false,
         enable_publishing: true,
         embed_cover: true,
+        config_root: None,
         replace_pairs: None,
     });
 
@@ -294,6 +324,7 @@ cover-image: cover.jpg
         enable_word_stats: false,
         enable_publishing: true,
         embed_cover: false,
+        config_root: None,
         replace_pairs: None,
     });
 
@@ -313,6 +344,17 @@ cover-image: cover.jpg
         !custom_metadata.contains("cover-image"),
         "Temporary metadata must remove cover-image so Pandoc does not try to embed cover.jpg"
     );
+
+    let pdf_calls = mock_pandoc.get_pdf_calls();
+    assert_eq!(pdf_calls.len(), 1);
+    assert!(
+        !pdf_calls[0].embed_cover,
+        "PDF generation should receive cover embedding disabled"
+    );
+    assert!(
+        !pdf_calls[0].metadata_content.contains("cover-image"),
+        "PDF metadata must also remove cover-image when embedding is disabled"
+    );
 }
 
 /// Test: Disabling cover embedding still creates an EPUB when metadata names a missing cover
@@ -322,8 +364,12 @@ async fn test_publication_without_cover_embedding_generates_epub_with_missing_co
         .arg("--version")
         .output()
         .is_err()
+        || std::process::Command::new("xelatex")
+            .arg("--version")
+            .output()
+            .is_err()
     {
-        eprintln!("Skipping test: pandoc is not installed");
+        eprintln!("Skipping test: pandoc or xelatex is not installed");
         return;
     }
 
@@ -355,6 +401,7 @@ cover-image: cover.jpg
         enable_word_stats: false,
         enable_publishing: true,
         embed_cover: false,
+        config_root: None,
         replace_pairs: None,
     });
 
@@ -415,6 +462,7 @@ The end.
             enable_word_stats: false,
             enable_publishing: true,
             embed_cover: true,
+            config_root: None,
             replace_pairs: None,
         });
 

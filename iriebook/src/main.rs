@@ -73,6 +73,7 @@ fn main() -> Result<()> {
         enable_word_stats: args.word_stats,
         enable_publishing: args.publish,
         embed_cover: true,
+        config_root: None,
         replace_pairs: None,
     })?;
 

@@ -3,6 +3,7 @@
 //! These traits define interfaces for accessing external resources and tools
 //! like Pandoc, Calibre, archive creation utilities, and Google Docs API.
 
+use crate::resource_access::config::PdfConfig;
 use crate::utilities::error::IrieBookError;
 use crate::utilities::types::{GitCommit, GitStatus};
 use std::path::Path;
@@ -51,6 +52,29 @@ pub trait PandocAccess: Send + Sync {
         fixed_md: &Path,
         output_epub: &Path,
         custom_metadata_path: Option<&Path>,
+        embed_cover: bool,
+    ) -> Result<String, IrieBookError>;
+
+    /// Converts markdown to PDF using Pandoc
+    ///
+    /// # Arguments
+    /// * `original_input` - Path to the original input markdown file
+    /// * `fixed_md` - Path to the fixed markdown file to convert
+    /// * `output_pdf` - Path where the PDF should be written
+    /// * `metadata_path` - Metadata file passed to Pandoc
+    /// * `pdf_config` - Library-root PDF print settings
+    /// * `embed_cover` - Whether to include cover.jpg in the generated PDF.
+    ///
+    /// # Returns
+    /// * `Ok(String)` with command output if conversion succeeds
+    /// * `Err(IrieBookError)` if conversion fails
+    fn convert_to_pdf(
+        &self,
+        original_input: &Path,
+        fixed_md: &Path,
+        output_pdf: &Path,
+        metadata_path: &Path,
+        pdf_config: &PdfConfig,
         embed_cover: bool,
     ) -> Result<String, IrieBookError>;
 }
@@ -119,7 +143,11 @@ pub trait ArchiveAccess: Send + Sync {
     /// # Returns
     /// * `Ok(String)` with archive creation message if succeeds
     /// * `Err(IrieBookError)` if archive creation fails
-    fn create_book_archive(&self, input_epub: &Path) -> Result<String, IrieBookError>;
+    fn create_book_archive(
+        &self,
+        input_epub: &Path,
+        input_pdf: Option<&Path>,
+    ) -> Result<String, IrieBookError>;
 }
 
 /// Trait for Git access (version control operations)
