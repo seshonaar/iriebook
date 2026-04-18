@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 import { commands } from "../bindings";
 import { BookUp, Upload, RefreshCw } from "lucide-react";
 import { Button } from "./ui/button";
-import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Switch } from "./ui/switch";
 import { useAppContext } from "../contexts/AppContext";
 import {
   setBooks,
@@ -120,14 +120,14 @@ export function ProcessingPanel() {
             : t('processing.panel.button.publish')}</span>
         </Button>
 
-        <div className="flex items-center gap-2 min-w-max">
-          <Checkbox
+        <div className="flex min-w-max items-center gap-3 rounded-md border border-foreground/30 bg-background px-3 py-2 shadow-sm dark:border-white/35">
+          <Switch
             id="embed-cover"
             checked={embedCover}
             onCheckedChange={setEmbedCover}
             disabled={state.isProcessing}
           />
-          <Label htmlFor="embed-cover">
+          <Label htmlFor="embed-cover" className="cursor-pointer">
             {t('processing.panel.options.embedCover')}
           </Label>
         </div>
