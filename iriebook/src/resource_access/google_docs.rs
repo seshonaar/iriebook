@@ -43,7 +43,11 @@ impl GoogleDocsClient {
 
 #[async_trait::async_trait]
 impl GoogleDocsAccess for GoogleDocsClient {
-    async fn list_documents(&self, token: &str, max_results: u32) -> Result<Vec<GoogleDocInfo>, IrieBookError> {
+    async fn list_documents(
+        &self,
+        token: &str,
+        max_results: u32,
+    ) -> Result<Vec<GoogleDocInfo>, IrieBookError> {
         // Use Drive API to list Google Docs files
         let base_url = self.get_api_base_url();
         let url = format!(
@@ -71,10 +75,9 @@ impl GoogleDocsAccess for GoogleDocsClient {
             )));
         }
 
-        let files_response: FilesListResponse = response
-            .json()
-            .await
-            .map_err(|e| IrieBookError::GoogleDocsApi(format!("Failed to parse response: {}", e)))?;
+        let files_response: FilesListResponse = response.json().await.map_err(|e| {
+            IrieBookError::GoogleDocsApi(format!("Failed to parse response: {}", e))
+        })?;
 
         let docs = files_response
             .files

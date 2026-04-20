@@ -9,21 +9,25 @@ const TEST_USER: &str = "test-user";
 fn main() -> Result<(), Box<dyn Error>> {
     println!("=== IrieBook Keyring Diagnostic Tool ===");
     println!("OS: {}", std::env::consts::OS);
-    
+
     // Check main app entry
-    println!("\n[1] Checking Main App Entry ('{}', '{}')", SERVICE_NAME, USERNAME);
+    println!(
+        "\n[1] Checking Main App Entry ('{}', '{}')",
+        SERVICE_NAME, USERNAME
+    );
     match Entry::new(SERVICE_NAME, USERNAME) {
-        Ok(entry) => {
-            match entry.get_password() {
-                Ok(_) => println!("✓ Found existing token for main app!"),
-                Err(e) => println!("✗ Could not retrieve main app token: {}", e),
-            }
+        Ok(entry) => match entry.get_password() {
+            Ok(_) => println!("✓ Found existing token for main app!"),
+            Err(e) => println!("✗ Could not retrieve main app token: {}", e),
         },
         Err(e) => println!("✗ Failed to create entry handle: {}", e),
     }
 
     // Diagnostic Test
-    println!("\n[2] Running Write/Read Test ('{}', '{}')", TEST_SERVICE, TEST_USER);
+    println!(
+        "\n[2] Running Write/Read Test ('{}', '{}')",
+        TEST_SERVICE, TEST_USER
+    );
     match Entry::new(TEST_SERVICE, TEST_USER) {
         Ok(test_entry) => {
             let test_secret = "diagnostic-secret-123";
@@ -33,7 +37,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Ok(_) => println!("✓ Success"),
                 Err(e) => {
                     println!("✗ Failed: {}", e);
-                    println!("\nDiagnostic failed at storage step. This usually means the system keyring service (Secret Service/kwallet) is not reachable or responding.");
+                    println!(
+                        "\nDiagnostic failed at storage step. This usually means the system keyring service (Secret Service/kwallet) is not reachable or responding."
+                    );
                     return Ok(());
                 }
             }
@@ -55,7 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Ok(_) => println!("✓ Success"),
                 Err(e) => println!("✗ Failed: {}", e),
             }
-        },
+        }
         Err(e) => println!("✗ Failed to create test entry handle: {}", e),
     }
 

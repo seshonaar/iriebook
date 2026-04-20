@@ -32,9 +32,7 @@ impl DifferEngine for Differ {
 
         // Also check first line if it's a header
         if right_content.trim_start().starts_with('#')
-            && let Some(end_of_line) = right_content
-                .find('\n')
-                .or(Some(right_content.len()))
+            && let Some(end_of_line) = right_content.find('\n').or(Some(right_content.len()))
         {
             let line_content = &right_content[..end_of_line];
             headers.insert(0, (0, line_content.trim().to_string()));

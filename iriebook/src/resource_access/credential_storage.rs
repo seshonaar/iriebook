@@ -13,9 +13,9 @@ use crate::utilities::error::IrieBookError;
 use keyring::Entry;
 
 #[cfg(feature = "e2e-mocks")]
-use std::sync::Mutex;
-#[cfg(feature = "e2e-mocks")]
 use std::collections::HashMap;
+#[cfg(feature = "e2e-mocks")]
+use std::sync::Mutex;
 
 const GITHUB_SERVICE_NAME: &str = "iriebook-github";
 const GITHUB_USERNAME: &str = "oauth-token";
@@ -40,7 +40,10 @@ impl CredentialStore {
         #[cfg(feature = "e2e-mocks")]
         {
             use std::io::Write;
-            let log_msg = format!("[E2E-MOCK-STORAGE] 💾 STORE {}:{} = {}\n", service, username, token);
+            let log_msg = format!(
+                "[E2E-MOCK-STORAGE] 💾 STORE {}:{} = {}\n",
+                service, username, token
+            );
             let _ = std::fs::OpenOptions::new()
                 .create(true)
                 .append(true)
@@ -57,22 +60,25 @@ impl CredentialStore {
                     .open("/tmp/e2e-mock-storage.log")
                     .and_then(|mut f| f.write_all(init_msg.as_bytes()));
             }
-            storage.as_mut().unwrap().insert(get_mock_key(service, username), token.to_string());
+            storage
+                .as_mut()
+                .unwrap()
+                .insert(get_mock_key(service, username), token.to_string());
             Ok(())
         }
 
         #[cfg(not(feature = "e2e-mocks"))]
         {
-            let entry = Entry::new(service, username)
-                .map_err(|e| {
-                    IrieBookError::CredentialStorage(format!("Failed to create keyring entry: {}", e))
-                })?;
+            let entry = Entry::new(service, username).map_err(|e| {
+                IrieBookError::CredentialStorage(format!("Failed to create keyring entry: {}", e))
+            })?;
 
             match entry.set_password(token) {
                 Ok(_) => Ok(()),
-                Err(e) => {
-                    Err(IrieBookError::CredentialStorage(format!("Failed to store token: {}", e)))
-                }
+                Err(e) => Err(IrieBookError::CredentialStorage(format!(
+                    "Failed to store token: {}",
+                    e
+                ))),
             }
         }
     }
@@ -86,7 +92,10 @@ impl CredentialStore {
             if let Some(map) = storage.as_ref()
                 && let Some(token) = map.get(&get_mock_key(service, username))
             {
-                let log_msg = format!("[E2E-MOCK-STORAGE] 🔍 RETRIEVE {}:{} = {}\n", service, username, token);
+                let log_msg = format!(
+                    "[E2E-MOCK-STORAGE] 🔍 RETRIEVE {}:{} = {}\n",
+                    service, username, token
+                );
                 let _ = std::fs::OpenOptions::new()
                     .create(true)
                     .append(true)
@@ -100,21 +109,23 @@ impl CredentialStore {
                 .append(true)
                 .open("/tmp/e2e-mock-storage.log")
                 .and_then(|mut f| f.write_all(log_msg.as_bytes()));
-            Err(IrieBookError::CredentialStorage("Token not found".to_string()))
+            Err(IrieBookError::CredentialStorage(
+                "Token not found".to_string(),
+            ))
         }
 
         #[cfg(not(feature = "e2e-mocks"))]
         {
-            let entry = Entry::new(service, username)
-                .map_err(|e| {
-                    IrieBookError::CredentialStorage(format!("Failed to create keyring entry: {}", e))
-                })?;
+            let entry = Entry::new(service, username).map_err(|e| {
+                IrieBookError::CredentialStorage(format!("Failed to create keyring entry: {}", e))
+            })?;
 
             match entry.get_password() {
                 Ok(token) => Ok(token),
-                Err(e) => {
-                    Err(IrieBookError::CredentialStorage(format!("Failed to retrieve token: {}", e)))
-                }
+                Err(e) => Err(IrieBookError::CredentialStorage(format!(
+                    "Failed to retrieve token: {}",
+                    e
+                ))),
             }
         }
     }
@@ -132,12 +143,13 @@ impl CredentialStore {
 
         #[cfg(not(feature = "e2e-mocks"))]
         {
-            let entry = Entry::new(service, username)
-                .map_err(|e| IrieBookError::CredentialStorage(format!("Failed to create keyring entry: {}", e)))?;
+            let entry = Entry::new(service, username).map_err(|e| {
+                IrieBookError::CredentialStorage(format!("Failed to create keyring entry: {}", e))
+            })?;
 
-            entry
-                .delete_credential()
-                .map_err(|e| IrieBookError::CredentialStorage(format!("Failed to delete token: {}", e)))?;
+            entry.delete_credential().map_err(|e| {
+                IrieBookError::CredentialStorage(format!("Failed to delete token: {}", e))
+            })?;
 
             Ok(())
         }

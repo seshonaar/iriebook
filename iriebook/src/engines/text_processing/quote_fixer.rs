@@ -5,8 +5,8 @@
 //! while preserving asterisks and other markdown formatting
 
 use crate::engines::traits::QuoteFixerEngine;
+use crate::engines::validation::validator::{SingleQuoteType, classify_single_quote};
 use crate::utilities::error::IrieBookError;
-use crate::engines::validation::validator::{classify_single_quote, SingleQuoteType};
 use anyhow::Result;
 
 /// State of the quote parser
@@ -121,13 +121,13 @@ mod tests {
     fn converts_simple_dialogue() {
         let input = r#"She said "hello" to me."#;
         let result = convert_quotes(input).unwrap();
-        
+
         // Check that quotes were converted
         assert!(result.content.contains('\u{201C}')); // Left curly quote
         assert!(result.content.contains('\u{201D}')); // Right curly quote
         assert!(!result.content.contains('"')); // No straight quotes
         assert_eq!(result.quotes_converted, 2);
-        
+
         // Expected: She said "hello" to me.
         assert_eq!(result.content, "She said \u{201C}hello\u{201D} to me.");
     }
@@ -136,7 +136,7 @@ mod tests {
     fn converts_multiple_quotes() {
         let input = r#"First "one" and "two" and "three"."#;
         let result = convert_quotes(input).unwrap();
-        
+
         assert_eq!(result.quotes_converted, 6);
         assert!(!result.content.contains('"'));
     }
@@ -145,7 +145,7 @@ mod tests {
     fn preserves_asterisks() {
         let input = r#"She *really* said "hello""#;
         let result = convert_quotes(input).unwrap();
-        
+
         // Asterisks must be completely unchanged
         assert!(result.content.contains("*really*"));
         assert_eq!(result.quotes_converted, 2);
@@ -155,7 +155,7 @@ mod tests {
     fn handles_empty_quotes() {
         let input = r#"She said """#;
         let result = convert_quotes(input).unwrap();
-        
+
         // Should have opening and closing curly quotes right next to each other
         assert!(result.content.contains("\u{201C}\u{201D}"));
         assert_eq!(result.quotes_converted, 2);
@@ -165,7 +165,7 @@ mod tests {
     fn handles_quotes_at_line_start() {
         let input = r#""Hello," she said."#;
         let result = convert_quotes(input).unwrap();
-        
+
         // Should start with left curly quote
         assert!(result.content.starts_with('\u{201C}'));
         assert_eq!(result.quotes_converted, 2);
@@ -175,7 +175,7 @@ mod tests {
     fn handles_quotes_at_line_end() {
         let input = r#"She said "hello""#;
         let result = convert_quotes(input).unwrap();
-        
+
         // Should end with right curly quote
         assert!(result.content.ends_with('\u{201D}'));
         assert_eq!(result.quotes_converted, 2);
@@ -185,7 +185,7 @@ mod tests {
     fn handles_multiline_content() {
         let input = "Line 1 with \"quote\"\nLine 2 with \"another\"\nLine 3";
         let result = convert_quotes(input).unwrap();
-        
+
         assert_eq!(result.quotes_converted, 4);
         assert!(!result.content.contains('"'));
         assert!(result.content.contains('\n')); // Newlines preserved
@@ -195,13 +195,13 @@ mod tests {
     fn alternates_quotes_correctly() {
         let input = r#""One" "Two" "Three""#;
         let result = convert_quotes(input).unwrap();
-        
+
         assert_eq!(result.quotes_converted, 6);
-        
+
         // Count curly quotes
         let left_count = result.content.matches('\u{201C}').count();
         let right_count = result.content.matches('\u{201D}').count();
-        
+
         assert_eq!(left_count, 3);
         assert_eq!(right_count, 3);
     }
@@ -210,7 +210,7 @@ mod tests {
     fn preserves_romanian_characters() {
         let input = "Ea a spus \"bună ziua\" și \"la revedere\".";
         let result = convert_quotes(input).unwrap();
-        
+
         assert_eq!(result.quotes_converted, 4);
         // UTF-8 characters must be preserved
         assert!(result.content.contains("ă"));
@@ -221,7 +221,7 @@ mod tests {
     fn handles_dialogue_with_punctuation() {
         let input = r#""Hello!" she exclaimed. "How are you?""#;
         let result = convert_quotes(input).unwrap();
-        
+
         assert_eq!(result.quotes_converted, 4);
         assert!(!result.content.contains('"'));
     }
@@ -230,7 +230,7 @@ mod tests {
     fn preserves_other_markdown() {
         let input = r#"This is *italic* and **bold** and "quoted"."#;
         let result = convert_quotes(input).unwrap();
-        
+
         assert!(result.content.contains("*italic*"));
         assert!(result.content.contains("**bold**"));
         assert_eq!(result.quotes_converted, 2);
@@ -240,11 +240,11 @@ mod tests {
     fn quote_count_matches_input() {
         let input = r#"One "two" three "four" five "six""#;
         let result = convert_quotes(input).unwrap();
-        
+
         // Should have 6 curly quotes total (3 opening + 3 closing)
         let left_count = result.content.matches('\u{201C}').count();
         let right_count = result.content.matches('\u{201D}').count();
-        
+
         assert_eq!(left_count, 3);
         assert_eq!(right_count, 3);
         assert_eq!(result.quotes_converted, 6);

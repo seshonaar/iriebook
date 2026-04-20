@@ -410,11 +410,13 @@ mod tests {
         assert_eq!(metadata.language, Some("ro-RO".to_string()));
         assert_eq!(metadata.cover_image, Some("cover.jpg".to_string()));
         assert!(metadata.rights.is_some());
-        assert!(metadata
-            .rights
-            .as_ref()
-            .unwrap()
-            .contains("All Rights Reserved"));
+        assert!(
+            metadata
+                .rights
+                .as_ref()
+                .unwrap()
+                .contains("All Rights Reserved")
+        );
     }
 
     #[test]
@@ -519,11 +521,13 @@ mod tests {
         assert_eq!(with_defaults.language, Some("ro-RO".to_string()));
         assert_eq!(with_defaults.cover_image, Some("cover.jpg".to_string()));
         assert!(with_defaults.rights.is_some());
-        assert!(with_defaults
-            .rights
-            .as_ref()
-            .unwrap()
-            .contains("All Rights Reserved"));
+        assert!(
+            with_defaults
+                .rights
+                .as_ref()
+                .unwrap()
+                .contains("All Rights Reserved")
+        );
     }
 
     #[test]

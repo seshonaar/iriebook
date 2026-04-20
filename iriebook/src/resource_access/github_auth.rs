@@ -68,12 +68,15 @@ impl GitHubAuthenticator {
 
         // Then check embedded credentials
         if !GITHUB_CREDENTIALS_B64.is_empty() {
-             let config = crate::resource_access::embedded_config::decode_config(GITHUB_CREDENTIALS_B64)
-                .map_err(|e| IrieBookError::GitHubAuth(e.to_string()))?;
-             return Ok(config.client_id);
+            let config =
+                crate::resource_access::embedded_config::decode_config(GITHUB_CREDENTIALS_B64)
+                    .map_err(|e| IrieBookError::GitHubAuth(e.to_string()))?;
+            return Ok(config.client_id);
         }
-        
-        Err(IrieBookError::GitHubAuth("Failed to parse github authentication config".to_string()))
+
+        Err(IrieBookError::GitHubAuth(
+            "Failed to parse github authentication config".to_string(),
+        ))
     }
 
     /// Initiate device flow and get user code
@@ -95,7 +98,9 @@ impl GitHubAuthenticator {
             .form(&params)
             .send()
             .await
-            .map_err(|e| IrieBookError::Network(format!("Failed to initiate device flow: {}", e)))?;
+            .map_err(|e| {
+                IrieBookError::Network(format!("Failed to initiate device flow: {}", e))
+            })?;
 
         if !response.status().is_success() {
             return Err(IrieBookError::GitHubAuth(format!(

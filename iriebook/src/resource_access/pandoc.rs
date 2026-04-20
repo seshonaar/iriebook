@@ -179,7 +179,13 @@ fn convert_to_pdf_impl(
         "Starting PDF conversion"
     );
     let cover_path = resolve_cover_path(original_input, embed_cover)?;
-    let pdf_header_path = write_pdf_latex_header(output_pdf, cover_path.as_deref(), pdf_config)?;
+    let title_page_metadata = read_pdf_title_page_metadata(metadata_path)?;
+    let pdf_header_path = write_pdf_latex_header(
+        output_pdf,
+        cover_path.as_deref(),
+        pdf_config,
+        &title_page_metadata,
+    )?;
     let pdf_filter_path = write_pdf_lua_filter(output_pdf)?;
 
     let mut command = build_pdf_pandoc_command(
@@ -275,7 +281,6 @@ fn build_pdf_pandoc_command(
         .arg(fixed_md)
         .arg("-o")
         .arg(output_pdf)
-        .arg("--toc")
         .arg("--pdf-engine")
         .arg(&pdf_config.pdf_engine)
         .arg("--metadata-file")
@@ -317,6 +322,7 @@ fn write_pdf_latex_header(
     output_pdf: &Path,
     cover_path: Option<&Path>,
     pdf_config: &PdfConfig,
+    title_page_metadata: &PdfTitlePageMetadata,
 ) -> Result<PathBuf, IrieBookError> {
     let header_path = output_pdf.with_extension("pdf-style.tex");
     if let Some(parent) = header_path.parent() {
@@ -330,6 +336,7 @@ fn write_pdf_latex_header(
         Some(path) => build_pdf_cover_command(path, pdf_config)?,
         None => String::new(),
     };
+    let title_page_commands = build_pdf_title_page_commands(title_page_metadata);
 
     let include = format!(
         r#"\usepackage{{graphicx}}
@@ -345,6 +352,8 @@ fn write_pdf_latex_header(
 \raggedbottom
 
 \newfontfamily\iriesymbolfont{{DejaVu Sans}}
+
+{}
 
 \titleformat{{\section}}
   {{\normalfont\Large\bfseries\centering\MakeUppercase}}
@@ -408,29 +417,17 @@ fn write_pdf_latex_header(
   {{\par}}
 
 \makeatletter
-\let\irieOriginalTableOfContents\tableofcontents
-\renewcommand{{\tableofcontents}}{{%
-  \clearpage
-  \begingroup
-  \irieInToctrue
-  \renewcommand{{\contentsname}}{{\@title}}
-  \pagestyle{{empty}}
-  \thispagestyle{{empty}}
-  \irieOriginalTableOfContents
-  \clearpage
-  \endgroup
-  \irieInTocfalse
-}}
-
 \renewcommand{{\maketitle}}{{%
   \begin{{titlepage}}
   \thispagestyle{{empty}}
   \pagestyle{{empty}}
   \centering
   \vspace*{{5em}}
-  {{\huge\bfseries\MakeUppercase{{\@title}}\par}}
+  \irieRenderTitlePageTopStars
+  {{\irieTitlePageTitleStyle\MakeUppercase{{\@title}}\par}}
+  \irieRenderTitlePageSeries
   \vspace{{2.6em}}
-  {{\large\MakeUppercase{{\@author}}\par}}
+  {{\irieTitlePageAuthorStyle\MakeUppercase{{\@author}}\par}}
   \vfill
   \end{{titlepage}}
   \setcounter{{page}}{{1}}
@@ -440,7 +437,7 @@ fn write_pdf_latex_header(
 
 {}
 "#,
-        cover_command
+        title_page_commands, cover_command
     );
 
     fs::write(&header_path, include).map_err(|e| IrieBookError::FileWrite {
@@ -632,6 +629,105 @@ fn escape_latex_path(path: &Path) -> String {
         .replace('%', "\\%")
         .replace('#', "\\#")
         .replace('&', "\\&")
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct PdfTitlePageMetadata {
+    style: Option<String>,
+    series_name: Option<String>,
+    series_position: Option<u32>,
+}
+
+fn read_pdf_title_page_metadata(
+    metadata_path: &Path,
+) -> Result<PdfTitlePageMetadata, IrieBookError> {
+    let style = read_title_page_style_from_metadata(metadata_path)?;
+    let series = read_title_page_series_from_metadata(metadata_path)?;
+
+    let (series_name, series_position) = match series {
+        Some((name, position)) => (Some(name), position),
+        None => (None, None),
+    };
+
+    Ok(PdfTitlePageMetadata {
+        style,
+        series_name,
+        series_position,
+    })
+}
+
+fn build_pdf_title_page_commands(metadata: &PdfTitlePageMetadata) -> String {
+    let style = metadata.style.as_deref().unwrap_or("classic");
+    let (title_style, author_style, series_style) = match style {
+        "minimal" => (
+            r#"\LARGE\bfseries"#,
+            r#"\large\addfontfeatures{LetterSpace=12}"#,
+            r#"\normalsize\addfontfeatures{LetterSpace=8}"#,
+        ),
+        "ornate" => (
+            r#"\Huge\bfseries\addfontfeatures{LetterSpace=10}"#,
+            r#"\large\addfontfeatures{LetterSpace=24}"#,
+            r#"\normalsize\addfontfeatures{LetterSpace=16}"#,
+        ),
+        _ => (
+            r#"\huge\bfseries"#,
+            r#"\large\addfontfeatures{LetterSpace=20}"#,
+            r#"\normalsize\addfontfeatures{LetterSpace=12}"#,
+        ),
+    };
+
+    let top_stars = metadata
+        .series_name
+        .as_ref()
+        .map(|_| build_top_star_group(metadata.series_position));
+    let render_top_stars = if let Some(stars) = top_stars {
+        format!(
+            "{{\\irieTitlePageTopStarsStyle {}\\par}}\\vspace{{1.4em}}",
+            escape_latex_text(&stars)
+        )
+    } else {
+        String::new()
+    };
+
+    let render_series = if let Some(series_name) = metadata.series_name.as_deref() {
+        format!(
+            "\\vspace{{1.4em}}{{\\irieTitlePageSeriesStyle\\MakeUppercase{{{}}}\\par}}",
+            escape_latex_text(series_name)
+        )
+    } else {
+        String::new()
+    };
+
+    format!(
+        r#"\newcommand{{\irieTitlePageTitleStyle}}{{{}}}
+\newcommand{{\irieTitlePageAuthorStyle}}{{{}}}
+\newcommand{{\irieTitlePageTopStarsStyle}}{{\normalsize\iriesymbolfont\addfontfeatures{{LetterSpace=18}}}}
+\newcommand{{\irieTitlePageSeriesStyle}}{{{}}}
+\newcommand{{\irieRenderTitlePageTopStars}}{{{}}}
+\newcommand{{\irieRenderTitlePageSeries}}{{{}}}
+"#,
+        title_style, author_style, series_style, render_top_stars, render_series
+    )
+}
+
+fn escape_latex_text(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for character in value.chars() {
+        match character {
+            '\\' => escaped.push_str("\\textbackslash{}"),
+            '{' => escaped.push_str("\\{"),
+            '}' => escaped.push_str("\\}"),
+            '$' => escaped.push_str("\\$"),
+            '&' => escaped.push_str("\\&"),
+            '#' => escaped.push_str("\\#"),
+            '_' => escaped.push_str("\\_"),
+            '%' => escaped.push_str("\\%"),
+            '~' => escaped.push_str("\\textasciitilde{}"),
+            '^' => escaped.push_str("\\textasciicircum{}"),
+            _ => escaped.push(character),
+        }
+    }
+    escaped
 }
 
 fn read_title_page_style_from_metadata(
@@ -1132,6 +1228,7 @@ mod tests {
         assert!(args.contains(&"fixed.md".to_string()));
         assert!(args.contains(&"book.pdf".to_string()));
         assert!(args.contains(&"--pdf-engine".to_string()));
+        assert!(!args.contains(&"--toc".to_string()));
         assert!(args.contains(&"xelatex".to_string()));
         assert!(args.contains(&"--metadata-file".to_string()));
         assert!(args.contains(&"metadata.yaml".to_string()));
@@ -1159,8 +1256,13 @@ mod tests {
         let image = image::ImageBuffer::<image::Rgb<u8>, Vec<u8>>::new(800, 1200);
         image.save(&cover_path).unwrap();
 
-        let include_path =
-            write_pdf_latex_header(&output_pdf, Some(&cover_path), &PdfConfig::default()).unwrap();
+        let include_path = write_pdf_latex_header(
+            &output_pdf,
+            Some(&cover_path),
+            &PdfConfig::default(),
+            &PdfTitlePageMetadata::default(),
+        )
+        .unwrap();
         let include = std::fs::read_to_string(include_path).unwrap();
 
         assert!(include.contains("\\AtBeginDocument{\\irieCoverPage}"));
@@ -1176,8 +1278,13 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let output_pdf = temp_dir.path().join("book.pdf");
 
-        let include_path =
-            write_pdf_latex_header(&output_pdf, None, &PdfConfig::default()).unwrap();
+        let include_path = write_pdf_latex_header(
+            &output_pdf,
+            None,
+            &PdfConfig::default(),
+            &PdfTitlePageMetadata::default(),
+        )
+        .unwrap();
         let include = std::fs::read_to_string(include_path).unwrap();
 
         assert!(include.contains("\\newenvironment{irieSubtitle}"));
@@ -1187,8 +1294,6 @@ mod tests {
         assert!(include.contains("\\newcommand{\\irieBlankPage}"));
         assert!(include.contains("\\newcommand{\\irieDedicationOpening}"));
         assert!(include.contains("\\usepackage{indentfirst}"));
-        assert!(include.contains("\\renewcommand{\\tableofcontents}"));
-        assert!(include.contains("\\renewcommand{\\contentsname}{\\@title}"));
         assert!(include.contains("\\ifirieMainMatterStarted"));
         assert!(include.contains("\\renewcommand{\\maketitle}"));
         assert!(!include.contains("\\AtBeginDocument{\\irieCoverPage}"));
@@ -1199,8 +1304,13 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let output_pdf = temp_dir.path().join("book.pdf");
 
-        let include_path =
-            write_pdf_latex_header(&output_pdf, None, &PdfConfig::default()).unwrap();
+        let include_path = write_pdf_latex_header(
+            &output_pdf,
+            None,
+            &PdfConfig::default(),
+            &PdfTitlePageMetadata::default(),
+        )
+        .unwrap();
         let include = std::fs::read_to_string(include_path).unwrap();
 
         assert!(include.contains("\\ifodd\\value{page}"));
@@ -1330,6 +1440,75 @@ mod tests {
 
         let series = read_title_page_series_from_metadata(&metadata_path).unwrap();
         assert_eq!(series, Some(("Saga".to_string(), Some(3))));
+    }
+
+    #[test]
+    fn reads_pdf_title_page_metadata_from_frontmatter() {
+        let temp_dir = TempDir::new().unwrap();
+        let metadata_path = temp_dir.path().join("metadata.yaml");
+        std::fs::write(
+            &metadata_path,
+            "---\ntitle: Test\nauthor: Jane\ntitle-page-style: ornate\nbelongs-to-collection: Saga\ngroup-position: 3\n---\n",
+        )
+        .unwrap();
+
+        let metadata = read_pdf_title_page_metadata(&metadata_path).unwrap();
+        assert_eq!(
+            metadata,
+            PdfTitlePageMetadata {
+                style: Some("ornate".to_string()),
+                series_name: Some("Saga".to_string()),
+                series_position: Some(3),
+            }
+        );
+    }
+
+    #[test]
+    fn write_pdf_latex_header_includes_series_stars_and_series_name() {
+        let temp_dir = TempDir::new().unwrap();
+        let output_pdf = temp_dir.path().join("book.pdf");
+
+        let include_path = write_pdf_latex_header(
+            &output_pdf,
+            None,
+            &PdfConfig::default(),
+            &PdfTitlePageMetadata {
+                style: None,
+                series_name: Some("Saga".to_string()),
+                series_position: Some(3),
+            },
+        )
+        .unwrap();
+        let include = std::fs::read_to_string(include_path).unwrap();
+
+        assert!(include.contains("✦ ✦ ✦"));
+        assert!(include.contains("\\irieTitlePageTopStarsStyle"));
+        assert!(include.contains("\\irieTitlePageSeriesStyle\\MakeUppercase{Saga}"));
+    }
+
+    #[test]
+    fn write_pdf_latex_header_applies_ornate_title_page_style() {
+        let temp_dir = TempDir::new().unwrap();
+        let output_pdf = temp_dir.path().join("book.pdf");
+
+        let include_path = write_pdf_latex_header(
+            &output_pdf,
+            None,
+            &PdfConfig::default(),
+            &PdfTitlePageMetadata {
+                style: Some("ornate".to_string()),
+                series_name: None,
+                series_position: None,
+            },
+        )
+        .unwrap();
+        let include = std::fs::read_to_string(include_path).unwrap();
+
+        assert!(include.contains("\\newcommand{\\irieTitlePageTitleStyle}{\\Huge\\bfseries\\addfontfeatures{LetterSpace=10}}"));
+        assert!(include.contains(
+            "\\newcommand{\\irieTitlePageAuthorStyle}{\\large\\addfontfeatures{LetterSpace=24}}"
+        ));
+        assert!(include.contains("\\newcommand{\\irieTitlePageSeriesStyle}{\\normalsize\\addfontfeatures{LetterSpace=16}}"));
     }
 
     #[test]

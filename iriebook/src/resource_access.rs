@@ -17,26 +17,26 @@
 //! - Can be shared across Engines and Managers
 //! - Makes testing easier through mocking/stubbing
 
-pub mod traits;
-pub mod file;
-pub mod config;
-pub mod command;
-pub mod pandoc;
-pub mod calibre;
 pub mod archive;
+pub mod calibre;
+pub mod command;
+pub mod config;
+pub mod credential_storage;
+pub mod diff_source;
+pub mod embedded_config;
+pub mod file;
 pub mod git;
 pub mod github_auth;
 pub mod google_auth;
 pub mod google_docs;
-pub mod credential_storage;
-pub mod embedded_config;
-pub mod diff_source;
+pub mod pandoc;
+pub mod traits;
 
 // Re-export commonly used types for convenience
-pub use git::GitClient;
-pub use github_auth::{GitHubAuthenticator, DeviceFlowData, PollResult};
-pub use google_auth::{GoogleAuthenticator, AuthFlow, AuthCodeTokenResponse};
-pub use google_docs::GoogleDocsClient;
 pub use credential_storage::CredentialStore;
+pub use diff_source::{DiffSource, DiffSourceAccess};
+pub use git::GitClient;
+pub use github_auth::{DeviceFlowData, GitHubAuthenticator, PollResult};
+pub use google_auth::{AuthCodeTokenResponse, AuthFlow, GoogleAuthenticator};
+pub use google_docs::GoogleDocsClient;
 pub use traits::GoogleDocInfo;
-pub use diff_source::{DiffSourceAccess, DiffSource};

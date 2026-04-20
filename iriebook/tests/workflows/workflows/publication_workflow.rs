@@ -472,8 +472,11 @@ language: en
         "First edition.\n\nNo part of this book may be reproduced without permission.",
     )
     .unwrap();
-    fs::write(workspace_path.join("config.json"), "{\n  \"pdf\": {\n    \"enabled\": false\n  }\n}\n")
-        .unwrap();
+    fs::write(
+        workspace_path.join("config.json"),
+        "{\n  \"pdf\": {\n    \"enabled\": false\n  }\n}\n",
+    )
+    .unwrap();
 
     let app_state = AppStateBuilder::new()
         .workspace_path(workspace_path.clone())

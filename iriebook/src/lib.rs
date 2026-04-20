@@ -18,7 +18,7 @@
 //! - **Utilities**: Cross-cutting concerns (types, errors)
 
 pub mod client;
-pub mod managers;
 pub mod engines;
+pub mod managers;
 pub mod resource_access;
 pub mod utilities;

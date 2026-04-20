@@ -89,7 +89,8 @@ impl RepositoryManager {
         info!("Initializing workspace");
 
         // Clone repository
-        self.git_access.clone_repository(github_url, workspace_path, token)?;
+        self.git_access
+            .clone_repository(github_url, workspace_path, token)?;
         debug!("Repository cloned");
 
         // Ensure .gitignore exists with irie/ and output folder
@@ -256,7 +257,11 @@ impl RepositoryManager {
         let status = self.git_access.get_status(workspace_path)?;
 
         // Determine sync status based on git status
-        let sync_status = match (status.has_uncommitted, status.ahead_by > 0, status.behind_by > 0) {
+        let sync_status = match (
+            status.has_uncommitted,
+            status.ahead_by > 0,
+            status.behind_by > 0,
+        ) {
             (true, _, _) => GitSyncStatus::Dirty,
             (false, true, _) => GitSyncStatus::NeedsPush,
             (false, false, true) => GitSyncStatus::NeedsPull,
@@ -306,8 +311,8 @@ impl RepositoryManager {
 mod tests {
     use super::*;
     use crate::utilities::types::GitStatus;
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     // Mock implementation of GitAccess for testing
     struct MockGitAccess {
@@ -318,7 +323,12 @@ mod tests {
     }
 
     impl GitAccess for MockGitAccess {
-        fn clone_repository(&self, _url: &str, _path: &Path, _token: &str) -> Result<(), IrieBookError> {
+        fn clone_repository(
+            &self,
+            _url: &str,
+            _path: &Path,
+            _token: &str,
+        ) -> Result<(), IrieBookError> {
             Ok(())
         }
 
@@ -346,7 +356,11 @@ mod tests {
             Ok(())
         }
 
-        fn get_log(&self, _repo_path: &Path, _limit: usize) -> Result<Vec<GitCommit>, IrieBookError> {
+        fn get_log(
+            &self,
+            _repo_path: &Path,
+            _limit: usize,
+        ) -> Result<Vec<GitCommit>, IrieBookError> {
             Ok(vec![])
         }
 
@@ -362,7 +376,11 @@ mod tests {
             Ok(self.has_uncommitted)
         }
 
-        fn get_changed_files(&self, _repo_path: &Path, _commit_hash: &str) -> Result<Vec<String>, IrieBookError> {
+        fn get_changed_files(
+            &self,
+            _repo_path: &Path,
+            _commit_hash: &str,
+        ) -> Result<Vec<String>, IrieBookError> {
             Ok(vec![])
         }
 
@@ -374,11 +392,18 @@ mod tests {
             Ok(())
         }
 
-        fn get_folder_status(&self, _repo_path: &Path, _folder_path: &Path) -> Result<bool, IrieBookError> {
+        fn get_folder_status(
+            &self,
+            _repo_path: &Path,
+            _folder_path: &Path,
+        ) -> Result<bool, IrieBookError> {
             Ok(false)
         }
 
-        fn get_all_changed_files(&self, _repo_path: &Path) -> Result<Vec<std::path::PathBuf>, IrieBookError> {
+        fn get_all_changed_files(
+            &self,
+            _repo_path: &Path,
+        ) -> Result<Vec<std::path::PathBuf>, IrieBookError> {
             Ok(vec![])
         }
     }
@@ -481,7 +506,12 @@ mod tests {
     }
 
     impl GitAccess for SaveTestMockGitAccess {
-        fn clone_repository(&self, _url: &str, _path: &Path, _token: &str) -> Result<(), IrieBookError> {
+        fn clone_repository(
+            &self,
+            _url: &str,
+            _path: &Path,
+            _token: &str,
+        ) -> Result<(), IrieBookError> {
             Ok(())
         }
 
@@ -516,7 +546,11 @@ mod tests {
             Ok(())
         }
 
-        fn get_log(&self, _repo_path: &Path, _limit: usize) -> Result<Vec<GitCommit>, IrieBookError> {
+        fn get_log(
+            &self,
+            _repo_path: &Path,
+            _limit: usize,
+        ) -> Result<Vec<GitCommit>, IrieBookError> {
             Ok(vec![])
         }
 
@@ -537,7 +571,11 @@ mod tests {
             }
         }
 
-        fn get_changed_files(&self, _repo_path: &Path, _commit_hash: &str) -> Result<Vec<String>, IrieBookError> {
+        fn get_changed_files(
+            &self,
+            _repo_path: &Path,
+            _commit_hash: &str,
+        ) -> Result<Vec<String>, IrieBookError> {
             Ok(vec![])
         }
 
@@ -549,11 +587,18 @@ mod tests {
             Ok(())
         }
 
-        fn get_folder_status(&self, _repo_path: &Path, _folder_path: &Path) -> Result<bool, IrieBookError> {
+        fn get_folder_status(
+            &self,
+            _repo_path: &Path,
+            _folder_path: &Path,
+        ) -> Result<bool, IrieBookError> {
             Ok(false)
         }
 
-        fn get_all_changed_files(&self, _repo_path: &Path) -> Result<Vec<std::path::PathBuf>, IrieBookError> {
+        fn get_all_changed_files(
+            &self,
+            _repo_path: &Path,
+        ) -> Result<Vec<std::path::PathBuf>, IrieBookError> {
             Ok(vec![])
         }
     }
@@ -622,7 +667,12 @@ mod tests {
     }
 
     impl GitAccess for ResetTestMockGitAccess {
-        fn clone_repository(&self, _url: &str, _path: &Path, _token: &str) -> Result<(), IrieBookError> {
+        fn clone_repository(
+            &self,
+            _url: &str,
+            _path: &Path,
+            _token: &str,
+        ) -> Result<(), IrieBookError> {
             Ok(())
         }
 
@@ -650,7 +700,11 @@ mod tests {
             Ok(())
         }
 
-        fn get_log(&self, _repo_path: &Path, _limit: usize) -> Result<Vec<GitCommit>, IrieBookError> {
+        fn get_log(
+            &self,
+            _repo_path: &Path,
+            _limit: usize,
+        ) -> Result<Vec<GitCommit>, IrieBookError> {
             Ok(vec![])
         }
 
@@ -666,7 +720,11 @@ mod tests {
             Ok(false)
         }
 
-        fn get_changed_files(&self, _repo_path: &Path, _commit_hash: &str) -> Result<Vec<String>, IrieBookError> {
+        fn get_changed_files(
+            &self,
+            _repo_path: &Path,
+            _commit_hash: &str,
+        ) -> Result<Vec<String>, IrieBookError> {
             Ok(vec![])
         }
 
@@ -679,11 +737,18 @@ mod tests {
             Ok(())
         }
 
-        fn get_folder_status(&self, _repo_path: &Path, _folder_path: &Path) -> Result<bool, IrieBookError> {
+        fn get_folder_status(
+            &self,
+            _repo_path: &Path,
+            _folder_path: &Path,
+        ) -> Result<bool, IrieBookError> {
             Ok(false)
         }
 
-        fn get_all_changed_files(&self, _repo_path: &Path) -> Result<Vec<std::path::PathBuf>, IrieBookError> {
+        fn get_all_changed_files(
+            &self,
+            _repo_path: &Path,
+        ) -> Result<Vec<std::path::PathBuf>, IrieBookError> {
             Ok(vec![])
         }
     }

@@ -68,7 +68,7 @@ impl DiffManager {
         // Stage 3: Compute diff (offload to blocking thread)
         let differ = self.differ.clone();
         // Clone strings to move into closure
-        let left = left_content.clone(); 
+        let left = left_content.clone();
         let right = right_content.clone();
 
         let diff = tokio::task::spawn_blocking(move || differ.diff(&left, &right))

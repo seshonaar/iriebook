@@ -1807,10 +1807,12 @@ mod tests {
         let result = git_client.commit(temp_dir.path(), "Empty commit");
 
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Nothing to commit"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Nothing to commit")
+        );
     }
 
     #[test]
@@ -2023,13 +2025,17 @@ mod tests {
         std::fs::write(&file1, "modified").unwrap();
 
         // book1 folder should have changes
-        assert!(git_client
-            .get_folder_status(temp_dir.path(), &temp_dir.path().join("book1"))
-            .unwrap());
+        assert!(
+            git_client
+                .get_folder_status(temp_dir.path(), &temp_dir.path().join("book1"))
+                .unwrap()
+        );
         // book2 folder should NOT have changes
-        assert!(!git_client
-            .get_folder_status(temp_dir.path(), &temp_dir.path().join("book2"))
-            .unwrap());
+        assert!(
+            !git_client
+                .get_folder_status(temp_dir.path(), &temp_dir.path().join("book2"))
+                .unwrap()
+        );
     }
 
     #[test]
@@ -2047,9 +2053,11 @@ mod tests {
         std::fs::write(&new_file, "content").unwrap();
 
         // Folder should show changes
-        assert!(git_client
-            .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
-            .unwrap());
+        assert!(
+            git_client
+                .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
+                .unwrap()
+        );
     }
 
     #[test]
@@ -2076,9 +2084,11 @@ mod tests {
         std::fs::write(&metadata, "title: Updated").unwrap();
 
         // Folder should show changes even though .md file wasn't modified
-        assert!(git_client
-            .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
-            .unwrap());
+        assert!(
+            git_client
+                .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
+                .unwrap()
+        );
     }
 
     #[test]
@@ -2096,9 +2106,11 @@ mod tests {
         git_client.commit(temp_dir.path(), "initial").unwrap();
 
         // Folder should have no changes
-        assert!(!git_client
-            .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
-            .unwrap());
+        assert!(
+            !git_client
+                .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
+                .unwrap()
+        );
     }
 
     #[test]
@@ -2111,9 +2123,11 @@ mod tests {
         std::fs::write(&file, "content").unwrap();
 
         // Should not panic, should return false
-        assert!(!git_client
-            .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
-            .unwrap());
+        assert!(
+            !git_client
+                .get_folder_status(temp_dir.path(), &temp_dir.path().join("book"))
+                .unwrap()
+        );
     }
 
     #[test]
@@ -2126,9 +2140,11 @@ mod tests {
         let outside_folder = PathBuf::from("/tmp/outside");
 
         // Should not panic, should return false
-        assert!(!git_client
-            .get_folder_status(temp_dir.path(), &outside_folder)
-            .unwrap());
+        assert!(
+            !git_client
+                .get_folder_status(temp_dir.path(), &outside_folder)
+                .unwrap()
+        );
     }
 
     #[test]

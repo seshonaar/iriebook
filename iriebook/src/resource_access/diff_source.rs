@@ -168,7 +168,7 @@ impl DiffSourceAccess for DiffSource {
             let relative_path = relative_path.to_path_buf();
 
             // We need to clone specific fields or the whole struct if it's cheap (PathBuf is fine)
-            // But we can't pass &self to spawn_blocking. 
+            // But we can't pass &self to spawn_blocking.
             // We'll create a temporary DiffSource or just call logic that doesn't need &self if possible.
             // Actually read_from_git uses self.repo_path.
             tokio::task::spawn_blocking(move || {
@@ -252,13 +252,10 @@ impl DiffSourceAccess for DiffSource {
             .into_iter()
             .filter_map(|abs_path| {
                 let abs_str = abs_path.to_string_lossy().to_string();
-                abs_path
-                    .strip_prefix(&self.repo_path)
-                    .ok()
-                    .map(|rel| {
-                        let rel_str = rel.to_string_lossy().to_string();
-                        (abs_str, rel_str)
-                    })
+                abs_path.strip_prefix(&self.repo_path).ok().map(|rel| {
+                    let rel_str = rel.to_string_lossy().to_string();
+                    (abs_str, rel_str)
+                })
             })
             .collect();
 
@@ -393,7 +390,10 @@ mod tests {
 
         let source = DiffSource::new(temp.path().to_path_buf());
         let id = DiffSourceId("HEAD".to_string());
-        let content = source.get_content(&id, Path::new("test.txt")).await.unwrap();
+        let content = source
+            .get_content(&id, Path::new("test.txt"))
+            .await
+            .unwrap();
 
         assert_eq!(content, "content from HEAD");
     }
@@ -407,12 +407,18 @@ mod tests {
 
         // HEAD should be v2
         let id_head = DiffSourceId("HEAD".to_string());
-        let content_head = source.get_content(&id_head, Path::new("test.txt")).await.unwrap();
+        let content_head = source
+            .get_content(&id_head, Path::new("test.txt"))
+            .await
+            .unwrap();
         assert_eq!(content_head, "v2");
 
         // HEAD~1 should be v1
         let id_prev = DiffSourceId("HEAD~1".to_string());
-        let content_prev = source.get_content(&id_prev, Path::new("test.txt")).await.unwrap();
+        let content_prev = source
+            .get_content(&id_prev, Path::new("test.txt"))
+            .await
+            .unwrap();
         assert_eq!(content_prev, "v1");
     }
 
@@ -452,7 +458,10 @@ mod tests {
 
         let source = DiffSource::new(temp.path().to_path_buf());
         let id = DiffSourceId("HEAD".to_string());
-        let result = source.get_content(&id, Path::new("multiline.txt")).await.unwrap();
+        let result = source
+            .get_content(&id, Path::new("multiline.txt"))
+            .await
+            .unwrap();
 
         assert_eq!(result, content);
     }
@@ -552,7 +561,10 @@ mod tests {
 
         // Read from git (HEAD)
         let git_id = DiffSourceId("HEAD".to_string());
-        let git_content = source.get_content(&git_id, Path::new("test.txt")).await.unwrap();
+        let git_content = source
+            .get_content(&git_id, Path::new("test.txt"))
+            .await
+            .unwrap();
         assert_eq!(git_content, "committed content");
 
         // Read from file (working directory)

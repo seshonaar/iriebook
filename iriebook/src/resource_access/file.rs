@@ -1114,11 +1114,13 @@ identifier:
                 assert_eq!(metadata.language, Some("ro-RO".to_string()));
                 assert_eq!(metadata.cover_image, Some("cover.jpg".to_string()));
                 assert!(metadata.rights.is_some());
-                assert!(metadata
-                    .rights
-                    .as_ref()
-                    .unwrap()
-                    .contains("All Rights Reserved"));
+                assert!(
+                    metadata
+                        .rights
+                        .as_ref()
+                        .unwrap()
+                        .contains("All Rights Reserved")
+                );
             }
             None => panic!("Expected metadata to be loaded"),
         }

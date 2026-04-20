@@ -11,11 +11,11 @@ use crate::utilities::error::IrieBookError;
 use crate::utilities::types::{BookMetadata, BookRevisionInfo};
 use chrono::Datelike;
 use nom::{
+    IResult,
     branch::alt,
     bytes::complete::{tag, take_until},
     combinator::rest,
     sequence::{preceded, tuple},
-    IResult,
 };
 use regex::Regex;
 use std::path::Path;
@@ -468,7 +468,7 @@ fn parse_tokens(tokens: Vec<Token>) -> Vec<ContentItem> {
             TokenKind::H3Line => {
                 // H3 header
                 let text = token.content[4..].to_string(); // Skip "### "
-                                                           // Check if entire content is italic (*text*) -> dedication page
+                // Check if entire content is italic (*text*) -> dedication page
                 if is_italic_line(&text) {
                     // Strip the asterisks for clean dedication text
                     let inner = text.trim().trim_matches('*').to_string();
@@ -1352,8 +1352,11 @@ More text.
         let result = transformer.transform(input).unwrap();
 
         // Should NOT have scene break after subtitle
-        assert!(!result
-            .contains("<p class=\"subtitle\">The Beginning</p>\n<div class='scene-break'></div>"));
+        assert!(
+            !result.contains(
+                "<p class=\"subtitle\">The Beginning</p>\n<div class='scene-break'></div>"
+            )
+        );
     }
 
     #[test]

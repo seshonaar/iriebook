@@ -61,24 +61,28 @@ impl AuthFlow {
     /// This method accepts a single connection, parses the request for the `code` parameter,
     /// sends a success response to the browser, and returns the code.
     pub async fn wait_for_code(self) -> Result<String, IrieBookError> {
-        let (mut socket, _) = self.listener.accept().await.map_err(|e| {
-            IrieBookError::Network(format!("Failed to accept connection: {}", e))
-        })?;
+        let (mut socket, _) =
+            self.listener.accept().await.map_err(|e| {
+                IrieBookError::Network(format!("Failed to accept connection: {}", e))
+            })?;
 
         let mut buffer = [0; 2048];
-        let n = socket.read(&mut buffer).await.map_err(|e| {
-            IrieBookError::Network(format!("Failed to read request: {}", e))
-        })?;
+        let n = socket
+            .read(&mut buffer)
+            .await
+            .map_err(|e| IrieBookError::Network(format!("Failed to read request: {}", e)))?;
 
         if n == 0 {
-            return Err(IrieBookError::GoogleAuth("Empty request received".to_string()));
+            return Err(IrieBookError::GoogleAuth(
+                "Empty request received".to_string(),
+            ));
         }
 
         let request = String::from_utf8_lossy(&buffer[..n]);
 
         // Simple parsing to extract "code" query param
         // Look for "GET /?code=... " or "GET /callback?code=..."
-        
+
         let code = request
             .lines()
             .next()
@@ -89,7 +93,9 @@ impl AuthFlow {
                 let end = rest.find(['&', ' ']).unwrap_or(rest.len());
                 Some(rest[..end].to_string())
             })
-            .ok_or_else(|| IrieBookError::GoogleAuth("No authorization code found in request".to_string()))?;
+            .ok_or_else(|| {
+                IrieBookError::GoogleAuth("No authorization code found in request".to_string())
+            })?;
 
         // Send response
         let response_body = "<html><body><h1>Authorization Successful!</h1><p>You can close this window and return to the application.</p><script>window.close()</script></body></html>";
@@ -101,7 +107,7 @@ impl AuthFlow {
 
         socket.write_all(response.as_bytes()).await.ok();
         socket.flush().await.ok();
-        
+
         // Ensure we properly unescape the code (URL decoding)
         let decoded_code = urlencoding::decode(&code)
             .map_err(|e| IrieBookError::GoogleAuth(format!("Failed to decode code: {}", e)))?;
@@ -132,12 +138,16 @@ impl GoogleAuthenticator {
 
         // Then check embedded credentials
         if !GOOGLE_CREDENTIALS_B64.is_empty() {
-             let config = crate::resource_access::embedded_config::decode_config(GOOGLE_CREDENTIALS_B64)
-                .map_err(|e| IrieBookError::GoogleAuth(e.to_string()))?;
-             return Ok((config.client_id, config.client_secret));
+            let config =
+                crate::resource_access::embedded_config::decode_config(GOOGLE_CREDENTIALS_B64)
+                    .map_err(|e| IrieBookError::GoogleAuth(e.to_string()))?;
+            return Ok((config.client_id, config.client_secret));
         }
 
-        Err(IrieBookError::GoogleAuth("No Google Client ID found. Please set GOOGLE_CLIENT_ID env var or embed credentials.".to_string()))
+        Err(IrieBookError::GoogleAuth(
+            "No Google Client ID found. Please set GOOGLE_CLIENT_ID env var or embed credentials."
+                .to_string(),
+        ))
     }
 
     fn get_oauth_endpoints(&self) -> (String, String) {
@@ -154,15 +164,16 @@ impl GoogleAuthenticator {
     /// * `Ok(AuthFlow)` containing the URL to open, the redirect URI, and the listener.
     pub async fn prepare_auth_flow(&self) -> Result<AuthFlow, IrieBookError> {
         let (client_id, _) = self.get_credentials()?;
-        
-        // Bind to localhost on a random available port
-        let listener = TcpListener::bind("127.0.0.1:0").await.map_err(|e| {
-            IrieBookError::Network(format!("Failed to bind local listener: {}", e))
-        })?;
 
-        let port = listener.local_addr().map_err(|e| {
-            IrieBookError::Network(format!("Failed to get local address: {}", e))
-        })?.port();
+        // Bind to localhost on a random available port
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .map_err(|e| IrieBookError::Network(format!("Failed to bind local listener: {}", e)))?;
+
+        let port = listener
+            .local_addr()
+            .map_err(|e| IrieBookError::Network(format!("Failed to get local address: {}", e)))?
+            .port();
 
         // Use IP literal instead of localhost to avoid DNS issues and ambiguity
         let redirect_uri = format!("http://127.0.0.1:{}", port);
@@ -192,9 +203,13 @@ impl GoogleAuthenticator {
     /// # Arguments
     /// * `code` - The authorization code received from the callback.
     /// * `redirect_uri` - The redirect URI used in the initial request (must match exactly).
-    pub async fn exchange_code(&self, code: &str, redirect_uri: &str) -> Result<AuthCodeTokenResponse, IrieBookError> {
+    pub async fn exchange_code(
+        &self,
+        code: &str,
+        redirect_uri: &str,
+    ) -> Result<AuthCodeTokenResponse, IrieBookError> {
         let (client_id, client_secret) = self.get_credentials()?;
-        
+
         let mut params = vec![
             ("client_id", client_id.as_str()),
             ("code", code),
@@ -216,25 +231,30 @@ impl GoogleAuthenticator {
             .map_err(|e| IrieBookError::Network(format!("Failed to exchange code: {}", e)))?;
 
         if !response.status().is_success() {
-             let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-             return Err(IrieBookError::GoogleAuth(format!(
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(IrieBookError::GoogleAuth(format!(
                 "Google returned error during token exchange: {}",
                 error_text
             )));
         }
 
-        let token_response: AuthCodeTokenResponse = response
-            .json()
-            .await
-            .map_err(|e| IrieBookError::GoogleAuth(format!("Failed to parse token response: {}", e)))?;
+        let token_response: AuthCodeTokenResponse = response.json().await.map_err(|e| {
+            IrieBookError::GoogleAuth(format!("Failed to parse token response: {}", e))
+        })?;
 
         Ok(token_response)
     }
 
     /// Refresh access token using refresh token
-    pub async fn refresh_access_token(&self, refresh_token: &str) -> Result<AuthCodeTokenResponse, IrieBookError> {
+    pub async fn refresh_access_token(
+        &self,
+        refresh_token: &str,
+    ) -> Result<AuthCodeTokenResponse, IrieBookError> {
         let (client_id, client_secret) = self.get_credentials()?;
-        
+
         let mut params = vec![
             ("client_id", client_id.as_str()),
             ("refresh_token", refresh_token),
@@ -255,17 +275,19 @@ impl GoogleAuthenticator {
             .map_err(|e| IrieBookError::Network(format!("Failed to refresh token: {}", e)))?;
 
         if !response.status().is_success() {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-             return Err(IrieBookError::GoogleAuth(format!(
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(IrieBookError::GoogleAuth(format!(
                 "Google returned error during token refresh: {}",
                 error_text
             )));
         }
 
-        let refresh_response: RefreshTokenResponse = response
-            .json()
-            .await
-            .map_err(|e| IrieBookError::GoogleAuth(format!("Failed to parse refresh response: {}", e)))?;
+        let refresh_response: RefreshTokenResponse = response.json().await.map_err(|e| {
+            IrieBookError::GoogleAuth(format!("Failed to parse refresh response: {}", e))
+        })?;
 
         // Construct AuthCodeTokenResponse from refresh response (re-using struct)
         // Refresh response usually doesn't include a new refresh token, so we keep the old one.
@@ -280,7 +302,7 @@ impl GoogleAuthenticator {
     }
 
     /// Retrieve a valid access token, refreshing if necessary.
-    /// 
+    ///
     /// Reads from CredentialStore, checks expiry, refreshes if expired, updates CredentialStore,
     /// and returns the valid access token.
     pub async fn get_valid_token(&self) -> Result<String, IrieBookError> {
@@ -295,7 +317,10 @@ impl GoogleAuthenticator {
                 #[cfg(feature = "e2e-mocks")]
                 {
                     use tracing::warn;
-                    warn!("✅ [E2E-AUTH] Found stored credentials, length: {}", json.len());
+                    warn!(
+                        "✅ [E2E-AUTH] Found stored credentials, length: {}",
+                        json.len()
+                    );
                 }
                 json
             }
@@ -309,8 +334,10 @@ impl GoogleAuthenticator {
             }
         };
 
-        let mut credentials: StoredGoogleCredentials = serde_json::from_str(&stored_json)
-            .map_err(|e| IrieBookError::GoogleAuth(format!("Failed to parse stored credentials: {}", e)))?;
+        let mut credentials: StoredGoogleCredentials =
+            serde_json::from_str(&stored_json).map_err(|e| {
+                IrieBookError::GoogleAuth(format!("Failed to parse stored credentials: {}", e))
+            })?;
 
         let now = Utc::now().timestamp();
         // Check if expired (with 5 minute buffer)
@@ -321,7 +348,7 @@ impl GoogleAuthenticator {
         // Token expired, try to refresh
         if let Some(refresh_token) = &credentials.refresh_token {
             let new_tokens = self.refresh_access_token(refresh_token).await?;
-            
+
             // Update credentials
             credentials.access_token = new_tokens.access_token;
             credentials.expires_at = now + new_tokens.expires_in as i64;
@@ -331,14 +358,18 @@ impl GoogleAuthenticator {
             }
 
             // Save updated credentials
-            let new_json = serde_json::to_string(&credentials)
-                .map_err(|e| IrieBookError::GoogleAuth(format!("Failed to serialize credentials: {}", e)))?;
-            
+            let new_json = serde_json::to_string(&credentials).map_err(|e| {
+                IrieBookError::GoogleAuth(format!("Failed to serialize credentials: {}", e))
+            })?;
+
             CredentialStore::store_google_token(&new_json)?;
 
             Ok(credentials.access_token)
         } else {
-            Err(IrieBookError::GoogleAuth("Access token expired and no refresh token available. Please re-authenticate.".to_string()))
+            Err(IrieBookError::GoogleAuth(
+                "Access token expired and no refresh token available. Please re-authenticate."
+                    .to_string(),
+            ))
         }
     }
 
@@ -351,8 +382,9 @@ impl GoogleAuthenticator {
             expires_at: now + tokens.expires_in as i64,
         };
 
-        let json = serde_json::to_string(&credentials)
-            .map_err(|e| IrieBookError::GoogleAuth(format!("Failed to serialize credentials: {}", e)))?;
+        let json = serde_json::to_string(&credentials).map_err(|e| {
+            IrieBookError::GoogleAuth(format!("Failed to serialize credentials: {}", e))
+        })?;
 
         CredentialStore::store_google_token(&json)
     }

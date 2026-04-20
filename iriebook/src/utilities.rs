@@ -10,6 +10,6 @@
 //! - Can be accessed from any layer
 //! - Do not contain business logic
 
-pub mod types;
-pub mod error;
 pub mod diff_trimmer;
+pub mod error;
+pub mod types;

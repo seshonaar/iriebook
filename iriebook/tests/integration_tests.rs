@@ -8,7 +8,7 @@ use tempfile::TempDir;
 // Repository Manager Integration Tests
 mod repository_manager_tests {
     use super::*;
-    use iriebook::managers::repository_manager::{RepositoryManager, SyncResult, SaveResult};
+    use iriebook::managers::repository_manager::{RepositoryManager, SaveResult, SyncResult};
     use iriebook::resource_access::git::GitClient;
     use iriebook::resource_access::traits::GitAccess;
     use std::path::Path;
@@ -95,7 +95,9 @@ mod repository_manager_tests {
         // Make remote change in workspace1
         std::fs::write(&file1, "remote change").unwrap();
         git_client.add_all(workspace1_dir.path()).unwrap();
-        git_client.commit(workspace1_dir.path(), "remote commit").unwrap();
+        git_client
+            .commit(workspace1_dir.path(), "remote commit")
+            .unwrap();
         git_client.push(workspace1_dir.path(), "").unwrap();
 
         // Make uncommitted change in workspace2 (should block rebase)
@@ -104,7 +106,10 @@ mod repository_manager_tests {
 
         // Test: Rebase should FAIL with uncommitted changes
         let result = git_client.pull_rebase_ours(workspace2_dir.path());
-        assert!(result.is_err(), "Rebase should fail with uncommitted changes");
+        assert!(
+            result.is_err(),
+            "Rebase should fail with uncommitted changes"
+        );
     }
 
     #[tokio::test]
@@ -135,16 +140,25 @@ mod repository_manager_tests {
 
         // Make a local commit (should be preserved via rebase)
         git_client.add_all(workspace_dir.path()).unwrap();
-        git_client.commit(workspace_dir.path(), "local commit").unwrap();
+        git_client
+            .commit(workspace_dir.path(), "local commit")
+            .unwrap();
 
         // Test: Can we pull-rebase with untracked files present?
         let result = git_client.pull_rebase_ours(workspace_dir.path());
 
         // This should succeed - untracked files don't interfere
-        assert!(result.is_ok(), "Rebase should work with untracked files: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "Rebase should work with untracked files: {:?}",
+            result
+        );
 
         // Untracked file should still exist
-        assert!(untracked_file.exists(), "Untracked files should be preserved");
+        assert!(
+            untracked_file.exists(),
+            "Untracked files should be preserved"
+        );
     }
 
     #[tokio::test]
@@ -186,7 +200,9 @@ mod repository_manager_tests {
         let newfile_ws1 = workspace1_dir.path().join("newfile.txt");
         std::fs::write(&newfile_ws1, "REMOTE CONTENT").unwrap();
         git_client.add_all(workspace1_dir.path()).unwrap();
-        git_client.commit(workspace1_dir.path(), "add newfile").unwrap();
+        git_client
+            .commit(workspace1_dir.path(), "add newfile")
+            .unwrap();
         git_client.push(workspace1_dir.path(), "").unwrap();
 
         // In workspace2: create UNTRACKED file with same name but different content
@@ -195,7 +211,10 @@ mod repository_manager_tests {
 
         // Test: Rebase should FAIL - untracked file conflicts with incoming
         let result = git_client.pull_rebase_ours(workspace2_dir.path());
-        assert!(result.is_err(), "Rebase should fail when untracked file conflicts with incoming commit");
+        assert!(
+            result.is_err(),
+            "Rebase should fail when untracked file conflicts with incoming commit"
+        );
     }
 
     #[tokio::test]
@@ -229,7 +248,11 @@ mod repository_manager_tests {
 
         // Attempt prepare_for_rebase - should clean up index.lock and succeed
         let result = git_client.prepare_for_rebase(workspace_dir.path());
-        assert!(result.is_ok(), "Should recover from stale index.lock: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "Should recover from stale index.lock: {:?}",
+            result
+        );
 
         // Verify the lock was cleaned up
         assert!(!index_lock_path.exists(), "Index.lock should be cleaned up");
@@ -264,14 +287,24 @@ mod repository_manager_tests {
         std::fs::write(rebase_merge_path.join("dummy"), "stale rebase data").unwrap();
 
         // Verify the directory exists
-        assert!(rebase_merge_path.exists(), "Rebase-merge directory should exist");
+        assert!(
+            rebase_merge_path.exists(),
+            "Rebase-merge directory should exist"
+        );
 
         // Attempt pull_rebase_ours - should clean up stale state and succeed
         let result = git_client.pull_rebase_ours(workspace_dir.path());
-        assert!(result.is_ok(), "Should recover from stale rebase state: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "Should recover from stale rebase state: {:?}",
+            result
+        );
 
         // Verify the stale directory was cleaned up
-        assert!(!rebase_merge_path.exists(), "Rebase-merge directory should be cleaned up");
+        assert!(
+            !rebase_merge_path.exists(),
+            "Rebase-merge directory should be cleaned up"
+        );
     }
 
     #[tokio::test]
@@ -294,7 +327,9 @@ mod repository_manager_tests {
         let tracked_file = workspace_dir.path().join("tracked.txt");
         std::fs::write(&tracked_file, "initial content").unwrap();
         git_client.add_all(workspace_dir.path()).unwrap();
-        git_client.commit(workspace_dir.path(), "initial commit").unwrap();
+        git_client
+            .commit(workspace_dir.path(), "initial commit")
+            .unwrap();
         git_client.push(workspace_dir.path(), "").unwrap();
 
         // Make local changes (both tracked and untracked)
@@ -311,31 +346,46 @@ mod repository_manager_tests {
         std::fs::write(untracked_dir.join("temp.txt"), "temporary").unwrap();
 
         // Verify we have local changes
-        assert!(git_client.has_uncommitted_changes(workspace_dir.path()).unwrap());
+        assert!(
+            git_client
+                .has_uncommitted_changes(workspace_dir.path())
+                .unwrap()
+        );
         assert!(untracked_file.exists());
         assert!(untracked_dir.exists());
 
         // Run sync_workspace - should discard all local changes
         let result = repo_manager.sync_workspace(workspace_dir.path(), "").await;
-        assert!(result.is_ok(), "sync_workspace should succeed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "sync_workspace should succeed: {:?}",
+            result
+        );
         assert_eq!(result.unwrap(), SyncResult::Synced);
 
         // Verify all local changes were discarded
-        assert!(!git_client.has_uncommitted_changes(workspace_dir.path()).unwrap(),
-                "Should have no uncommitted changes after sync");
+        assert!(
+            !git_client
+                .has_uncommitted_changes(workspace_dir.path())
+                .unwrap(),
+            "Should have no uncommitted changes after sync"
+        );
 
         // Tracked file should be restored to original content
         let content = std::fs::read_to_string(&tracked_file).unwrap();
-        assert_eq!(content, "initial content",
-                   "Tracked file should be restored to original content");
+        assert_eq!(
+            content, "initial content",
+            "Tracked file should be restored to original content"
+        );
 
         // Untracked file should be removed
-        assert!(!untracked_file.exists(),
-                "Untracked file should be removed");
+        assert!(!untracked_file.exists(), "Untracked file should be removed");
 
         // Untracked directory should be removed
-        assert!(!untracked_dir.exists(),
-                "Untracked directory should be removed");
+        assert!(
+            !untracked_dir.exists(),
+            "Untracked directory should be removed"
+        );
     }
 
     #[tokio::test]
@@ -358,7 +408,9 @@ mod repository_manager_tests {
         let file1 = workspace1_dir.path().join("file1.txt");
         std::fs::write(&file1, "initial content").unwrap();
         git_client.add_all(workspace1_dir.path()).unwrap();
-        git_client.commit(workspace1_dir.path(), "initial commit").unwrap();
+        git_client
+            .commit(workspace1_dir.path(), "initial commit")
+            .unwrap();
         git_client.push(workspace1_dir.path(), "").unwrap();
 
         // Setup second workspace and pull initial state
@@ -380,18 +432,26 @@ mod repository_manager_tests {
         // Make change in workspace1 and push (simulating remote change)
         std::fs::write(&file1, "updated content from workspace1").unwrap();
         git_client.add_all(workspace1_dir.path()).unwrap();
-        git_client.commit(workspace1_dir.path(), "update from workspace1").unwrap();
+        git_client
+            .commit(workspace1_dir.path(), "update from workspace1")
+            .unwrap();
         git_client.push(workspace1_dir.path(), "").unwrap();
 
         // Sync workspace2 - should pull the remote changes
         let result = repo_manager.sync_workspace(workspace2_dir.path(), "").await;
-        assert!(result.is_ok(), "sync_workspace should succeed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "sync_workspace should succeed: {:?}",
+            result
+        );
 
         // Verify workspace2 has the remote changes
         let file1_in_workspace2 = workspace2_dir.path().join("file1.txt");
         let content = std::fs::read_to_string(&file1_in_workspace2).unwrap();
-        assert_eq!(content, "updated content from workspace1",
-                   "Workspace2 should have pulled remote changes");
+        assert_eq!(
+            content, "updated content from workspace1",
+            "Workspace2 should have pulled remote changes"
+        );
     }
 
     #[tokio::test]
@@ -414,7 +474,9 @@ mod repository_manager_tests {
         let file1 = workspace1_dir.path().join("file1.txt");
         std::fs::write(&file1, "initial content").unwrap();
         git_client.add_all(workspace1_dir.path()).unwrap();
-        git_client.commit(workspace1_dir.path(), "initial commit").unwrap();
+        git_client
+            .commit(workspace1_dir.path(), "initial commit")
+            .unwrap();
         git_client.push(workspace1_dir.path(), "").unwrap();
 
         // Setup workspace2 and pull initial state
@@ -436,7 +498,9 @@ mod repository_manager_tests {
         // Make change in workspace1 and push
         std::fs::write(&file1, "REMOTE: updated from workspace1").unwrap();
         git_client.add_all(workspace1_dir.path()).unwrap();
-        git_client.commit(workspace1_dir.path(), "remote update").unwrap();
+        git_client
+            .commit(workspace1_dir.path(), "remote update")
+            .unwrap();
         git_client.push(workspace1_dir.path(), "").unwrap();
 
         // Make CONFLICTING local changes in workspace2
@@ -444,20 +508,34 @@ mod repository_manager_tests {
         std::fs::write(&file1_workspace2, "LOCAL: conflicting changes").unwrap();
 
         // Verify workspace2 has uncommitted changes
-        assert!(git_client.has_uncommitted_changes(workspace2_dir.path()).unwrap());
+        assert!(
+            git_client
+                .has_uncommitted_changes(workspace2_dir.path())
+                .unwrap()
+        );
 
         // Sync workspace2 - should discard local changes AND pull remote
         let result = repo_manager.sync_workspace(workspace2_dir.path(), "").await;
-        assert!(result.is_ok(), "sync_workspace should succeed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "sync_workspace should succeed: {:?}",
+            result
+        );
 
         // Verify:
         // 1. No uncommitted changes
-        assert!(!git_client.has_uncommitted_changes(workspace2_dir.path()).unwrap());
+        assert!(
+            !git_client
+                .has_uncommitted_changes(workspace2_dir.path())
+                .unwrap()
+        );
 
         // 2. File has REMOTE content (local changes were discarded)
         let content = std::fs::read_to_string(&file1_workspace2).unwrap();
-        assert_eq!(content, "REMOTE: updated from workspace1",
-                   "Should have remote content, local changes discarded");
+        assert_eq!(
+            content, "REMOTE: updated from workspace1",
+            "Should have remote content, local changes discarded"
+        );
     }
 
     #[tokio::test]
@@ -479,27 +557,44 @@ mod repository_manager_tests {
         let file1 = workspace_dir.path().join("file1.txt");
         std::fs::write(&file1, "initial content").unwrap();
         git_client.add_all(workspace_dir.path()).unwrap();
-        git_client.commit(workspace_dir.path(), "initial commit").unwrap();
+        git_client
+            .commit(workspace_dir.path(), "initial commit")
+            .unwrap();
         git_client.push(workspace_dir.path(), "").unwrap();
 
         // Create a pending commit (committed but not pushed)
         std::fs::write(&file1, "pending content").unwrap();
         git_client.add_all(workspace_dir.path()).unwrap();
-        git_client.commit(workspace_dir.path(), "pending commit").unwrap();
+        git_client
+            .commit(workspace_dir.path(), "pending commit")
+            .unwrap();
 
         // Verify we have commits ahead
         let status_before = git_client.get_status(workspace_dir.path()).unwrap();
-        assert!(status_before.ahead_by > 0, "Should have commits ahead before sync");
+        assert!(
+            status_before.ahead_by > 0,
+            "Should have commits ahead before sync"
+        );
 
         // Sync workspace - should push pending commits
         let result = repo_manager.sync_workspace(workspace_dir.path(), "").await;
-        assert!(result.is_ok(), "sync_workspace should succeed: {:?}", result);
-        assert_eq!(result.unwrap(), SyncResult::SyncedAndPushed,
-                   "Should report SyncedAndPushed when pending commits are pushed");
+        assert!(
+            result.is_ok(),
+            "sync_workspace should succeed: {:?}",
+            result
+        );
+        assert_eq!(
+            result.unwrap(),
+            SyncResult::SyncedAndPushed,
+            "Should report SyncedAndPushed when pending commits are pushed"
+        );
 
         // Verify commits were pushed
         let status_after = git_client.get_status(workspace_dir.path()).unwrap();
-        assert_eq!(status_after.ahead_by, 0, "Should have no commits ahead after sync");
+        assert_eq!(
+            status_after.ahead_by, 0,
+            "Should have no commits ahead after sync"
+        );
         assert_eq!(status_after.behind_by, 0);
     }
 
@@ -507,7 +602,10 @@ mod repository_manager_tests {
     fn create_book_library(workspace_path: &Path) {
         // Create book folders with manuscripts
         let books = vec![
-            ("The Great Adventure", "Chapter 1\n\nIt was a dark and stormy night..."),
+            (
+                "The Great Adventure",
+                "Chapter 1\n\nIt was a dark and stormy night...",
+            ),
             ("Mystery Manor", "Prologue\n\nThe old house stood silent..."),
             ("Journey to Tomorrow", "Part 1\n\nIn the year 2150..."),
         ];
@@ -539,22 +637,34 @@ mod repository_manager_tests {
         create_book_library(workspace_dir.path());
 
         // Save workspace - should commit and push
-        let result = repo_manager.save_workspace(
-            workspace_dir.path(),
-            "Initial book library",
-            ""
-        ).await;
+        let result = repo_manager
+            .save_workspace(workspace_dir.path(), "Initial book library", "")
+            .await;
 
-        assert!(result.is_ok(), "save_workspace should succeed: {:?}", result);
-        assert_eq!(result.unwrap(), SaveResult::SavedAndPushed,
-                   "Should commit and push successfully");
+        assert!(
+            result.is_ok(),
+            "save_workspace should succeed: {:?}",
+            result
+        );
+        assert_eq!(
+            result.unwrap(),
+            SaveResult::SavedAndPushed,
+            "Should commit and push successfully"
+        );
 
         // Verify no uncommitted changes
-        assert!(!git_client.has_uncommitted_changes(workspace_dir.path()).unwrap());
+        assert!(
+            !git_client
+                .has_uncommitted_changes(workspace_dir.path())
+                .unwrap()
+        );
 
         // Verify no pending commits
         let status = git_client.get_status(workspace_dir.path()).unwrap();
-        assert_eq!(status.ahead_by, 0, "Should have no commits ahead after save");
+        assert_eq!(
+            status.ahead_by, 0,
+            "Should have no commits ahead after save"
+        );
     }
 
     #[tokio::test]
@@ -572,27 +682,47 @@ mod repository_manager_tests {
 
         // Create and save initial library
         create_book_library(workspace_dir.path());
-        repo_manager.save_workspace(workspace_dir.path(), "Initial", "").await.unwrap();
+        repo_manager
+            .save_workspace(workspace_dir.path(), "Initial", "")
+            .await
+            .unwrap();
 
         // Modify one book's manuscript
-        let manuscript = workspace_dir.path().join("The Great Adventure").join("manuscript.md");
-        std::fs::write(&manuscript, "Chapter 1\n\nUpdated content with new scenes...").unwrap();
+        let manuscript = workspace_dir
+            .path()
+            .join("The Great Adventure")
+            .join("manuscript.md");
+        std::fs::write(
+            &manuscript,
+            "Chapter 1\n\nUpdated content with new scenes...",
+        )
+        .unwrap();
 
         // Verify we have uncommitted changes
-        assert!(git_client.has_uncommitted_changes(workspace_dir.path()).unwrap());
+        assert!(
+            git_client
+                .has_uncommitted_changes(workspace_dir.path())
+                .unwrap()
+        );
 
         // Save workspace again
-        let result = repo_manager.save_workspace(
-            workspace_dir.path(),
-            "Update The Great Adventure manuscript",
-            ""
-        ).await;
+        let result = repo_manager
+            .save_workspace(
+                workspace_dir.path(),
+                "Update The Great Adventure manuscript",
+                "",
+            )
+            .await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), SaveResult::SavedAndPushed);
 
         // Verify clean state
-        assert!(!git_client.has_uncommitted_changes(workspace_dir.path()).unwrap());
+        assert!(
+            !git_client
+                .has_uncommitted_changes(workspace_dir.path())
+                .unwrap()
+        );
         let status = git_client.get_status(workspace_dir.path()).unwrap();
         assert_eq!(status.ahead_by, 0);
     }
@@ -612,30 +742,39 @@ mod repository_manager_tests {
 
         // Create and save initial library
         create_book_library(workspace_dir.path());
-        repo_manager.save_workspace(workspace_dir.path(), "Initial", "").await.unwrap();
+        repo_manager
+            .save_workspace(workspace_dir.path(), "Initial", "")
+            .await
+            .unwrap();
 
         // Add a new book
         let new_book_dir = workspace_dir.path().join("The Fourth Book");
         std::fs::create_dir(&new_book_dir).unwrap();
         let new_manuscript = new_book_dir.join("manuscript.md");
-        std::fs::write(&new_manuscript, "Introduction\n\nA brand new story begins...").unwrap();
+        std::fs::write(
+            &new_manuscript,
+            "Introduction\n\nA brand new story begins...",
+        )
+        .unwrap();
 
         // Also add metadata file
         let metadata = new_book_dir.join("metadata.yaml");
         std::fs::write(&metadata, "title: The Fourth Book\nauthor: Test Author").unwrap();
 
         // Save workspace
-        let result = repo_manager.save_workspace(
-            workspace_dir.path(),
-            "Add new book: The Fourth Book",
-            ""
-        ).await;
+        let result = repo_manager
+            .save_workspace(workspace_dir.path(), "Add new book: The Fourth Book", "")
+            .await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), SaveResult::SavedAndPushed);
 
         // Verify clean state
-        assert!(!git_client.has_uncommitted_changes(workspace_dir.path()).unwrap());
+        assert!(
+            !git_client
+                .has_uncommitted_changes(workspace_dir.path())
+                .unwrap()
+        );
     }
 
     #[tokio::test]
@@ -653,27 +792,36 @@ mod repository_manager_tests {
 
         // Create and save initial library
         create_book_library(workspace_dir.path());
-        repo_manager.save_workspace(workspace_dir.path(), "Initial", "").await.unwrap();
+        repo_manager
+            .save_workspace(workspace_dir.path(), "Initial", "")
+            .await
+            .unwrap();
 
         // Delete one book folder
         let book_to_delete = workspace_dir.path().join("Mystery Manor");
         std::fs::remove_dir_all(&book_to_delete).unwrap();
 
         // Verify we have uncommitted changes (deletion)
-        assert!(git_client.has_uncommitted_changes(workspace_dir.path()).unwrap());
+        assert!(
+            git_client
+                .has_uncommitted_changes(workspace_dir.path())
+                .unwrap()
+        );
 
         // Save workspace
-        let result = repo_manager.save_workspace(
-            workspace_dir.path(),
-            "Remove Mystery Manor",
-            ""
-        ).await;
+        let result = repo_manager
+            .save_workspace(workspace_dir.path(), "Remove Mystery Manor", "")
+            .await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), SaveResult::SavedAndPushed);
 
         // Verify clean state and book is gone
-        assert!(!git_client.has_uncommitted_changes(workspace_dir.path()).unwrap());
+        assert!(
+            !git_client
+                .has_uncommitted_changes(workspace_dir.path())
+                .unwrap()
+        );
         assert!(!book_to_delete.exists());
     }
 
@@ -692,23 +840,28 @@ mod repository_manager_tests {
 
         // Create and save initial library
         create_book_library(workspace_dir.path());
-        repo_manager.save_workspace(workspace_dir.path(), "Initial", "").await.unwrap();
+        repo_manager
+            .save_workspace(workspace_dir.path(), "Initial", "")
+            .await
+            .unwrap();
 
         // Try to save again without any changes
         // Note: Implementation returns SavedAndPushed even with no changes
         // because push succeeds (it's a no-op when nothing to push)
-        let result = repo_manager.save_workspace(
-            workspace_dir.path(),
-            "Nothing changed",
-            ""
-        ).await;
+        let result = repo_manager
+            .save_workspace(workspace_dir.path(), "Nothing changed", "")
+            .await;
 
         assert!(result.is_ok());
         // When clean and in sync, save still succeeds (push is a no-op)
         assert_eq!(result.unwrap(), SaveResult::SavedAndPushed);
 
         // Verify workspace is still clean
-        assert!(!git_client.has_uncommitted_changes(workspace_dir.path()).unwrap());
+        assert!(
+            !git_client
+                .has_uncommitted_changes(workspace_dir.path())
+                .unwrap()
+        );
     }
 
     #[tokio::test]
@@ -726,34 +879,45 @@ mod repository_manager_tests {
 
         // Create and save initial library
         create_book_library(workspace_dir.path());
-        repo_manager.save_workspace(workspace_dir.path(), "Initial", "").await.unwrap();
+        repo_manager
+            .save_workspace(workspace_dir.path(), "Initial", "")
+            .await
+            .unwrap();
 
         // Create a pending commit manually (committed but not pushed)
-        let manuscript = workspace_dir.path().join("The Great Adventure").join("manuscript.md");
+        let manuscript = workspace_dir
+            .path()
+            .join("The Great Adventure")
+            .join("manuscript.md");
         std::fs::write(&manuscript, "Updated content").unwrap();
         git_client.add_all(workspace_dir.path()).unwrap();
-        git_client.commit(workspace_dir.path(), "Pending update").unwrap();
+        git_client
+            .commit(workspace_dir.path(), "Pending update")
+            .unwrap();
 
         // Verify we have pending commits
         let status_before = git_client.get_status(workspace_dir.path()).unwrap();
         assert!(status_before.ahead_by > 0, "Should have commits ahead");
 
         // Save workspace with no new changes - should push pending commits
-        let result = repo_manager.save_workspace(
-            workspace_dir.path(),
-            "Should push pending",
-            ""
-        ).await;
+        let result = repo_manager
+            .save_workspace(workspace_dir.path(), "Should push pending", "")
+            .await;
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), SaveResult::SavedAndPushed,
-                   "Should push pending commits even with no new changes");
+        assert_eq!(
+            result.unwrap(),
+            SaveResult::SavedAndPushed,
+            "Should push pending commits even with no new changes"
+        );
 
         // Verify commits were pushed
         let status_after = git_client.get_status(workspace_dir.path()).unwrap();
-        assert_eq!(status_after.ahead_by, 0, "Should have no commits ahead after save");
+        assert_eq!(
+            status_after.ahead_by, 0,
+            "Should have no commits ahead after save"
+        );
     }
-
 }
 
 #[test]
@@ -772,7 +936,9 @@ fn test_basic_conversion() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success()
         .stdout(predicate::str::contains("Success"))
-        .stdout(predicate::str::contains("Converted 2 quotes and 0 apostrophes"));
+        .stdout(predicate::str::contains(
+            "Converted 2 quotes and 0 apostrophes",
+        ));
 
     // Check output exists
     assert!(output_path.exists());
@@ -785,7 +951,6 @@ fn test_basic_conversion() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-
 
 #[test]
 fn test_error_on_single_quotes() -> Result<(), Box<dyn std::error::Error>> {
@@ -892,10 +1057,10 @@ fn test_preserves_asterisks() -> Result<(), Box<dyn std::error::Error>> {
         .success();
 
     let output_content = fs::read_to_string(&output_path)?;
-    
+
     // Asterisks must be preserved
     assert!(output_content.contains("*italic*"));
-    
+
     // Quotes should be curly
     assert!(output_content.contains('\u{201C}'));
     assert!(output_content.contains('\u{201D}'));
@@ -918,10 +1083,10 @@ fn test_handles_romanian_text() -> Result<(), Box<dyn std::error::Error>> {
         .success();
 
     let output_content = fs::read_to_string(&output_path)?;
-    
+
     // Romanian characters must be preserved
     assert!(output_content.contains("ă"));
-    
+
     // Quotes should be converted
     assert!(!output_content.contains('"'));
 
@@ -941,10 +1106,12 @@ fn test_multiple_quotes() -> Result<(), Box<dyn std::error::Error>> {
         .arg(&input_path)
         .assert()
         .success()
-        .stdout(predicate::str::contains("Converted 6 quotes and 0 apostrophes"));
+        .stdout(predicate::str::contains(
+            "Converted 6 quotes and 0 apostrophes",
+        ));
 
     let output_content = fs::read_to_string(&output_path)?;
-    
+
     // Should have 3 opening and 3 closing curly quotes
     assert_eq!(output_content.matches('\u{201C}').count(), 3);
     assert_eq!(output_content.matches('\u{201D}').count(), 3);
@@ -983,7 +1150,10 @@ fn test_quotes_and_whitespace_together() -> Result<(), Box<dyn std::error::Error
     let output_path = temp_dir.path().join("irie/fixed.md");
 
     // File with both quote and whitespace issues
-    fs::write(&input_path, "  She  said  \"hello  world\"  and  he  replied  \"goodbye\".  \n\n\nNext  line.  ")?;
+    fs::write(
+        &input_path,
+        "  She  said  \"hello  world\"  and  he  replied  \"goodbye\".  \n\n\nNext  line.  ",
+    )?;
 
     Command::new(assert_cmd::cargo::cargo_bin!("iriebook"))
         .arg("--publish")
@@ -1046,9 +1216,7 @@ fn test_bom_handling_end_to_end() -> Result<(), Box<dyn std::error::Error>> {
     // Verify NO BOM in output
     // UTF-8 BOM is bytes [0xEF, 0xBB, 0xBF]
     assert!(output_bytes.len() >= 3);
-    let has_bom = output_bytes[0] == 0xEF
-        && output_bytes[1] == 0xBB
-        && output_bytes[2] == 0xBF;
+    let has_bom = output_bytes[0] == 0xEF && output_bytes[1] == 0xBB && output_bytes[2] == 0xBF;
     assert!(!has_bom, "Output file should not have UTF-8 BOM");
 
     // Read as string and verify content
@@ -1094,7 +1262,10 @@ fn test_word_analysis_with_config() -> Result<(), Box<dyn std::error::Error>> {
     let input_path = temp_dir.path().join("test.md");
     let config_path = temp_dir.path().join("config.json");
 
-    fs::write(&config_path, r#"{"word_analysis": {"excluded_words": ["test"]}}"#)?;
+    fs::write(
+        &config_path,
+        r#"{"word_analysis": {"excluded_words": ["test"]}}"#,
+    )?;
     fs::write(&input_path, "test hello test world test")?;
 
     Command::new(assert_cmd::cargo::cargo_bin!("iriebook"))
@@ -1136,7 +1307,10 @@ fn test_romanian_text_with_apostrophes() -> Result<(), Box<dyn std::error::Error
     let output_path = temp_dir.path().join("irie/fixed.md");
 
     // Romanian text with valid word-final apostrophes
-    fs::write(&input_path, r#"Ce dracu' vrei? El a spus într'un fel ciudat."#)?;
+    fs::write(
+        &input_path,
+        r#"Ce dracu' vrei? El a spus într'un fel ciudat."#,
+    )?;
 
     // Should succeed (not fail validation)
     Command::new(assert_cmd::cargo::cargo_bin!("iriebook"))
@@ -1334,7 +1508,10 @@ fn test_multiple_chapter_headings() -> Result<(), Box<dyn std::error::Error>> {
     let input_path = temp_dir.path().join("test.md");
     let output_path = temp_dir.path().join("irie/fixed.md");
 
-    fs::write(&input_path, "## Chapter 1 The Beginning\n\nSome text.\n\n## Chapter 2 The Middle")?;
+    fs::write(
+        &input_path,
+        "## Chapter 1 The Beginning\n\nSome text.\n\n## Chapter 2 The Middle",
+    )?;
 
     Command::new(assert_cmd::cargo::cargo_bin!("iriebook"))
         .arg("--publish")
@@ -1360,7 +1537,10 @@ fn test_chapter_heading_unicode_dashes() -> Result<(), Box<dyn std::error::Error
     let output_path = temp_dir.path().join("irie/fixed.md");
 
     // Test with en-dash (–) and em-dash (—) - use same prefix to test unicode dash handling
-    fs::write(&input_path, "## Chapter 1 – Bianca\n\n## Chapter 2 — The End")?;
+    fs::write(
+        &input_path,
+        "## Chapter 1 – Bianca\n\n## Chapter 2 — The End",
+    )?;
 
     Command::new(assert_cmd::cargo::cargo_bin!("iriebook"))
         .arg("--publish")
@@ -1442,7 +1622,10 @@ fn test_chapter_heading_long_text_on_same_line() -> Result<(), Box<dyn std::erro
     let output_path = temp_dir.path().join("irie/fixed.md");
 
     // Long paragraph text after number - should NOT be treated as subtitle
-    fs::write(&input_path, "## Capitolul 9 În concluzie, n-am decât să încep ușor partea a doua a planului meu. Un plan atât de obscur, încât nici eu nu știu sigur unde va ajunge.")?;
+    fs::write(
+        &input_path,
+        "## Capitolul 9 În concluzie, n-am decât să încep ușor partea a doua a planului meu. Un plan atât de obscur, încât nici eu nu știu sigur unde va ajunge.",
+    )?;
 
     Command::new(assert_cmd::cargo::cargo_bin!("iriebook"))
         .arg("--publish")
@@ -1629,7 +1812,10 @@ fn test_scene_break_after_subtitle() -> Result<(), Box<dyn std::error::Error>> {
     let output_content = fs::read_to_string(&output_path)?;
 
     // Scene break should be REMOVED after the subtitle
-    assert!(!output_content.contains("<p class=\"subtitle\">The Beginning</p>\n<div class='scene-break'></div>"));
+    assert!(
+        !output_content
+            .contains("<p class=\"subtitle\">The Beginning</p>\n<div class='scene-break'></div>")
+    );
 
     Ok(())
 }
@@ -1666,7 +1852,10 @@ fn test_proper_spacing_before_header_no_blank_line() -> Result<(), Box<dyn std::
 
     // Text followed by single newline then header (no blank line originally)
     // Should ensure proper spacing in output
-    fs::write(&input_path, "grijile și toate poverile... nu neapărat ale universului.\n## Capitolul 18")?;
+    fs::write(
+        &input_path,
+        "grijile și toate poverile... nu neapărat ale universului.\n## Capitolul 18",
+    )?;
 
     Command::new(assert_cmd::cargo_bin!("iriebook"))
         .arg("--publish")
@@ -1678,8 +1867,10 @@ fn test_proper_spacing_before_header_no_blank_line() -> Result<(), Box<dyn std::
 
     // Should have at least 2 blank lines (3 newlines) before the header for proper spacing
     // Chapter 18 becomes Chapter 1 due to sequential renumbering
-    assert!(output_content.contains("universului.\n\n\n## Capitolul 1") ||
-            output_content.contains("universului.\n\n\n# Capitolul 1"));
+    assert!(
+        output_content.contains("universului.\n\n\n## Capitolul 1")
+            || output_content.contains("universului.\n\n\n# Capitolul 1")
+    );
 
     // Should NOT have text running directly into header
     assert!(!output_content.contains("universului.\n## Capitolul 1"));
@@ -1733,7 +1924,10 @@ fn test_publish_only_no_word_stats() -> Result<(), Box<dyn std::error::Error>> {
         .arg(&input_path)
         .output()?;
     let stdout_str = String::from_utf8(output.stdout)?;
-    assert!(!stdout_str.contains("Word Analysis"), "Should not show word analysis without --word-stats");
+    assert!(
+        !stdout_str.contains("Word Analysis"),
+        "Should not show word analysis without --word-stats"
+    );
 
     Ok(())
 }

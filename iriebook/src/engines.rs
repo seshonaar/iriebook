@@ -16,9 +16,9 @@
 pub mod traits;
 
 pub mod text_processing {
+    pub mod markdown_transform;
     pub mod quote_fixer;
     pub mod whitespace_trimmer;
-    pub mod markdown_transform;
     pub mod word_replacement;
 }
 

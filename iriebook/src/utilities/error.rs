@@ -21,7 +21,11 @@ pub struct QuoteOccurrence {
 
 impl fmt::Display for QuoteOccurrence {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Location (line {}, column {}):", self.line_number, self.column)?;
+        writeln!(
+            f,
+            "Location (line {}, column {}):",
+            self.line_number, self.column
+        )?;
         writeln!(f, "  {}", self.context)?;
         write!(f, "  {}^", " ".repeat(self.column.0.saturating_sub(1)))
     }
@@ -38,7 +42,9 @@ pub enum IrieBookError {
     },
 
     /// Quotes are unbalanced (odd number)
-    #[error("Unbalanced quotes: found {count} straight double quotes (must be even)\n\n{last_occurrence}")]
+    #[error(
+        "Unbalanced quotes: found {count} straight double quotes (must be even)\n\n{last_occurrence}"
+    )]
     UnbalancedQuotes {
         count: QuoteCount,
         last_occurrence: QuoteOccurrence,
@@ -110,10 +116,7 @@ pub enum IrieBookError {
 
     /// File not found in git revision
     #[error("File '{file}' not found in revision '{revision}'")]
-    FileNotFoundInRevision {
-        file: String,
-        revision: String,
-    },
+    FileNotFoundInRevision { file: String, revision: String },
 
     /// Invalid UTF-8 in git blob
     #[error("File contains invalid UTF-8 in git revision")]
@@ -150,7 +153,7 @@ mod tests {
             context: "she said 'hello' to me".to_string(),
             char_found: '\'',
         };
-        
+
         let display = format!("{}", occ);
         assert!(display.contains("line 42"));
         assert!(display.contains("column 15"));
@@ -198,12 +201,12 @@ mod tests {
             context: r#"she said "hello"#.to_string(),
             char_found: '"',
         };
-        
+
         let err = IrieBookError::UnbalancedQuotes {
             count: QuoteCount(3),
             last_occurrence: occ,
         };
-        
+
         let msg = format!("{}", err);
         assert!(msg.contains("Unbalanced quotes"));
         assert!(msg.contains("found 3"));
@@ -217,7 +220,7 @@ mod tests {
             path: "/some/file.md".to_string(),
             source: std::io::Error::new(std::io::ErrorKind::NotFound, "not found"),
         };
-        
+
         let msg = format!("{}", err);
         assert!(msg.contains("/some/file.md"));
         assert!(msg.contains("Failed to read"));

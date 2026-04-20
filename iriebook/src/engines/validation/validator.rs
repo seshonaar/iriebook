@@ -67,7 +67,27 @@ fn validate_impl(content: &str) -> Result<(), IrieBookError> {
 fn is_word_boundary(ch: Option<char>) -> bool {
     match ch {
         None => true, // Start or end of string
-        Some(c) => c.is_whitespace() || matches!(c, '.' | ',' | '!' | '?' | ';' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '"' | '\n' | '\r' | '\t'),
+        Some(c) => {
+            c.is_whitespace()
+                || matches!(
+                    c,
+                    '.' | ','
+                        | '!'
+                        | '?'
+                        | ';'
+                        | ':'
+                        | '('
+                        | ')'
+                        | '['
+                        | ']'
+                        | '{'
+                        | '}'
+                        | '"'
+                        | '\n'
+                        | '\r'
+                        | '\t'
+                )
+        }
     }
 }
 
@@ -95,9 +115,7 @@ pub fn classify_single_quote(prev_char: Option<char>, next_char: Option<char>) -
     }
 
     // 3. Abbreviated year: (space|start) + ' + digit
-    if is_word_boundary(prev_char)
-        && matches!(next_char, Some(c) if c.is_ascii_digit())
-    {
+    if is_word_boundary(prev_char) && matches!(next_char, Some(c) if c.is_ascii_digit()) {
         return SingleQuoteType::Apostrophe;
     }
 
@@ -209,7 +227,7 @@ fn extract_context(content: &str, line_number: LineNumber, column: Column) -> St
     // Find the line
     let lines: Vec<&str> = content.lines().collect();
     let line_index = line_number.0.saturating_sub(1);
-    
+
     match lines.get(line_index) {
         Some(line) => {
             let col_index = column.0.saturating_sub(1);
@@ -222,11 +240,11 @@ fn extract_context(content: &str, line_number: LineNumber, column: Column) -> St
             let end = (col_index + CONTEXT_CHARS + 1).min(chars.len());
 
             let context_chars: String = chars[start..end].iter().collect();
-            
+
             // Add ellipsis if truncated
             let prefix = if start > 0 { "..." } else { "" };
             let suffix = if end < chars.len() { "..." } else { "" };
-            
+
             format!("{}{}{}", prefix, context_chars, suffix)
         }
         None => String::from("(context unavailable)"),
@@ -264,7 +282,7 @@ mod tests {
     fn detects_unbalanced_quotes() {
         let content = r#"She said "hello but never closed it"#;
         let result = validate(content);
-        
+
         match result {
             Err(IrieBookError::UnbalancedQuotes { count, .. }) => {
                 assert_eq!(count, QuoteCount(1));
@@ -283,7 +301,7 @@ mod tests {
     fn extracts_context_correctly() {
         let content = "This is a test with 'quote' in the middle";
         let context = extract_context(content, LineNumber(1), Column(21));
-        
+
         // Should contain the quote and surrounding text
         assert!(context.contains("with"));
         assert!(context.contains("quote"));

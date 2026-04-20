@@ -41,15 +41,20 @@ pub struct InstalledConfig {
 /// * `Err(IrieBookError)` if decoding or parsing fails
 pub fn decode_config(base64_config: &str) -> Result<InstalledConfig, IrieBookError> {
     if base64_config.is_empty() {
-        return Err(IrieBookError::Validation("Empty credentials string".to_string()));
+        return Err(IrieBookError::Validation(
+            "Empty credentials string".to_string(),
+        ));
     }
 
     let decoded = base64::engine::general_purpose::STANDARD
         .decode(base64_config)
-        .map_err(|e| IrieBookError::Validation(format!("Failed to decode embedded credentials: {}", e)))?;
+        .map_err(|e| {
+            IrieBookError::Validation(format!("Failed to decode embedded credentials: {}", e))
+        })?;
 
-    let config: AuthConfig = serde_json::from_slice(&decoded)
-        .map_err(|e| IrieBookError::Validation(format!("Failed to parse embedded credentials: {}", e)))?;
+    let config: AuthConfig = serde_json::from_slice(&decoded).map_err(|e| {
+        IrieBookError::Validation(format!("Failed to parse embedded credentials: {}", e))
+    })?;
 
     Ok(config.installed)
 }

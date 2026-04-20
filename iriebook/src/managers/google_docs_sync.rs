@@ -42,11 +42,15 @@ impl GoogleDocsSyncManager {
     /// # Returns
     /// * `Ok(SyncResult)` with sync details
     /// * `Err(IrieBookError)` if sync fails
-    pub async fn sync_document(&self, book_path: &Path, token: &str) -> Result<SyncResult, IrieBookError> {
+    pub async fn sync_document(
+        &self,
+        book_path: &Path,
+        token: &str,
+    ) -> Result<SyncResult, IrieBookError> {
         // Load sync info - first get the Option result
-        let sync_info_option = file::load_google_docs_sync_info(book_path)
-            .map_err(|e| IrieBookError::GoogleDocsApi(format!("Failed to load sync info: {}", e)))
-            ?;
+        let sync_info_option = file::load_google_docs_sync_info(book_path).map_err(|e| {
+            IrieBookError::GoogleDocsApi(format!("Failed to load sync info: {}", e))
+        })?;
 
         // If not linked, return NotLinked status
         let Some(mut sync_info) = sync_info_option else {
@@ -64,8 +68,9 @@ impl GoogleDocsSyncManager {
 
         // Update sync info status
         sync_info.mark_synced();
-        file::save_google_docs_sync_info(book_path, &sync_info)
-            .map_err(|e| IrieBookError::GoogleDocsApi(format!("Failed to save sync info: {}", e)))?;
+        file::save_google_docs_sync_info(book_path, &sync_info).map_err(|e| {
+            IrieBookError::GoogleDocsApi(format!("Failed to save sync info: {}", e))
+        })?;
 
         Ok(SyncResult::Synced)
     }
@@ -84,8 +89,9 @@ impl GoogleDocsSyncManager {
         let sync_info = GoogleDocsSyncInfo::new(doc_id);
 
         // Save sync info file
-        file::save_google_docs_sync_info(book_path, &sync_info)
-            .map_err(|e| IrieBookError::GoogleDocsApi(format!("Failed to save sync info: {}", e)))?;
+        file::save_google_docs_sync_info(book_path, &sync_info).map_err(|e| {
+            IrieBookError::GoogleDocsApi(format!("Failed to save sync info: {}", e))
+        })?;
 
         Ok(())
     }
@@ -100,8 +106,9 @@ impl GoogleDocsSyncManager {
     /// * `Err(IrieBookError)` if unlink fails
     pub fn unlink_document(&self, book_path: &Path) -> Result<(), IrieBookError> {
         // Delete sync info file
-        file::delete_google_docs_sync_info(book_path)
-            .map_err(|e| IrieBookError::GoogleDocsApi(format!("Failed to delete sync info: {}", e)))?;
+        file::delete_google_docs_sync_info(book_path).map_err(|e| {
+            IrieBookError::GoogleDocsApi(format!("Failed to delete sync info: {}", e))
+        })?;
 
         Ok(())
     }
@@ -109,7 +116,11 @@ impl GoogleDocsSyncManager {
 
 #[async_trait::async_trait]
 impl DocumentSyncer for GoogleDocsSyncManager {
-    async fn sync_document(&self, book_path: &Path, token: &str) -> Result<SyncResult, IrieBookError> {
+    async fn sync_document(
+        &self,
+        book_path: &Path,
+        token: &str,
+    ) -> Result<SyncResult, IrieBookError> {
         // Delegate to the inherent method
         self.sync_document(book_path, token).await
     }
@@ -126,11 +137,19 @@ mod tests {
 
     #[async_trait::async_trait]
     impl GoogleDocsAccess for MockGoogleDocsAccess {
-        async fn list_documents(&self, _token: &str, _max_results: u32) -> Result<Vec<GoogleDocInfo>, IrieBookError> {
+        async fn list_documents(
+            &self,
+            _token: &str,
+            _max_results: u32,
+        ) -> Result<Vec<GoogleDocInfo>, IrieBookError> {
             Ok(vec![])
         }
 
-        async fn export_as_markdown(&self, _doc_id: &str, _token: &str) -> Result<String, IrieBookError> {
+        async fn export_as_markdown(
+            &self,
+            _doc_id: &str,
+            _token: &str,
+        ) -> Result<String, IrieBookError> {
             Ok("# Test Document\n\nMocked markdown content".to_string())
         }
     }
