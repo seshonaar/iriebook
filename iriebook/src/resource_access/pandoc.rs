@@ -381,9 +381,23 @@ fn write_pdf_latex_header(
   \vspace{{1em}}\par%
 }}
 
+\newcommand{{\irieBlankPage}}{{%
+  \thispagestyle{{empty}}%
+  \null%
+  \newpage%
+}}
+
+\newcommand{{\irieDedicationOpening}}{{%
+  \clearpage%
+  \ifodd\value{{page}}%
+    \irieBlankPage%
+  \fi%
+  \irieBlankPage%
+}}
+
 \newenvironment{{irieDedication}}
-  {{\clearpage\thispagestyle{{empty}}\vspace*{{\fill}}\begin{{center}}\itshape\large}}
-  {{\end{{center}}\vspace*{{\fill}}\clearpage}}
+  {{\irieDedicationOpening\thispagestyle{{empty}}\vspace*{{\fill}}\begin{{center}}\itshape\large}}
+  {{\end{{center}}\vspace*{{\fill}}\clearpage\irieBlankPage}}
 
 \newenvironment{{irieCopyright}}
   {{\clearpage\thispagestyle{{empty}}\begingroup\setlength{{\parindent}}{{0pt}}\small\vspace*{{4em}}}}
@@ -1170,12 +1184,29 @@ mod tests {
         assert!(include.contains("\\newcommand{\\irieSceneBreak}"));
         assert!(include.contains("\\newenvironment{irieDedication}"));
         assert!(include.contains("\\newenvironment{irieCopyright}"));
+        assert!(include.contains("\\newcommand{\\irieBlankPage}"));
+        assert!(include.contains("\\newcommand{\\irieDedicationOpening}"));
         assert!(include.contains("\\usepackage{indentfirst}"));
         assert!(include.contains("\\renewcommand{\\tableofcontents}"));
         assert!(include.contains("\\renewcommand{\\contentsname}{\\@title}"));
         assert!(include.contains("\\ifirieMainMatterStarted"));
         assert!(include.contains("\\renewcommand{\\maketitle}"));
         assert!(!include.contains("\\AtBeginDocument{\\irieCoverPage}"));
+    }
+
+    #[test]
+    fn write_pdf_latex_header_wraps_dedication_in_blank_pages() {
+        let temp_dir = TempDir::new().unwrap();
+        let output_pdf = temp_dir.path().join("book.pdf");
+
+        let include_path =
+            write_pdf_latex_header(&output_pdf, None, &PdfConfig::default()).unwrap();
+        let include = std::fs::read_to_string(include_path).unwrap();
+
+        assert!(include.contains("\\ifodd\\value{page}"));
+        assert!(include.contains("\\irieDedicationOpening"));
+        assert!(include.contains("\\irieBlankPage"));
+        assert!(include.contains("\\clearpage\\irieBlankPage"));
     }
 
     #[test]
