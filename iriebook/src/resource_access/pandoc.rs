@@ -396,16 +396,8 @@ fn write_pdf_latex_header(
   \newpage%
 }}
 
-\newcommand{{\irieDedicationOpening}}{{%
-  \clearpage%
-  \ifodd\value{{page}}%
-    \irieBlankPage%
-  \fi%
-  \irieBlankPage%
-}}
-
 \newenvironment{{irieDedication}}
-  {{\irieDedicationOpening\thispagestyle{{empty}}\vspace*{{\fill}}\begin{{center}}\itshape\large}}
+  {{\clearpage\thispagestyle{{empty}}\vspace*{{\fill}}\begin{{center}}\itshape\large}}
   {{\end{{center}}\vspace*{{\fill}}\clearpage\irieBlankPage}}
 
 \newenvironment{{irieCopyright}}
@@ -1292,7 +1284,6 @@ mod tests {
         assert!(include.contains("\\newenvironment{irieDedication}"));
         assert!(include.contains("\\newenvironment{irieCopyright}"));
         assert!(include.contains("\\newcommand{\\irieBlankPage}"));
-        assert!(include.contains("\\newcommand{\\irieDedicationOpening}"));
         assert!(include.contains("\\usepackage{indentfirst}"));
         assert!(include.contains("\\ifirieMainMatterStarted"));
         assert!(include.contains("\\renewcommand{\\maketitle}"));
@@ -1300,7 +1291,7 @@ mod tests {
     }
 
     #[test]
-    fn write_pdf_latex_header_wraps_dedication_in_blank_pages() {
+    fn write_pdf_latex_header_keeps_only_trailing_blank_page_for_dedication() {
         let temp_dir = TempDir::new().unwrap();
         let output_pdf = temp_dir.path().join("book.pdf");
 
@@ -1313,10 +1304,10 @@ mod tests {
         .unwrap();
         let include = std::fs::read_to_string(include_path).unwrap();
 
-        assert!(include.contains("\\ifodd\\value{page}"));
-        assert!(include.contains("\\irieDedicationOpening"));
         assert!(include.contains("\\irieBlankPage"));
         assert!(include.contains("\\clearpage\\irieBlankPage"));
+        assert!(!include.contains("\\ifodd\\value{page}"));
+        assert!(!include.contains("\\irieDedicationOpening"));
     }
 
     #[test]
