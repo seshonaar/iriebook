@@ -10,7 +10,7 @@ use iriebook_test_support::{
     MockPandocAccess, TestWorkspace,
 };
 use iriebook_ui_common::app_state::AppStateBuilder;
-use std::sync::Arc;
+use std::{fs, process::Command, sync::Arc};
 
 /// Test: Complete publication workflow from start to finish
 ///
@@ -415,6 +415,101 @@ cover-image: cover.jpg
         .output_path
         .expect("Expected EPUB output path");
     assert!(output_path.exists(), "Expected generated EPUB to exist");
+}
+
+#[tokio::test]
+async fn test_generated_epub_passes_epubcheck_with_custom_copyright_page() {
+    if Command::new("pandoc").arg("--version").output().is_err()
+        || Command::new("epubcheck").arg("--version").output().is_err()
+    {
+        eprintln!("Skipping test: pandoc or epubcheck is not installed");
+        return;
+    }
+
+    let mut workspace = TestWorkspace::new().unwrap();
+    let workspace_path = workspace.workspace_path.clone();
+    let book = workspace
+        .add_book_with_content(
+            "book",
+            r#"# Book
+
+## Prelude
+
+The bells of the old quarter rang before dawn.
+
+## Chapter 1: The Visit
+
+Mara stepped through the courtyard gate and listened for movement.
+
+"Are you certain this is the right house?" she asked.
+
+"It is the only house that still keeps its lantern lit at this hour," Victor said.
+
+## Chapter 2: The Reading
+
+The table was already set with cards, candles, and a brass bowl of water.
+
+"Then let the reading begin," said the host.
+
+## Chapter 3: The Warning
+
+By sunrise, each of them understood that the message had been meant for all three.
+"#,
+        )
+        .unwrap()
+        .clone();
+
+    fs::write(
+        book.path.join("metadata.yaml"),
+        r#"title: "Book"
+author: "Test Author"
+language: en
+"#,
+    )
+    .unwrap();
+    fs::write(
+        book.path.join("copyright.txt"),
+        "First edition.\n\nNo part of this book may be reproduced without permission.",
+    )
+    .unwrap();
+    fs::write(workspace_path.join("config.json"), "{\n  \"pdf\": {\n    \"enabled\": false\n  }\n}\n")
+        .unwrap();
+
+    let app_state = AppStateBuilder::new()
+        .workspace_path(workspace_path.clone())
+        .with_pandoc_access(Arc::new(PandocConverter))
+        .with_calibre_access(Arc::new(MockCalibreAccess::new()))
+        .with_archive_access(Arc::new(MockArchiveAccess::new()))
+        .with_defaults_for_remaining()
+        .build();
+
+    let result = app_state.ebook_publication_manager().publish(PublishArgs {
+        input_path: &book.md_path,
+        output_path: None,
+        enable_word_stats: false,
+        enable_publishing: true,
+        embed_cover: false,
+        config_root: Some(&workspace_path),
+        replace_pairs: None,
+    });
+
+    let output_path = result
+        .expect("Publication should produce an EPUB so epubcheck can inspect it")
+        .output_path
+        .expect("Expected EPUB output path");
+    assert!(output_path.exists(), "Expected generated EPUB to exist");
+
+    let epubcheck = Command::new("epubcheck")
+        .arg(&output_path)
+        .output()
+        .expect("epubcheck should run");
+
+    assert!(
+        epubcheck.status.success(),
+        "epubcheck failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&epubcheck.stdout),
+        String::from_utf8_lossy(&epubcheck.stderr)
+    );
 }
 
 #[cfg(test)]

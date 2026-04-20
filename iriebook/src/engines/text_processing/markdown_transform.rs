@@ -269,6 +269,7 @@ impl MarkdownTransformEngine for MarkdownTransformer {
 <div class="copyright-disclaimer">{}</div>
 {}
 {}
+</div>
 "#,
             year, author, rights_text, disclaimer_text, isbn_line, revision_line
         );
