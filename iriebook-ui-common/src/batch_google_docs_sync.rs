@@ -14,6 +14,7 @@ use crate::{
     ui_state::BookInfo,
 };
 use iriebook::resource_access::traits::{DocumentSyncer, TokenProvider};
+use iriebook::utilities::types::PublicationOptions;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -50,6 +51,7 @@ impl BatchGoogleDocsSyncProcessor {
     pub async fn sync_books<F, T, S, P>(
         &self,
         books: Vec<BookInfo>,
+        publication_options: PublicationOptions,
         token_provider: Arc<T>,
         document_syncer: Arc<S>,
         book_processor: Arc<P>,
@@ -100,6 +102,7 @@ impl BatchGoogleDocsSyncProcessor {
                 let result = sync_document(
                     book.path.as_path(),
                     Some(config_root.as_path()),
+                    publication_options,
                     &*token_provider,
                     &*document_syncer,
                     &*book_processor,
@@ -236,6 +239,7 @@ mod tests {
             _config_root: Option<&Path>,
             _publish: PublishEnabled,
             _word_stats: WordStatsEnabled,
+            _publication_options: PublicationOptions,
         ) -> ProcessingResult {
             self.process_called.store(true, Ordering::SeqCst);
             Ok(("Mock processing output".to_string(), None, None))
@@ -272,6 +276,7 @@ mod tests {
 
         let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
             books,
+            PublicationOptions::default(),
             token_provider,
             syncer,
             processor,
@@ -300,6 +305,7 @@ mod tests {
 
         let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
             books,
+            PublicationOptions::default(),
             token_provider,
             syncer,
             processor,
@@ -346,6 +352,7 @@ mod tests {
 
         let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
             books,
+            PublicationOptions::default(),
             token_provider,
             syncer,
             processor,
@@ -400,6 +407,7 @@ mod tests {
 
         let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
             books,
+            PublicationOptions::default(),
             token_provider,
             syncer,
             processor,
@@ -465,6 +473,7 @@ mod tests {
 
         let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
             books,
+            PublicationOptions::default(),
             token_provider,
             syncer,
             processor,

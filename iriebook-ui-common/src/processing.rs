@@ -1,7 +1,7 @@
 use crate::load_metadata;
 use crate::ui_state::{PublishEnabled, WordStatsEnabled};
 use anyhow::Result;
-use iriebook::utilities::types::ReplacePair;
+use iriebook::utilities::types::{PublicationOptions, ReplacePair};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::path::{Path, PathBuf};
@@ -50,6 +50,7 @@ pub trait BookProcessor: Send + Sync {
         config_root: Option<&Path>,
         publish: PublishEnabled,
         word_stats: WordStatsEnabled,
+        publication_options: PublicationOptions,
     ) -> ProcessingResult;
 }
 
@@ -63,8 +64,15 @@ impl BookProcessor for DefaultBookProcessor {
         config_root: Option<&Path>,
         publish: PublishEnabled,
         word_stats: WordStatsEnabled,
+        publication_options: PublicationOptions,
     ) -> ProcessingResult {
-        process_single_book(book_path, config_root, publish, word_stats, true)
+        process_single_book(
+            book_path,
+            config_root,
+            publish,
+            word_stats,
+            publication_options,
+        )
     }
 }
 
@@ -278,7 +286,7 @@ pub fn process_single_book(
     config_root: Option<&Path>,
     publish: PublishEnabled,
     word_stats: WordStatsEnabled,
-    embed_cover: bool,
+    publication_options: PublicationOptions,
 ) -> ProcessingResult {
     use iriebook::{
         engines::{
@@ -322,7 +330,7 @@ pub fn process_single_book(
         output_path: None,
         enable_word_stats: word_stats.is_enabled(),
         enable_publishing: publish.is_enabled(),
-        embed_cover,
+        publication_options,
         config_root,
         replace_pairs: replace_pairs.as_deref(),
     })?;
@@ -392,8 +400,16 @@ pub fn process_single_book(
         output.push_str(&format!("  - Output: {}\n", output_path.display()));
     }
 
+    if let Some(epub_output_path) = &result.epub_output_path {
+        output.push_str(&format!("  - EPUB: {}\n", epub_output_path.display()));
+    }
+
     if let Some(pdf_output_path) = &result.pdf_output_path {
         output.push_str(&format!("  - PDF: {}\n", pdf_output_path.display()));
+    }
+
+    if let Some(azw3_output_path) = &result.azw3_output_path {
+        output.push_str(&format!("  - AZW3: {}\n", azw3_output_path.display()));
     }
 
     if let Some(summary_path) = &result.summary_path {
@@ -447,7 +463,7 @@ mod tests {
             None,
             PublishEnabled::new(false),
             WordStatsEnabled::new(false),
-            true,
+            PublicationOptions::default(),
         );
         assert!(result.is_err());
     }

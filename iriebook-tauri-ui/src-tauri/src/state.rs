@@ -1,3 +1,4 @@
+use iriebook::utilities::types::PublicationOptions;
 #[cfg(feature = "e2e-mocks")]
 use iriebook_ui_common::app_state::AppStateBuilder;
 use iriebook_ui_common::AppState;
@@ -27,15 +28,21 @@ impl Default for GoogleAuthState {
 
 /// State management for AppState (holds all managers)
 /// Using RwLock<Option<Arc<AppState>>> to allow initialization after folder selection
-pub struct AppStateHolder(Arc<RwLock<Option<Arc<AppState>>>>);
+pub struct AppStateHolder {
+    app_state: Arc<RwLock<Option<Arc<AppState>>>>,
+    publication_options: Arc<RwLock<PublicationOptions>>,
+}
 
 impl AppStateHolder {
     pub fn new() -> Self {
-        Self(Arc::new(RwLock::new(None)))
+        Self {
+            app_state: Arc::new(RwLock::new(None)),
+            publication_options: Arc::new(RwLock::new(PublicationOptions::default())),
+        }
     }
 
     pub fn initialize(&self, workspace_path: PathBuf) {
-        let mut state = self.0.write().unwrap();
+        let mut state = self.app_state.write().unwrap();
         *state = Some(Arc::new(AppState::new(workspace_path)));
     }
 
@@ -49,16 +56,24 @@ impl AppStateHolder {
             .with_pandoc_access(Arc::new(MockPandocAccess::new()))
             .with_calibre_access(Arc::new(MockCalibreAccess::new()))
             .with_archive_access(Arc::new(MockArchiveAccess::new()))
-            .with_defaults_for_remaining()  // This will use real GitClient
+            .with_defaults_for_remaining() // This will use real GitClient
             .build();
 
-        let mut state = self.0.write().unwrap();
+        let mut state = self.app_state.write().unwrap();
         *state = Some(Arc::new(app_state));
     }
 
     pub fn get(&self) -> Option<Arc<AppState>> {
         // Clone the Arc (cheap) - derefs Option<Arc<T>> and clones the Arc
-        self.0.read().unwrap().as_ref().map(Arc::clone)
+        self.app_state.read().unwrap().as_ref().map(Arc::clone)
+    }
+
+    pub fn publication_options(&self) -> PublicationOptions {
+        *self.publication_options.read().unwrap()
+    }
+
+    pub fn set_publication_options(&self, options: PublicationOptions) {
+        *self.publication_options.write().unwrap() = options.normalized();
     }
 }
 

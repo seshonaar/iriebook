@@ -114,6 +114,19 @@ export function BookList() {
             workspaceRoot={state.selectedFolder}
             onBookAdded={handleBookAdded}
           />
+          {/* Select All (only in multi-select mode) */}
+          {!isCurrentBookMode && (
+            <div className="flex items-center gap-2 border-l border-border pl-3">
+              <Checkbox
+                id="select-all"
+                checked={allSelected}
+                onCheckedChange={handleToggleAll}
+              />
+              <Label htmlFor="select-all" className="cursor-pointer text-sm">
+                {t('books.list.selectAll')}
+              </Label>
+            </div>
+          )}
           {/* Mode Toggle */}
           <div className="flex items-center gap-2 border-l border-border pl-3">
             <Switch
@@ -128,19 +141,6 @@ export function BookList() {
                 : t('books.list.multiSelectMode')}
             </Label>
           </div>
-          {/* Select All (only in multi-select mode) */}
-          {!isCurrentBookMode && (
-            <div className="flex items-center gap-2 border-l border-border pl-3">
-              <Checkbox
-                id="select-all"
-                checked={allSelected}
-                onCheckedChange={handleToggleAll}
-              />
-              <Label htmlFor="select-all" className="cursor-pointer text-sm">
-                {t('books.list.selectAll')}
-              </Label>
-            </div>
-          )}
           <Button
             variant="ghost"
             size="icon"

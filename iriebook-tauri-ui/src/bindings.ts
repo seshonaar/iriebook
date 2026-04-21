@@ -21,6 +21,14 @@ async saveSession(session: SessionData) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async setPublicationOptions(publicationOptions: PublicationOptions) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_publication_options", { publicationOptions }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async initMockState(workspacePath: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("init_mock_state", { workspacePath }) };
@@ -48,6 +56,14 @@ async selectFile(title: string, filters: ([string, string[]])[]) : Promise<Resul
 async openFolder(path: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("open_folder", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async openFile(path: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("open_file", { path }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -117,17 +133,17 @@ async replaceCoverImage(bookPath: string, newCoverPath: string) : Promise<Result
     else return { status: "error", error: e  as any };
 }
 },
-async viewBook(bookPath: string) : Promise<Result<null, string>> {
+async getBookOutputs(bookPath: string) : Promise<Result<BookOutputLink[], string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("view_book", { bookPath }) };
+    return { status: "ok", data: await TAURI_INVOKE("get_book_outputs", { bookPath }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
 },
-async startProcessing(books: BookInfo[], publishEnabled: boolean, wordStatsEnabled: boolean, embedCover: boolean) : Promise<Result<null, string>> {
+async startProcessing(books: BookInfo[], publishEnabled: boolean, wordStatsEnabled: boolean) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("start_processing", { books, publishEnabled, wordStatsEnabled, embedCover }) };
+    return { status: "ok", data: await TAURI_INVOKE("start_processing", { books, publishEnabled, wordStatsEnabled }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -450,6 +466,8 @@ export type BookListChangedEvent = Record<string, never>
  * Book metadata from YAML frontmatter
  */
 export type BookMetadata = { title?: string; author?: string; "belongs-to-collection"?: string | null; "group-position"?: number | null; language?: string | null; rights?: string | null; "cover-image"?: string | null; "replace-pairs"?: ReplacePair[] | null; identifier?: Identifier[] | null }
+export type BookOutputFormat = "epub" | "pdf" | "azw3"
+export type BookOutputLink = { format: BookOutputFormat; path: string }
 /**
  * NewType wrapper for book file path
  */
@@ -648,6 +666,10 @@ export type ProcessingEvent =
  */
 export type ProcessingUpdateEvent = ProcessingEvent
 /**
+ * Publication output options shared across UI and core processing flows.
+ */
+export type PublicationOptions = { embed_cover: boolean; epub: boolean; pdf: boolean; azw3: boolean }
+/**
  * A single word replacement pair (case-sensitive, whole-word)
  */
 export type ReplacePair = { source: string; target: string }
@@ -695,7 +717,11 @@ selected_book_paths: BookPath[];
  * Whether "Current Book" mode is enabled (actions apply to viewed book only)
  * Defaults to true for backward compatibility with existing session files
  */
-current_book_mode?: boolean }
+current_book_mode?: boolean; 
+/**
+ * Persisted publication preferences.
+ */
+publication_options?: PublicationOptions }
 /**
  * Update progress status
  */

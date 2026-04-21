@@ -5,6 +5,7 @@ import {
   setLoading,
   setSession,
   setCurrentBookMode,
+  setPublicationOptions,
   setBooks,
   setViewedBook,
   setError,
@@ -46,6 +47,12 @@ export function useSession() {
 
           // Restore current book mode preference
           dispatch(setCurrentBookMode(session.current_book_mode as boolean));
+          dispatch(setPublicationOptions(session.publication_options ?? {
+            embed_cover: true,
+            epub: true,
+            pdf: true,
+            azw3: true,
+          }));
 
           // If we have a folder, scan for books
           if (session.folder_path) {
@@ -107,6 +114,7 @@ export function useSession() {
         .filter((book) => book.selected)
         .map((book) => book.path) as BookPath[],
       current_book_mode: state.currentBookMode,
+      publication_options: state.publicationOptions,
     };
 
     // Debounce save to avoid too many writes
@@ -126,5 +134,6 @@ export function useSession() {
     state.selectedFolder,
     state.books,
     state.currentBookMode,
+    state.publicationOptions,
   ]);
 }

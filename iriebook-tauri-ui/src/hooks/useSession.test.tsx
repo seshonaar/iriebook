@@ -92,6 +92,12 @@ describe("useSession", () => {
       folder_path: "/test/folder" as any,
       selected_book_paths: ["/test/folder/book1" as any],
       current_book_mode: false,
+      publication_options: {
+        embed_cover: true,
+        epub: true,
+        pdf: true,
+        azw3: true,
+      },
     };
 
     const mockBooks: BookInfo[] = [
@@ -138,6 +144,12 @@ describe("useSession", () => {
       folder_path: "/test/folder" as any,
       selected_book_paths: ["/test/folder/book1" as any],
       current_book_mode: true,
+      publication_options: {
+        embed_cover: true,
+        epub: true,
+        pdf: true,
+        azw3: true,
+      },
     };
 
     const mockBooks: BookInfo[] = [

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useReducer, ReactNode } from "react";
 import type {
   SessionData,
   BookInfo,
+  PublicationOptions,
   GitSyncStatus,
   GitCommit,
   DeviceFlowInfo,
@@ -43,6 +44,7 @@ export interface AppState {
 
   // Current Book Mode (default ON) - when enabled, actions apply to viewed book only
   currentBookMode: boolean;
+  publicationOptions: PublicationOptions;
 
   // Processing state (Phase 2)
   isProcessing: boolean;
@@ -81,6 +83,12 @@ export const initialState: AppState = {
   books: [],
   selectedFolder: null,
   currentBookMode: true, // Default ON - actions apply to currently viewed book
+  publicationOptions: {
+    embed_cover: true,
+    epub: true,
+    pdf: true,
+    azw3: true,
+  },
   isProcessing: false,
   processingMode: null,
   processingProgress: null,
@@ -138,6 +146,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     case "SET_CURRENT_BOOK_MODE":
       return { ...state, currentBookMode: action.payload };
+
+    case "SET_PUBLICATION_OPTIONS":
+      return { ...state, publicationOptions: action.payload };
 
     case "SET_LOADING":
       return { ...state, loading: action.payload };

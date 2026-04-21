@@ -117,6 +117,40 @@ pub struct BookRevisionInfo {
     pub commit_date: String, // YYYY-MM-DD
 }
 
+/// Publication output options shared across UI and core processing flows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
+pub struct PublicationOptions {
+    pub embed_cover: bool,
+    pub epub: bool,
+    pub pdf: bool,
+    pub azw3: bool,
+}
+
+impl Default for PublicationOptions {
+    fn default() -> Self {
+        Self {
+            embed_cover: true,
+            epub: true,
+            pdf: true,
+            azw3: true,
+        }
+    }
+}
+
+impl PublicationOptions {
+    pub fn normalized(self) -> Self {
+        Self {
+            epub: self.epub || self.azw3,
+            ..self
+        }
+    }
+
+    pub fn generates_ebook_files(self) -> bool {
+        let normalized = self.normalized();
+        normalized.epub || normalized.pdf || normalized.azw3
+    }
+}
+
 /// A single word replacement pair (case-sensitive, whole-word)
 #[derive(Debug, Clone, PartialEq, Default, serde::Deserialize, serde::Serialize, Type)]
 pub struct ReplacePair {
@@ -410,13 +444,11 @@ mod tests {
         assert_eq!(metadata.language, Some("ro-RO".to_string()));
         assert_eq!(metadata.cover_image, Some("cover.jpg".to_string()));
         assert!(metadata.rights.is_some());
-        assert!(
-            metadata
-                .rights
-                .as_ref()
-                .unwrap()
-                .contains("All Rights Reserved")
-        );
+        assert!(metadata
+            .rights
+            .as_ref()
+            .unwrap()
+            .contains("All Rights Reserved"));
     }
 
     #[test]
@@ -521,13 +553,11 @@ mod tests {
         assert_eq!(with_defaults.language, Some("ro-RO".to_string()));
         assert_eq!(with_defaults.cover_image, Some("cover.jpg".to_string()));
         assert!(with_defaults.rights.is_some());
-        assert!(
-            with_defaults
-                .rights
-                .as_ref()
-                .unwrap()
-                .contains("All Rights Reserved")
-        );
+        assert!(with_defaults
+            .rights
+            .as_ref()
+            .unwrap()
+            .contains("All Rights Reserved"));
     }
 
     #[test]
@@ -578,5 +608,28 @@ mod tests {
 
         let id_empty = Identifier::default();
         assert_eq!(id_empty.display_text(), None);
+    }
+
+    #[test]
+    fn publication_options_default_preserves_generate_everything_behavior() {
+        let options = PublicationOptions::default();
+        assert!(options.embed_cover);
+        assert!(options.epub);
+        assert!(options.pdf);
+        assert!(options.azw3);
+    }
+
+    #[test]
+    fn publication_options_normalized_enables_epub_for_azw3() {
+        let options = PublicationOptions {
+            embed_cover: true,
+            epub: false,
+            pdf: false,
+            azw3: true,
+        }
+        .normalized();
+
+        assert!(options.epub);
+        assert!(options.azw3);
     }
 }

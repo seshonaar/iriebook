@@ -70,10 +70,12 @@ pub fn run() {
             // Infrastructure: session, dialogs, utilities
             infrastructure::load_session,
             infrastructure::save_session,
+            infrastructure::set_publication_options,
             infrastructure::init_mock_state,
             infrastructure::select_folder,
             infrastructure::select_file,
             infrastructure::open_folder,
+            infrastructure::open_file,
             infrastructure::open_browser,
             // Books: scanning, covers, metadata, processing, CRUD
             books::scan_books,
@@ -83,7 +85,7 @@ pub fn run() {
             books::get_autocomplete_authors,
             books::get_autocomplete_series,
             books::replace_cover_image,
-            books::view_book,
+            books::get_book_outputs,
             books::start_processing,
             books::add_book,
             books::check_duplicate,

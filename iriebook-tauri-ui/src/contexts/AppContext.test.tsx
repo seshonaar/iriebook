@@ -52,6 +52,7 @@ describe("appReducer", () => {
         folder_path: "/test/folder" as any,
         selected_book_paths: [],
         current_book_mode: true,
+        publication_options: initialState.publicationOptions,
       };
 
       const newState = appReducer(initialState, setSession(session));
@@ -63,7 +64,12 @@ describe("appReducer", () => {
     it("should clear selectedFolder when session is null", () => {
       const stateWithSession: AppState = {
         ...initialState,
-        session: { folder_path: "/old/folder" as any, selected_book_paths: [] },
+        session: {
+          folder_path: "/old/folder" as any,
+          selected_book_paths: [],
+          current_book_mode: true,
+          publication_options: initialState.publicationOptions,
+        },
         selectedFolder: "/old/folder",
       };
 

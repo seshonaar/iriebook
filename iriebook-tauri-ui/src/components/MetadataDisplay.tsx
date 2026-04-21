@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { commands, type BookMetadata, type ChangeBookResult } from "../bindings";
+import { commands, type BookMetadata, type BookOutputLink, type ChangeBookResult } from "../bindings";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -34,54 +34,47 @@ export function MetadataDisplay({
   onBookChanged,
 }: MetadataDisplayProps) {
   const { t } = useTranslation();
-  const { dispatch } = useAppContext();
+  const { state, dispatch } = useAppContext();
   const [isChanging, setIsChanging] = useState(false);
-  const [isViewing, setIsViewing] = useState(false);
+  const [outputLinks, setOutputLinks] = useState<BookOutputLink[]>([]);
 
-  const handleViewBook = async () => {
-    try {
-      setIsViewing(true);
+  useEffect(() => {
+    let cancelled = false;
 
-      // Show loading toast
-      const loadingToast = toast.loading(t('toasts.info.launchingViewer'));
-
+    const loadOutputs = async () => {
       try {
-        // Call view_book command
-        const result = await commands.viewBook(bookPath);
-
-        if (result.status === "error") {
-          throw new Error(result.error);
+        const result = await commands.getBookOutputs(bookPath);
+        if (!cancelled) {
+          if (result.status === "ok") {
+            setOutputLinks(result.data);
+          } else {
+            setOutputLinks([]);
+          }
         }
+      } catch (error) {
+        if (!cancelled) {
+          setOutputLinks([]);
+        }
+      }
+    };
 
-        // Dismiss loading toast
-        toast.dismiss(loadingToast);
+    loadOutputs();
 
-        // Success toast
-        toast.success(t('toasts.success.viewerLaunched'));
-      } catch (err) {
-        toast.dismiss(loadingToast);
-        throw err;
+    return () => {
+      cancelled = true;
+    };
+  }, [bookPath, state.isProcessing]);
+
+  const handleOpenOutput = async (path: string) => {
+    try {
+      const result = await commands.openFile(path);
+      if (result.status === "error") {
+        throw new Error(result.error);
       }
     } catch (error) {
-      console.error("Failed to view book:", error);
-
-      // Check for specific error types
-      const errorMsg = String(error);
-      if (errorMsg.includes("metadata.yaml")) {
-        toast.error(t('errors.operations.viewBook'), {
-          description: "metadata.yaml not found. Please add book metadata first.",
-        });
-      } else if (errorMsg.includes("ebook-viewer")) {
-        toast.error(t('errors.operations.viewBook'), {
-          description: "ebook-viewer not found. Please install Calibre.",
-        });
-      } else {
-        toast.error(t('errors.operations.viewBook'), {
-          description: errorMsg,
-        });
-      }
-    } finally {
-      setIsViewing(false);
+      toast.error(t('errors.operations.viewBook'), {
+        description: String(error),
+      });
     }
   };
 
@@ -173,14 +166,22 @@ export function MetadataDisplay({
           <FolderOpen className="h-4 w-4 mr-1" />
           {t('common.actions.openFolder')}
         </Button>
-        <Button
-          onClick={handleViewBook}
-          variant="outline"
-          size="sm"
-          disabled={isViewing}
-        >
-          {isViewing ? t('common.status.processing') : t('books.viewer.viewBook')}
-        </Button>
+        {outputLinks.length > 0 && (
+          <div className="flex items-center gap-2 text-base">
+            <span className="text-sm text-muted-foreground">{t('books.viewer.viewBook')}:</span>
+            {outputLinks.map((output) => (
+              <Button
+                key={output.path}
+                type="button"
+                variant="link"
+                className="h-auto px-0 text-base lowercase"
+                onClick={() => handleOpenOutput(output.path)}
+              >
+                {output.format}
+              </Button>
+            ))}
+          </div>
+        )}
         <Button onClick={onEdit} variant="outline" size="sm">
           {t('books.viewer.editMetadata')}
         </Button>

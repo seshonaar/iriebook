@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { commands } from "../bindings";
 import { BookUp, Upload, RefreshCw } from "lucide-react";
@@ -13,6 +12,7 @@ import {
   setProcessing,
   setProcessingMode,
   clearLog,
+  setPublicationOptions,
 } from "../contexts/actions";
 import { SyncSelectedButton } from "./SyncSelectedButton";
 import { useActionTarget } from "../hooks/useActionTarget";
@@ -20,7 +20,6 @@ import { useGitOperations } from "../hooks/useGitOperations";
 
 export function ProcessingPanel() {
   const { t } = useTranslation();
-  const [embedCover, setEmbedCover] = useState(true);
   const { state, dispatch } = useAppContext();
   const { targetBooks } = useActionTarget();
   const {
@@ -35,7 +34,25 @@ export function ProcessingPanel() {
     closeCommitDialog,
   } = useGitOperations();
 
-  const canProcess = targetBooks.length > 0 && !state.isProcessing;
+  const canProcess =
+    targetBooks.length > 0 &&
+    !state.isProcessing &&
+    (state.publicationOptions.epub ||
+      state.publicationOptions.pdf ||
+      state.publicationOptions.azw3);
+
+  const updatePublicationOptions = (
+    next: Partial<typeof state.publicationOptions>
+  ) => {
+    const merged = { ...state.publicationOptions, ...next };
+    if (merged.azw3) {
+      merged.epub = true;
+    }
+    dispatch(setPublicationOptions(merged));
+    commands.setPublicationOptions(merged).catch((error) => {
+      console.error("Failed to sync publication options to backend:", error);
+    });
+  };
 
   const handleBookUpdated = async () => {
     if (state.selectedFolder) {
@@ -64,8 +81,7 @@ export function ProcessingPanel() {
       const result = await commands.startProcessing(
         targetBooks,
         publish,
-        stats,
-        embedCover
+        stats
       );
       if (result.status === "error") {
         throw new Error(result.error);
@@ -120,14 +136,50 @@ export function ProcessingPanel() {
             : t('processing.panel.button.publish')}</span>
         </Button>
 
-        <div className="flex min-w-max items-center gap-3 rounded-md border border-foreground/30 bg-background px-3 py-2 shadow-sm dark:border-white/35">
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Button
+          type="button"
+          size="default"
+          variant={state.publicationOptions.epub ? "default" : "outline"}
+          disabled={state.isProcessing || state.publicationOptions.azw3}
+          className="min-w-[92px]"
+          onClick={() => updatePublicationOptions({ epub: !state.publicationOptions.epub })}
+        >
+          EPUB
+        </Button>
+        <Button
+          type="button"
+          size="default"
+          variant={state.publicationOptions.pdf ? "default" : "outline"}
+          disabled={state.isProcessing}
+          className="min-w-[92px]"
+          onClick={() => updatePublicationOptions({ pdf: !state.publicationOptions.pdf })}
+        >
+          PDF
+        </Button>
+        <Button
+          type="button"
+          size="default"
+          variant={state.publicationOptions.azw3 ? "default" : "outline"}
+          disabled={state.isProcessing}
+          className="min-w-[92px]"
+          onClick={() => updatePublicationOptions({ azw3: !state.publicationOptions.azw3 })}
+        >
+          AZW3
+        </Button>
+
+        <div className="flex h-9 min-w-max items-center gap-3 rounded-md border border-input bg-background px-4 shadow-sm">
           <Switch
             id="embed-cover"
-            checked={embedCover}
-            onCheckedChange={setEmbedCover}
+            checked={state.publicationOptions.embed_cover}
+            onCheckedChange={(checked) =>
+              updatePublicationOptions({ embed_cover: checked })
+            }
             disabled={state.isProcessing}
           />
-          <Label htmlFor="embed-cover" className="cursor-pointer">
+          <Label htmlFor="embed-cover" className="cursor-pointer whitespace-nowrap">
             {t('processing.panel.options.embedCover')}
           </Label>
         </div>

@@ -4,10 +4,10 @@ use crate::state::AppStateHolder;
 use iriebook_ui_common::ui_state::{BookInfo, PublishEnabled, WordStatsEnabled};
 use iriebook_ui_common::{
     AddBookResult, AnalysisResponse, BatchProcessor, BookListChangedEvent, BookMetadata,
-    ChangeBookResult, CoverReloadEvent, CoverStatus, ProcessingUpdateEvent, add_book_with_rescan,
-    book_scanner, change_book_with_rescan, check_for_duplicate, collect_distinct_authors,
-    collect_distinct_series, delete_book_with_rescan, get_or_compute_analysis, load_metadata,
-    save_metadata,
+    BookOutputLink, ChangeBookResult, CoverReloadEvent, CoverStatus, ProcessingUpdateEvent,
+    add_book_with_rescan, book_scanner, change_book_with_rescan, check_for_duplicate,
+    collect_distinct_authors, collect_distinct_series, delete_book_with_rescan,
+    get_available_book_outputs, get_or_compute_analysis, load_metadata, save_metadata,
 };
 use std::path::PathBuf;
 use tauri::State;
@@ -111,18 +111,9 @@ pub fn replace_cover_image(
 
 #[tauri::command]
 #[specta::specta]
-pub fn view_book(book_path: String, app_state_holder: State<AppStateHolder>) -> Result<(), String> {
+pub fn get_book_outputs(book_path: String) -> Result<Vec<BookOutputLink>, String> {
     let path = PathBuf::from(book_path);
-    let app_state = app_state_holder
-        .get()
-        .ok_or_else(|| "App state not initialized".to_string())?;
-
-    iriebook_ui_common::view_book(
-        &path,
-        &app_state.ebook_publication_manager(),
-        &app_state.calibre_access(),
-    )
-    .map_err(|e| e.to_string())
+    get_available_book_outputs(&path).map_err(|e| e.to_string())
 }
 
 // ============= PROCESSING =============
@@ -135,7 +126,6 @@ pub async fn start_processing(
     books: Vec<BookInfo>,
     publish_enabled: bool,
     word_stats_enabled: bool,
-    embed_cover: bool,
 ) -> Result<(), String> {
     let app_state = app_state_holder
         .get()
@@ -147,7 +137,7 @@ pub async fn start_processing(
         Some(app_state.workspace_path().to_path_buf()),
         PublishEnabled::new(publish_enabled),
         WordStatsEnabled::new(word_stats_enabled),
-        embed_cover,
+        app_state_holder.publication_options(),
         move |event| {
             let _ = ProcessingUpdateEvent(event).emit(&app);
         },

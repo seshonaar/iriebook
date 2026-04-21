@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use tracing::{debug, warn};
 
 use crate::ui_state::{BookPath, FolderPath};
+use iriebook::utilities::types::PublicationOptions;
 
 /// Session data to persist between application runs
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -26,10 +27,18 @@ pub struct SessionData {
     /// Defaults to true for backward compatibility with existing session files
     #[serde(default = "default_current_book_mode")]
     pub current_book_mode: bool,
+
+    /// Persisted publication preferences.
+    #[serde(default = "default_publication_options")]
+    pub publication_options: PublicationOptions,
 }
 
 fn default_current_book_mode() -> bool {
     true
+}
+
+fn default_publication_options() -> PublicationOptions {
+    PublicationOptions::default()
 }
 
 impl SessionData {
@@ -37,11 +46,13 @@ impl SessionData {
         folder_path: FolderPath,
         selected_book_paths: Vec<BookPath>,
         current_book_mode: bool,
+        publication_options: PublicationOptions,
     ) -> Self {
         Self {
             folder_path,
             selected_book_paths,
             current_book_mode,
+            publication_options,
         }
     }
 
@@ -63,6 +74,7 @@ impl SessionData {
                     folder_path: self.folder_path,
                     selected_book_paths: valid_books,
                     current_book_mode: self.current_book_mode,
+                    publication_options: self.publication_options,
                 })
             }
         }
@@ -173,7 +185,12 @@ mod tests {
         let folder = FolderPath::from("/path/to/books".to_string());
         let books = vec![BookPath::from(PathBuf::from("/path/to/book1.md"))];
 
-        let session = SessionData::new(folder.clone(), books.clone(), true);
+        let session = SessionData::new(
+            folder.clone(),
+            books.clone(),
+            true,
+            PublicationOptions::default(),
+        );
 
         assert_eq!(session.folder_path, folder);
         assert_eq!(session.selected_book_paths, books);
@@ -185,7 +202,12 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let nonexistent = temp_dir.path().join("nonexistent");
 
-        let session = SessionData::new(FolderPath::from(nonexistent), vec![], true);
+        let session = SessionData::new(
+            FolderPath::from(nonexistent),
+            vec![],
+            true,
+            PublicationOptions::default(),
+        );
 
         let validated = session.validate();
         assert!(validated.is_none());
@@ -208,6 +230,7 @@ mod tests {
                 BookPath::from(book2), // This one missing
             ],
             true,
+            PublicationOptions::default(),
         );
 
         let validated = session.validate().expect("Should validate");
@@ -227,6 +250,7 @@ mod tests {
             FolderPath::from(temp_dir.path().to_path_buf()),
             vec![BookPath::from(book_file)],
             true,
+            PublicationOptions::default(),
         );
 
         // Save
@@ -265,6 +289,7 @@ mod tests {
             FolderPath::from(temp_dir.path().to_path_buf()),
             vec![BookPath::from(book_file)],
             true,
+            PublicationOptions::default(),
         );
 
         let json = serde_json::to_string(&original).unwrap();

@@ -232,6 +232,7 @@ pub async fn google_sync_doc(
     iriebook_ui_common::sync_document(
         &path,
         Some(app_state.workspace_path()),
+        app_state_holder.publication_options(),
         &app_state.google_authenticator(),
         &app_state.google_docs_manager(),
         &iriebook_ui_common::processing::DefaultBookProcessor,
@@ -267,6 +268,7 @@ pub async fn google_sync_selected(
 
     BatchGoogleDocsSyncProcessor::new(app_state.workspace_path().to_path_buf()).sync_books(
         books,
+        app_state_holder.publication_options(),
         app_state.google_authenticator(),
         app_state.google_docs_manager(),
         Arc::new(DefaultBookProcessor),

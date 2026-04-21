@@ -2,6 +2,7 @@ use crate::{
     processing::{ProcessingEvent, process_single_book},
     ui_state::{BookInfo, PublishEnabled, WordStatsEnabled},
 };
+use iriebook::utilities::types::PublicationOptions;
 
 /// Batch processor for processing multiple books sequentially
 ///
@@ -26,7 +27,7 @@ impl BatchProcessor {
     /// * `config_root` - Library root containing editable config.json settings
     /// * `publish` - Whether to enable publishing (generate ebook files)
     /// * `word_stats` - Whether to enable word statistics analysis
-    /// * `embed_cover` - Whether to embed cover.jpg in generated ebook files
+    /// * `publication_options` - Output format and cover embedding choices
     /// * `progress_callback` - Callback for progress events
     ///
     /// # Returns
@@ -36,7 +37,7 @@ impl BatchProcessor {
         config_root: Option<std::path::PathBuf>,
         publish: PublishEnabled,
         word_stats: WordStatsEnabled,
-        embed_cover: bool,
+        publication_options: PublicationOptions,
         progress_callback: F,
     ) -> Result<(), String>
     where
@@ -63,7 +64,7 @@ impl BatchProcessor {
                         config_root_clone.as_deref(),
                         publish_clone,
                         word_stats_clone,
-                        embed_cover,
+                        publication_options,
                     )
                 })
                 .await;
@@ -149,7 +150,7 @@ mod tests {
             None,
             PublishEnabled::new(false),
             WordStatsEnabled::new(false),
-            true,
+            PublicationOptions::default(),
             move |event| {
                 let mut ev = events_clone.lock().unwrap();
                 match &event {
@@ -200,7 +201,7 @@ mod tests {
             None,
             PublishEnabled::new(false),
             WordStatsEnabled::new(false),
-            true,
+            PublicationOptions::default(),
             move |event| match event {
                 ProcessingEvent::Completed { success, .. } => {
                     if success {
@@ -240,7 +241,7 @@ mod tests {
             None,
             PublishEnabled::new(false),
             WordStatsEnabled::new(false),
-            true,
+            PublicationOptions::default(),
             move |event| {
                 if matches!(event, ProcessingEvent::Completed { .. }) {
                     *completed_clone.lock().unwrap() += 1;

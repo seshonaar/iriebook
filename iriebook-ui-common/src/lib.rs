@@ -32,7 +32,7 @@ pub use batch_processing::BatchProcessor;
 pub use diff_commands::{get_book_processing_diff, get_local_diffs, get_revision_diffs, RevisionDiff};
 pub use actions::{AppAction, LogEntryPayload, LogEntryType, ProcessingProgress};
 pub use book_scanner::scan_for_books;
-pub use book_viewing::view_book;
+pub use book_viewing::{BookOutputFormat, BookOutputLink, get_available_book_outputs};
 pub use collection_management::{
     add_book_with_rescan, change_book_with_rescan, check_for_duplicate, delete_book_with_rescan,
     AddBookResult, ChangeBookResult,

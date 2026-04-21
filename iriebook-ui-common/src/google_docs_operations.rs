@@ -10,6 +10,7 @@ use crate::processing::BookProcessor;
 use crate::ui_state::{PublishEnabled, WordStatsEnabled};
 use iriebook::managers::google_docs_sync::GoogleDocsSyncManager;
 use iriebook::resource_access::traits::{DocumentSyncer, SyncResult, TokenProvider};
+use iriebook::utilities::types::PublicationOptions;
 use std::path::Path;
 
 /// Link a book to a Google Doc
@@ -110,6 +111,7 @@ pub fn link_document(
 pub async fn sync_document<F, T, S, P>(
     book_path: &Path,
     config_root: Option<&Path>,
+    publication_options: PublicationOptions,
     token_provider: &T,
     document_syncer: &S,
     book_processor: &P,
@@ -156,6 +158,7 @@ where
                 config_root,
                 PublishEnabled::new(true),
                 WordStatsEnabled::new(false),
+                publication_options,
             );
 
             match processing_result {
@@ -340,6 +343,7 @@ mod tests {
             _config_root: Option<&Path>,
             _publish: PublishEnabled,
             _word_stats: WordStatsEnabled,
+            _publication_options: PublicationOptions,
         ) -> ProcessingResult {
             self.process_called.store(true, Ordering::SeqCst);
             if self.should_fail {
@@ -366,6 +370,7 @@ mod tests {
         let result = sync_document(
             Path::new("/test/book.md"),
             None,
+            PublicationOptions::default(),
             &token_provider,
             &syncer,
             &processor,
@@ -398,6 +403,7 @@ mod tests {
         let result = sync_document(
             Path::new("/test/book.md"),
             None,
+            PublicationOptions::default(),
             &token_provider,
             &syncer,
             &processor,
@@ -426,6 +432,7 @@ mod tests {
         let result = sync_document(
             Path::new("/test/book.md"),
             None,
+            PublicationOptions::default(),
             &token_provider,
             &syncer,
             &processor,
@@ -454,6 +461,7 @@ mod tests {
         let result = sync_document(
             Path::new("/test/book.md"),
             None,
+            PublicationOptions::default(),
             &token_provider,
             &syncer,
             &processor,
@@ -484,6 +492,7 @@ mod tests {
         let result = sync_document(
             Path::new("/test/book.md"),
             None,
+            PublicationOptions::default(),
             &token_provider,
             &syncer,
             &processor,
@@ -522,6 +531,7 @@ mod tests {
         let _ = sync_document(
             Path::new("/test/book.md"),
             None,
+            PublicationOptions::default(),
             &token_provider,
             &syncer,
             &processor,

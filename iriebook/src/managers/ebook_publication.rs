@@ -21,7 +21,7 @@ use crate::engines::traits::{
 };
 use crate::resource_access::traits::{ArchiveAccess, CalibreAccess, GitAccess, PandocAccess};
 use crate::resource_access::{config, file};
-use crate::utilities::types::{BookMetadata, BookRevisionInfo, ReplacePair};
+use crate::utilities::types::{BookMetadata, BookRevisionInfo, PublicationOptions, ReplacePair};
 
 /// Result of the complete ebook publication process
 /// Contains all data produced by the pipeline for the Client to display
@@ -51,8 +51,12 @@ pub struct PublicationResult {
     pub word_analysis: Option<WordAnalysisResult>,
     /// Output file path (if written)
     pub output_path: Option<PathBuf>,
+    /// EPUB output file path (if generated)
+    pub epub_output_path: Option<PathBuf>,
     /// PDF output file path (if generated)
     pub pdf_output_path: Option<PathBuf>,
+    /// AZW3 output file path (if generated)
+    pub azw3_output_path: Option<PathBuf>,
     /// Summary file path (if written)
     pub summary_path: Option<PathBuf>,
     /// Command outputs from external tools (pandoc, calibre, archive)
@@ -90,7 +94,7 @@ pub struct PublishArgs<'a> {
     pub output_path: Option<&'a Path>,
     pub enable_word_stats: bool,
     pub enable_publishing: bool,
-    pub embed_cover: bool,
+    pub publication_options: PublicationOptions,
     pub config_root: Option<&'a Path>,
     pub replace_pairs: Option<&'a [ReplacePair]>,
 }
@@ -102,7 +106,7 @@ impl<'a> Default for PublishArgs<'a> {
             output_path: None,
             enable_word_stats: false,
             enable_publishing: false,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: None,
         }
@@ -171,7 +175,7 @@ impl EbookPublicationManager {
         let output_path = args.output_path;
         let enable_word_stats = args.enable_word_stats;
         let enable_publishing = args.enable_publishing;
-        let embed_cover = args.embed_cover;
+        let publication_options = args.publication_options.normalized();
         let config_root = args.config_root;
         let replace_pairs = args.replace_pairs;
 
@@ -243,81 +247,94 @@ impl EbookPublicationManager {
         };
 
         // Stage 3: Output Generation
-        let (output_path_result, pdf_output_path_result, summary_path_result) =
-            if !enable_publishing {
-                // Publishing disabled: don't write files
-                (None, None, None)
+        let (
+            output_path_result,
+            epub_output_path_result,
+            pdf_output_path_result,
+            azw3_output_path_result,
+            summary_path_result,
+        ) = if !enable_publishing {
+            // Publishing disabled: don't write files
+            (None, None, None, None, None)
+        } else {
+            // Publishing enabled: write files and generate ebooks
+            let final_output_path = match output_path {
+                Some(path) => path.to_path_buf(),
+                None => file::generate_output_path(input_path)?,
+            };
+
+            // Get book folder for copyright.txt lookup
+            let book_folder = input_path.parent().unwrap_or(Path::new("."));
+
+            // Load metadata for copyright page generation (pass input_path, not folder - load_metadata calls .parent() internally)
+            let metadata = file::load_metadata(input_path)?.unwrap_or_default();
+
+            // Generate copyright page if copyright.txt exists
+            let revision_info = self.get_book_revision_info(book_folder);
+            let copyright_page = self.markdown_transformer.generate_copyright_page(
+                book_folder,
+                &metadata,
+                revision_info.as_ref(),
+            )?;
+
+            // Prepend copyright page to content if it exists
+            let has_copyright_page = copyright_page.is_some();
+            let content_with_copyright = if let Some(ref copyright) = copyright_page {
+                format!("{}\n\n{}", copyright, replacement_result.content)
             } else {
-                // Publishing enabled: write files and generate ebooks
-                let final_output_path = match output_path {
-                    Some(path) => path.to_path_buf(),
-                    None => file::generate_output_path(input_path)?,
-                };
+                replacement_result.content.clone()
+            };
 
-                // Get book folder for copyright.txt lookup
-                let book_folder = input_path.parent().unwrap_or(Path::new("."));
+            // Transform markdown structure
+            let formatted_text = self
+                .markdown_transformer
+                .transform(&content_with_copyright)?;
 
-                // Load metadata for copyright page generation (pass input_path, not folder - load_metadata calls .parent() internally)
-                let metadata = file::load_metadata(input_path)?.unwrap_or_default();
+            // Write the fixed content
+            file::write_file(&final_output_path, &formatted_text)?;
 
-                // Generate copyright page if copyright.txt exists
-                let revision_info = self.get_book_revision_info(book_folder);
-                let copyright_page = self.markdown_transformer.generate_copyright_page(
-                    book_folder,
-                    &metadata,
-                    revision_info.as_ref(),
-                )?;
+            // Write summary (we'll generate it in the Client now, so just mark the path)
+            let summary_path = match output_path {
+                Some(path) => {
+                    let mut path = path.to_path_buf();
+                    path.set_extension("summary.txt");
+                    path
+                }
+                None => file::generate_summary_output_path(input_path)?,
+            };
 
-                // Prepend copyright page to content if it exists
-                let has_copyright_page = copyright_page.is_some();
-                let content_with_copyright = if let Some(ref copyright) = copyright_page {
-                    format!("{}\n\n{}", copyright, replacement_result.content)
-                } else {
-                    replacement_result.content.clone()
-                };
+            // Track the final artifact path to return (defaults to markdown, updates to epub if generated)
+            let mut result_path = final_output_path.clone();
 
-                // Transform markdown structure
-                let formatted_text = self
-                    .markdown_transformer
-                    .transform(&content_with_copyright)?;
+            let mut epub_output_path = None;
+            let mut pdf_output_path = None;
+            let mut azw3_output_path = None;
 
-                // Write the fixed content
-                file::write_file(&final_output_path, &formatted_text)?;
+            // Generate ebook artifacts if metadata exists
+            match (
+                publication_options.generates_ebook_files(),
+                file::get_output_file_name(input_path),
+            ) {
+                (false, _) => {}
+                (true, Ok(output_epub)) => {
+                    let embed_cover = publication_options.embed_cover;
+                    // Create temp metadata when we need to suppress Pandoc's
+                    // own frontmatter generation or metadata-driven cover lookup.
+                    let temp_metadata_path = if let Some(pandoc_metadata) =
+                        prepare_pandoc_metadata(&metadata, has_copyright_page, embed_cover)
+                    {
+                        let temp_yaml = serialize_pandoc_metadata(&pandoc_metadata)?;
+                        let temp_path = final_output_path
+                            .parent()
+                            .unwrap_or(Path::new("."))
+                            .join("temp_metadata.yaml");
+                        std::fs::write(&temp_path, temp_yaml)?;
+                        Some(temp_path)
+                    } else {
+                        None
+                    };
 
-                // Write summary (we'll generate it in the Client now, so just mark the path)
-                let summary_path = match output_path {
-                    Some(path) => {
-                        let mut path = path.to_path_buf();
-                        path.set_extension("summary.txt");
-                        path
-                    }
-                    None => file::generate_summary_output_path(input_path)?,
-                };
-
-                // Track the final artifact path to return (defaults to markdown, updates to epub if generated)
-                let mut result_path = final_output_path.clone();
-
-                let mut pdf_output_path = None;
-
-                // Generate ebook artifacts if metadata exists
-                match file::get_output_file_name(input_path) {
-                    Ok(output_epub) => {
-                        // Create temp metadata when we need to suppress Pandoc's
-                        // own frontmatter generation or metadata-driven cover lookup.
-                        let temp_metadata_path = if let Some(pandoc_metadata) =
-                            prepare_pandoc_metadata(&metadata, has_copyright_page, embed_cover)
-                        {
-                            let temp_yaml = serialize_pandoc_metadata(&pandoc_metadata)?;
-                            let temp_path = final_output_path
-                                .parent()
-                                .unwrap_or(Path::new("."))
-                                .join("temp_metadata.yaml");
-                            std::fs::write(&temp_path, temp_yaml)?;
-                            Some(temp_path)
-                        } else {
-                            None
-                        };
-
+                    if publication_options.epub {
                         // Use custom metadata if we generated a copyright page (to suppress pandoc's auto copyright page)
                         let pandoc_output = self.pandoc_access.convert_to_epub(
                             input_path,
@@ -327,52 +344,66 @@ impl EbookPublicationManager {
                             embed_cover,
                         )?;
                         command_outputs.push(format!("pandoc: {}", pandoc_output));
+                        result_path = output_epub.clone();
+                        epub_output_path = Some(output_epub.clone());
+                    }
 
-                        if loaded_config.pdf.enabled {
-                            let output_pdf = output_epub.with_extension("pdf");
-                            let metadata_for_pdf = match temp_metadata_path.as_deref() {
-                                Some(path) => path.to_path_buf(),
-                                None => file::get_book_folder_file(input_path, "metadata.yaml")?,
-                            };
+                    if publication_options.pdf && loaded_config.pdf.enabled {
+                        let output_pdf = output_epub.with_extension("pdf");
+                        let metadata_for_pdf = match temp_metadata_path.as_deref() {
+                            Some(path) => path.to_path_buf(),
+                            None => file::get_book_folder_file(input_path, "metadata.yaml")?,
+                        };
 
-                            let pdf_output = self.pandoc_access.convert_to_pdf(
-                                input_path,
-                                &final_output_path,
-                                &output_pdf,
-                                &metadata_for_pdf,
-                                &loaded_config.pdf,
-                                embed_cover,
-                            )?;
-                            command_outputs.push(format!("pandoc-pdf: {}", pdf_output));
-                            pdf_output_path = Some(output_pdf);
+                        let pdf_output = self.pandoc_access.convert_to_pdf(
+                            input_path,
+                            &final_output_path,
+                            &output_pdf,
+                            &metadata_for_pdf,
+                            &loaded_config.pdf,
+                            embed_cover,
+                        )?;
+                        command_outputs.push(format!("pandoc-pdf: {}", pdf_output));
+                        if result_path == final_output_path {
+                            result_path = output_pdf.clone();
                         }
+                        pdf_output_path = Some(output_pdf);
+                    }
 
-                        // Clean up temp metadata file
-                        if let Some(temp_meta) = temp_metadata_path {
-                            let _ = std::fs::remove_file(temp_meta);
-                        }
-
-                        // Pass original input path for metadata lookup
+                    if publication_options.azw3 {
                         let calibre_output = self
                             .calibre_access
                             .convert_to_kindle(input_path, &output_epub)?;
                         command_outputs.push(format!("calibre: {}", calibre_output));
+                        let output_azw3 = output_epub.with_extension("azw3");
+                        azw3_output_path = Some(output_azw3);
+                    }
 
+                    if publication_options.azw3 {
                         let archive_output = self
                             .archive_access
                             .create_book_archive(&output_epub, pdf_output_path.as_deref())?;
                         command_outputs.push(format!("archive: {}", archive_output));
-
-                        // If we successfully generated the EPUB, that's our primary output to show
-                        result_path = output_epub;
                     }
-                    Err(_) => {
-                        // Metadata file doesn't exist, skip ebook generation
+
+                    // Clean up temp metadata file
+                    if let Some(temp_meta) = temp_metadata_path {
+                        let _ = std::fs::remove_file(temp_meta);
                     }
                 }
+                (true, Err(_)) => {
+                    // Metadata file doesn't exist, skip ebook generation
+                }
+            }
 
-                (Some(result_path), pdf_output_path, Some(summary_path))
-            };
+            (
+                Some(result_path),
+                epub_output_path,
+                pdf_output_path,
+                azw3_output_path,
+                Some(summary_path),
+            )
+        };
 
         // Return structured result
         Ok(PublicationResult {
@@ -388,7 +419,9 @@ impl EbookPublicationManager {
             replacements_made: replacement_result.replacements_made,
             word_analysis,
             output_path: output_path_result,
+            epub_output_path: epub_output_path_result,
             pdf_output_path: pdf_output_path_result,
+            azw3_output_path: azw3_output_path_result,
             summary_path: summary_path_result,
             command_outputs,
         })
@@ -515,7 +548,7 @@ mod tests {
             output_path: None,
             enable_word_stats: false,
             enable_publishing: false,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: None,
         })?;
@@ -584,7 +617,7 @@ mod tests {
             output_path: Some(&output_path),
             enable_word_stats: false,
             enable_publishing: true,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: None,
         })?;
@@ -630,7 +663,7 @@ mod tests {
             output_path: Some(&custom_output),
             enable_word_stats: false,
             enable_publishing: true,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: None,
         })?;
@@ -673,7 +706,7 @@ mod tests {
             output_path: None,
             enable_word_stats: false,
             enable_publishing: false,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: None,
         })?;
@@ -704,7 +737,7 @@ mod tests {
             output_path: Some(&output_path),
             enable_word_stats: false,
             enable_publishing: true,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: None,
         })?;
@@ -743,7 +776,7 @@ mod tests {
             output_path: None,
             enable_word_stats: false,
             enable_publishing: true,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: None,
         })?;
@@ -784,7 +817,7 @@ mod tests {
             output_path: None,
             enable_word_stats: false,
             enable_publishing: false,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: None,
         })?;
@@ -817,7 +850,7 @@ mod tests {
             output_path: None,
             enable_word_stats: true,
             enable_publishing: true,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: None,
         })?;
@@ -854,7 +887,7 @@ mod tests {
             output_path: None,
             enable_word_stats: false,
             enable_publishing: false,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: None,
         })?;
@@ -898,7 +931,7 @@ mod tests {
             output_path: Some(&output_path),
             enable_word_stats: false,
             enable_publishing: true,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: None,
         })?;
@@ -942,7 +975,7 @@ mod tests {
             output_path: None,
             enable_word_stats: true,
             enable_publishing: false,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: None,
         })?;
@@ -993,7 +1026,7 @@ mod tests {
             output_path: Some(&output_path),
             enable_word_stats: false,
             enable_publishing: true,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: Some(&replace_pairs),
         })?;
@@ -1040,7 +1073,7 @@ mod tests {
             output_path: Some(&output_path),
             enable_word_stats: false,
             enable_publishing: true,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: Some(&replace_pairs),
         })?;

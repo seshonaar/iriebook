@@ -5,6 +5,7 @@
 
 use iriebook::managers::ebook_publication::PublishArgs;
 use iriebook::resource_access::pandoc::PandocConverter;
+use iriebook::utilities::types::PublicationOptions;
 use iriebook_test_support::{
     GitCall, MockArchiveAccess, MockCalibreAccess, MockGitAccess, MockGoogleDocsAccess,
     MockPandocAccess, TestWorkspace,
@@ -74,7 +75,7 @@ async fn test_complete_publication_workflow() {
         output_path: None,
         enable_word_stats: true,
         enable_publishing: true,
-        embed_cover: true,
+        publication_options: PublicationOptions::default(),
         config_root: Some(&workspace.workspace_path),
         replace_pairs: None,
     });
@@ -164,7 +165,7 @@ The end.
         output_path: None,
         enable_word_stats: true,
         enable_publishing: true,
-        embed_cover: true,
+        publication_options: PublicationOptions::default(),
         config_root: None,
         replace_pairs: None,
     });
@@ -217,7 +218,7 @@ async fn test_publication_handles_pandoc_failure() {
         output_path: None,
         enable_word_stats: true,
         enable_publishing: true,
-        embed_cover: true,
+        publication_options: PublicationOptions::default(),
         config_root: None,
         replace_pairs: None,
     });
@@ -266,7 +267,7 @@ async fn test_publication_generates_all_formats() {
         output_path: None,
         enable_word_stats: false,
         enable_publishing: true,
-        embed_cover: true,
+        publication_options: PublicationOptions::default(),
         config_root: None,
         replace_pairs: None,
     });
@@ -323,7 +324,10 @@ cover-image: cover.jpg
         output_path: None,
         enable_word_stats: false,
         enable_publishing: true,
-        embed_cover: false,
+        publication_options: PublicationOptions {
+            embed_cover: false,
+            ..PublicationOptions::default()
+        },
         config_root: None,
         replace_pairs: None,
     });
@@ -400,7 +404,10 @@ cover-image: cover.jpg
         output_path: None,
         enable_word_stats: false,
         enable_publishing: true,
-        embed_cover: false,
+        publication_options: PublicationOptions {
+            embed_cover: false,
+            ..PublicationOptions::default()
+        },
         config_root: None,
         replace_pairs: None,
     });
@@ -491,7 +498,10 @@ language: en
         output_path: None,
         enable_word_stats: false,
         enable_publishing: true,
-        embed_cover: false,
+        publication_options: PublicationOptions {
+            embed_cover: false,
+            ..PublicationOptions::default()
+        },
         config_root: Some(&workspace_path),
         replace_pairs: None,
     });
@@ -559,7 +569,7 @@ The end.
             output_path: None,
             enable_word_stats: false,
             enable_publishing: true,
-            embed_cover: true,
+            publication_options: PublicationOptions::default(),
             config_root: None,
             replace_pairs: None,
         });

@@ -1,6 +1,7 @@
 import type {
   SessionData,
   BookInfo,
+  PublicationOptions,
   GitSyncStatus,
   GitCommit,
   DeviceFlowInfo,
@@ -48,6 +49,11 @@ export const toggleAllBooks = (selected: boolean) => ({
 export const setCurrentBookMode = (enabled: boolean) => ({
   type: "SET_CURRENT_BOOK_MODE" as const,
   payload: enabled,
+});
+
+export const setPublicationOptions = (options: PublicationOptions) => ({
+  type: "SET_PUBLICATION_OPTIONS" as const,
+  payload: options,
 });
 
 // ============================================================================
@@ -190,6 +196,7 @@ export type AppAction =
   | ReturnType<typeof toggleBook>
   | ReturnType<typeof toggleAllBooks>
   | ReturnType<typeof setCurrentBookMode>
+  | ReturnType<typeof setPublicationOptions>
   | ReturnType<typeof setLoading>
   | ReturnType<typeof setError>
   | ReturnType<typeof setActiveTab>

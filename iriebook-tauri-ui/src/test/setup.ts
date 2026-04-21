@@ -24,8 +24,17 @@ vi.mock("../bindings", () => ({
     saveSession: vi.fn(() =>
       Promise.resolve({ status: "ok" as const, data: null })
     ),
+    setPublicationOptions: vi.fn(() =>
+      Promise.resolve({ status: "ok" as const, data: null })
+    ),
+    getBookOutputs: vi.fn(() =>
+      Promise.resolve({ status: "ok" as const, data: [] })
+    ),
     scanBooks: vi.fn(() =>
       Promise.resolve({ status: "ok" as const, data: [] })
+    ),
+    openFile: vi.fn(() =>
+      Promise.resolve({ status: "ok" as const, data: null })
     ),
     loadCoverImage: vi.fn(() =>
       Promise.resolve({
@@ -108,6 +117,9 @@ vi.mock("../bindings", () => ({
     ),
     googleSyncDoc: vi.fn(() =>
       Promise.resolve({ status: "ok" as const, data: "Synced" })
+    ),
+    googleSyncSelected: vi.fn(() =>
+      Promise.resolve({ status: "ok" as const, data: null })
     ),
     googleUnlinkDoc: vi.fn(() =>
       Promise.resolve({ status: "ok" as const, data: null })

@@ -1,6 +1,7 @@
 //! Infrastructure commands: session management, dialogs, and system utilities
 
 use crate::state::AppStateHolder;
+use iriebook::utilities::types::PublicationOptions;
 use iriebook_ui_common::session::{SessionData, save_session as save_session_impl};
 #[cfg(feature = "e2e-mocks")]
 use std::path::PathBuf;
@@ -10,7 +11,7 @@ use tauri::State;
 
 #[tauri::command]
 #[specta::specta]
-pub fn load_session() -> Result<Option<SessionData>, String> {
+pub fn load_session(app_state_holder: State<'_, AppStateHolder>) -> Result<Option<SessionData>, String> {
     // In e2e-mocks mode, check for IRIEBOOK_WORKSPACE env var
     // If set, return a fake session with that workspace path
     #[cfg(feature = "e2e-mocks")]
@@ -23,6 +24,7 @@ pub fn load_session() -> Result<Option<SessionData>, String> {
                     folder_path: workspace.into(),
                     selected_book_paths: vec![],
                     current_book_mode: true,
+                    publication_options: PublicationOptions::default(),
                 }));
             }
             Err(e) => {
@@ -35,14 +37,34 @@ pub fn load_session() -> Result<Option<SessionData>, String> {
 
     #[cfg(not(feature = "e2e-mocks"))]
     {
-        iriebook_ui_common::session::load_session().map_err(|e| e.to_string())
+        let session = iriebook_ui_common::session::load_session().map_err(|e| e.to_string())?;
+        let options = session
+            .as_ref()
+            .map(|s| s.publication_options)
+            .unwrap_or_default();
+        app_state_holder.set_publication_options(options);
+        Ok(session)
     }
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn save_session(session: SessionData) -> Result<(), String> {
+pub fn save_session(
+    session: SessionData,
+    app_state_holder: State<'_, AppStateHolder>,
+) -> Result<(), String> {
+    app_state_holder.set_publication_options(session.publication_options);
     save_session_impl(&session).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_publication_options(
+    publication_options: PublicationOptions,
+    app_state_holder: State<'_, AppStateHolder>,
+) -> Result<(), String> {
+    app_state_holder.set_publication_options(publication_options);
+    Ok(())
 }
 
 // ============= FILE/FOLDER DIALOGS =============
@@ -83,6 +105,12 @@ pub fn select_file(
 #[specta::specta]
 pub fn open_folder(path: String) -> Result<(), String> {
     open::that(&path).map_err(|e| format!("Failed to open folder: {}", e))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn open_file(path: String) -> Result<(), String> {
+    open::that(&path).map_err(|e| format!("Failed to open file: {}", e))
 }
 
 #[tauri::command]
