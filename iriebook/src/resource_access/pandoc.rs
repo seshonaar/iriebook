@@ -543,10 +543,28 @@ local function has_class(el, class)
 end
 
 function Header(el)
+  if has_class(el, 'previous-books-page') then
+    local heading = pandoc.utils.stringify(el.content)
+    if not heading:match('[:：]%s*$') then
+      heading = heading .. ':'
+    end
+    return pandoc.Para({ pandoc.Str(heading) })
+  end
+
   if has_class(el, 'dedication-page') or has_class(el, 'copyright-page') then
     return {}
   end
   return nil
+end
+
+local previous_books_start_marker = '% IRIE_PREVIOUS_BOOKS_LIST_START'
+local previous_books_end_marker = '% IRIE_PREVIOUS_BOOKS_LIST_END'
+
+local function is_latex_raw_text(block, text)
+  return block ~= nil
+    and block.t == 'RawBlock'
+    and block.format:match('latex')
+    and block.text == text
 end
 
 function Div(el)
@@ -581,6 +599,15 @@ function Div(el)
     return blocks
   end
 
+  if has_class(el, 'previous-books-list') then
+    local blocks = { pandoc.RawBlock('latex', previous_books_start_marker) }
+    for _, block in ipairs(el.content) do
+      table.insert(blocks, block)
+    end
+    table.insert(blocks, pandoc.RawBlock('latex', previous_books_end_marker))
+    return blocks
+  end
+
   return nil
 end
 
@@ -605,6 +632,41 @@ function Blocks(blocks)
       table.insert(next_blocks, next_block)
       table.insert(next_blocks, pandoc.RawBlock('latex', '\\end{irieSubtitle}'))
       index = index + 3
+    elseif is_latex_raw_text(block, '\\end{irieCopyright}')
+      and next_block ~= nil
+      and is_latex_raw_text(close_block, previous_books_start_marker) then
+      table.insert(next_blocks, pandoc.RawBlock('latex', '\\par\\vspace{\\baselineskip}'))
+      table.insert(next_blocks, next_block)
+      index = index + 3
+
+      while index <= #blocks and not is_latex_raw_text(blocks[index], previous_books_end_marker) do
+        table.insert(next_blocks, blocks[index])
+        index = index + 1
+      end
+
+      table.insert(next_blocks, block)
+
+      if index <= #blocks then
+        index = index + 1
+      end
+    elseif is_latex_raw_text(block, '\\end{irieCopyright}')
+      and is_latex_raw_text(next_block, previous_books_start_marker) then
+      table.insert(next_blocks, pandoc.RawBlock('latex', '\\par\\vspace{\\baselineskip}'))
+      index = index + 2
+
+      while index <= #blocks and not is_latex_raw_text(blocks[index], previous_books_end_marker) do
+        table.insert(next_blocks, blocks[index])
+        index = index + 1
+      end
+
+      table.insert(next_blocks, block)
+
+      if index <= #blocks then
+        index = index + 1
+      end
+    elseif is_latex_raw_text(block, previous_books_start_marker)
+      or is_latex_raw_text(block, previous_books_end_marker) then
+      index = index + 1
     else
       table.insert(next_blocks, block)
       index = index + 1
@@ -960,15 +1022,7 @@ pub(crate) fn reorder_epub_frontmatter_for_custom_copyright(
         return Ok(false);
     };
 
-    let Some(copyright_entry) = entries
-        .iter()
-        .find(|entry| {
-            entry.name.starts_with("EPUB/text/")
-                && entry.name.ends_with(".xhtml")
-                && String::from_utf8_lossy(&entry.data).contains("copyright-page")
-        })
-        .map(|entry| entry.name.trim_start_matches("EPUB/").to_string())
-    else {
+    let Some(frontmatter_entry) = find_frontmatter_toc_target(&entries) else {
         return Ok(false);
     };
 
@@ -979,7 +1033,7 @@ pub(crate) fn reorder_epub_frontmatter_for_custom_copyright(
         }
     })?;
 
-    let Some(updated_opf) = reorder_spine_toc_after_href(&opf_content, &copyright_entry) else {
+    let Some(updated_opf) = reorder_spine_toc_after_href(&opf_content, &frontmatter_entry) else {
         return Ok(false);
     };
 
@@ -987,6 +1041,22 @@ pub(crate) fn reorder_epub_frontmatter_for_custom_copyright(
     write_epub_entries(epub_path, &entries)?;
 
     Ok(true)
+}
+
+fn find_frontmatter_toc_target(entries: &[EpubEntry]) -> Option<String> {
+    find_text_entry_containing(entries, "previous-books-page")
+        .or_else(|| find_text_entry_containing(entries, "copyright-page"))
+}
+
+fn find_text_entry_containing(entries: &[EpubEntry], marker: &str) -> Option<String> {
+    entries
+        .iter()
+        .find(|entry| {
+            entry.name.starts_with("EPUB/text/")
+                && entry.name.ends_with(".xhtml")
+                && String::from_utf8_lossy(&entry.data).contains(marker)
+        })
+        .map(|entry| entry.name.trim_start_matches("EPUB/").to_string())
 }
 
 fn reorder_spine_toc_after_href(opf_content: &str, target_href: &str) -> Option<String> {
@@ -1322,6 +1392,14 @@ mod tests {
         assert!(filter.contains("irieSceneBreak"));
         assert!(filter.contains("irieDedication"));
         assert!(filter.contains("irieCopyright"));
+        assert!(filter.contains("previous-books-page"));
+        assert!(filter.contains("heading = heading .. ':'"));
+        assert!(filter.contains("pandoc.Para({ pandoc.Str(heading) })"));
+        assert!(filter.contains("previous-books-list"));
+        assert!(filter.contains("IRIE_PREVIOUS_BOOKS_LIST_START"));
+        assert!(filter.contains("IRIE_PREVIOUS_BOOKS_LIST_END"));
+        assert!(filter.contains("is_latex_raw_text(block, '\\\\end{irieCopyright}')"));
+        assert!(filter.contains("baselineskip"));
     }
 
     #[test]
@@ -1347,7 +1425,7 @@ mod tests {
     }
 
     #[test]
-    fn reorders_toc_after_copyright_page_in_epub_spine() {
+    fn reorders_toc_after_last_generated_frontmatter_page_in_epub_spine() {
         let temp_dir = TempDir::new().unwrap();
         let epub_path = temp_dir.path().join("book.epub");
 
@@ -1361,11 +1439,13 @@ mod tests {
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />
     <item id="ch001_xhtml" href="text/ch001.xhtml" media-type="application/xhtml+xml" />
     <item id="ch002_xhtml" href="text/ch002.xhtml" media-type="application/xhtml+xml" />
+    <item id="ch003_xhtml" href="text/ch003.xhtml" media-type="application/xhtml+xml" />
   </manifest>
   <spine>
     <itemref idref="nav" />
     <itemref idref="ch001_xhtml" />
     <itemref idref="ch002_xhtml" />
+    <itemref idref="ch003_xhtml" />
   </spine>
 </package>
 "#;
@@ -1374,14 +1454,24 @@ mod tests {
             r#"<html><body><section class="copyright-page"></section></body></html>"#;
         let dedication_page =
             r#"<html><body><section class="dedication-page"></section></body></html>"#;
+        let previous_books_page =
+            r#"<html><body><section class="previous-books-page"></section></body></html>"#;
 
         zip.start_file("EPUB/content.opf", options).unwrap();
         zip.write_all(opf.as_bytes()).unwrap();
         zip.start_file("EPUB/text/ch001.xhtml", options).unwrap();
         zip.write_all(copyright_page.as_bytes()).unwrap();
         zip.start_file("EPUB/text/ch002.xhtml", options).unwrap();
+        zip.write_all(previous_books_page.as_bytes()).unwrap();
+        zip.start_file("EPUB/text/ch003.xhtml", options).unwrap();
         zip.write_all(dedication_page.as_bytes()).unwrap();
         zip.finish().unwrap();
+
+        let entries = read_epub_entries(&epub_path).unwrap();
+        assert_eq!(
+            find_frontmatter_toc_target(&entries).as_deref(),
+            Some("text/ch002.xhtml")
+        );
 
         let changed = reorder_epub_frontmatter_for_custom_copyright(&epub_path).unwrap();
         assert!(changed, "Expected EPUB spine to be reordered");
@@ -1399,10 +1489,39 @@ mod tests {
         let copyright_idx = updated_opf
             .find("<itemref idref=\"ch001_xhtml\" />")
             .unwrap();
+        let previous_books_idx = updated_opf
+            .find("<itemref idref=\"ch002_xhtml\" />")
+            .unwrap();
         assert!(
-            nav_idx > copyright_idx,
-            "Expected nav itemref to come after copyright itemref"
+            copyright_idx < previous_books_idx,
+            "Expected previous-books itemref to remain after copyright itemref"
         );
+        assert!(
+            nav_idx > previous_books_idx,
+            "Expected nav itemref to come after previous-books itemref"
+        );
+    }
+
+    #[test]
+    fn reorders_toc_after_copyright_when_no_previous_books_page_exists() {
+        let opf = r#"<?xml version="1.0" encoding="UTF-8"?>
+<package version="3.0" xmlns="http://www.idpf.org/2007/opf">
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />
+    <item id="ch001_xhtml" href="text/ch001.xhtml" media-type="application/xhtml+xml" />
+  </manifest>
+  <spine>
+    <itemref idref="nav" />
+    <itemref idref="ch001_xhtml" />
+  </spine>
+</package>
+"#;
+
+        let updated = reorder_spine_toc_after_href(opf, "text/ch001.xhtml").unwrap();
+
+        let nav_idx = updated.find("<itemref idref=\"nav\" />").unwrap();
+        let copyright_idx = updated.find("<itemref idref=\"ch001_xhtml\" />").unwrap();
+        assert!(nav_idx > copyright_idx);
     }
 
     #[test]

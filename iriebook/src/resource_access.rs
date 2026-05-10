@@ -30,6 +30,7 @@ pub mod github_auth;
 pub mod google_auth;
 pub mod google_docs;
 pub mod pandoc;
+pub mod series_metadata;
 pub mod traits;
 
 // Re-export commonly used types for convenience
@@ -39,4 +40,5 @@ pub use git::GitClient;
 pub use github_auth::{DeviceFlowData, GitHubAuthenticator, PollResult};
 pub use google_auth::{AuthCodeTokenResponse, AuthFlow, GoogleAuthenticator};
 pub use google_docs::GoogleDocsClient;
+pub use series_metadata::{SeriesMetadataProvider, WorkspaceSeriesMetadataProvider};
 pub use traits::GoogleDocInfo;

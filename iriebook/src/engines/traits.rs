@@ -3,7 +3,9 @@ use crate::engines::text_processing::quote_fixer::ConversionResult;
 use crate::engines::text_processing::whitespace_trimmer::TrimmingResult;
 use crate::resource_access::config::WordAnalysisConfig;
 use crate::utilities::error::IrieBookError;
-use crate::utilities::types::{BookMetadata, BookRevisionInfo, DiffResult, ReplacePair};
+use crate::utilities::types::{
+    BookMetadata, BookRevisionInfo, DiffResult, ReplacePair, SeriesBook,
+};
 
 /// Trait for quote validation engines
 ///
@@ -104,6 +106,13 @@ pub trait MarkdownTransformEngine: Send + Sync {
         book_folder: &std::path::Path,
         metadata: &BookMetadata,
         revision_info: Option<&BookRevisionInfo>,
+    ) -> Result<Option<String>, IrieBookError>;
+
+    /// Generates the editable previous-books front matter page for series books.
+    fn generate_previous_books_page(
+        &self,
+        book_folder: &std::path::Path,
+        previous_books: &[SeriesBook],
     ) -> Result<Option<String>, IrieBookError>;
 }
 

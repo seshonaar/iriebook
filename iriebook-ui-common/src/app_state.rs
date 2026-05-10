@@ -19,9 +19,15 @@ use iriebook::resource_access::traits::{
     ArchiveAccess, CalibreAccess, GitAccess, GoogleDocsAccess, PandocAccess,
 };
 use iriebook::resource_access::{
-    archive::ZipArchiver, calibre::CalibreConverter, diff_source::DiffSource, git::GitClient,
-    github_auth::GitHubAuthenticator, google_auth::GoogleAuthenticator,
-    google_docs::GoogleDocsClient, pandoc::PandocConverter,
+    archive::ZipArchiver,
+    calibre::CalibreConverter,
+    diff_source::DiffSource,
+    git::GitClient,
+    github_auth::GitHubAuthenticator,
+    google_auth::GoogleAuthenticator,
+    google_docs::GoogleDocsClient,
+    pandoc::PandocConverter,
+    series_metadata::{SeriesMetadataProvider, WorkspaceSeriesMetadataProvider},
 };
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -47,6 +53,7 @@ pub struct AppState {
     ebook_publication_manager: Arc<EbookPublicationManager>,
     book_ui_manager: Arc<Mutex<BookUIManager>>,
     calibre_access: Arc<dyn CalibreAccess>,
+    series_metadata_provider: Arc<dyn SeriesMetadataProvider>,
 }
 
 /// Builder for creating AppState with custom dependencies
@@ -73,6 +80,7 @@ pub struct AppStateBuilder {
     calibre_access: Option<Arc<dyn CalibreAccess>>,
     archive_access: Option<Arc<dyn ArchiveAccess>>,
     diff_source: Option<Arc<dyn DiffSourceAccess>>,
+    series_metadata_provider: Option<Arc<dyn SeriesMetadataProvider>>,
     // Engine traits
     validator: Option<Arc<dyn ValidatorEngine>>,
     quote_fixer: Option<Arc<dyn QuoteFixerEngine>>,
@@ -104,6 +112,7 @@ impl AppStateBuilder {
             calibre_access: None,
             archive_access: None,
             diff_source: None,
+            series_metadata_provider: None,
             validator: None,
             quote_fixer: None,
             whitespace_trimmer: None,
@@ -157,6 +166,15 @@ impl AppStateBuilder {
     /// Inject a custom DiffSourceAccess implementation
     pub fn with_diff_source(mut self, diff_source: Arc<dyn DiffSourceAccess>) -> Self {
         self.diff_source = Some(diff_source);
+        self
+    }
+
+    /// Inject a custom SeriesMetadataProvider implementation
+    pub fn with_series_metadata_provider(
+        mut self,
+        provider: Arc<dyn SeriesMetadataProvider>,
+    ) -> Self {
+        self.series_metadata_provider = Some(provider);
         self
     }
 
@@ -247,7 +265,11 @@ impl AppStateBuilder {
             self.archive_access = Some(Arc::new(ZipArchiver));
         }
         if self.diff_source.is_none() {
-            self.diff_source = Some(Arc::new(DiffSource::new(workspace)));
+            self.diff_source = Some(Arc::new(DiffSource::new(workspace.clone())));
+        }
+        if self.series_metadata_provider.is_none() {
+            self.series_metadata_provider =
+                Some(Arc::new(WorkspaceSeriesMetadataProvider::new(workspace)));
         }
         if self.validator.is_none() {
             self.validator = Some(Arc::new(Validator));
@@ -297,6 +319,9 @@ impl AppStateBuilder {
         let calibre_access = self.calibre_access.expect("calibre_access is required");
         let archive_access = self.archive_access.expect("archive_access is required");
         let diff_source = self.diff_source.expect("diff_source is required");
+        let series_metadata_provider = self
+            .series_metadata_provider
+            .expect("series_metadata_provider is required");
 
         // Engines
         let validator = self.validator.expect("validator is required");
@@ -333,6 +358,7 @@ impl AppStateBuilder {
             calibre_access.clone(),
             archive_access,
             git_access,
+            series_metadata_provider.clone(),
         ));
         let book_ui_manager = Arc::new(Mutex::new(BookUIManager::new(self.use_mock_book_ui)));
 
@@ -347,6 +373,7 @@ impl AppStateBuilder {
             ebook_publication_manager,
             book_ui_manager,
             calibre_access,
+            series_metadata_provider,
         }
     }
 }
@@ -418,6 +445,11 @@ impl AppState {
     /// Get book UI manager for cover loading and book operations
     pub fn book_ui_manager(&self) -> Arc<Mutex<BookUIManager>> {
         self.book_ui_manager.clone()
+    }
+
+    /// Get series metadata provider
+    pub fn series_metadata_provider(&self) -> Arc<dyn SeriesMetadataProvider> {
+        self.series_metadata_provider.clone()
     }
 }
 

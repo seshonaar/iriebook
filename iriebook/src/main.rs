@@ -7,7 +7,7 @@ use clap::Parser;
 use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
 
-use iriebook::client::cli::{display_results, format_summary, handle_validation_failure, Args};
+use iriebook::client::cli::{Args, display_results, format_summary, handle_validation_failure};
 use iriebook::engines::analysis::word_analyzer::WordAnalyzer;
 use iriebook::engines::text_processing::markdown_transform::MarkdownTransformer;
 use iriebook::engines::text_processing::quote_fixer::QuoteFixer;
@@ -20,6 +20,7 @@ use iriebook::resource_access::calibre::CalibreConverter;
 use iriebook::resource_access::file;
 use iriebook::resource_access::git::GitClient;
 use iriebook::resource_access::pandoc::PandocConverter;
+use iriebook::resource_access::series_metadata::WorkspaceSeriesMetadataProvider;
 use iriebook::utilities::types::PublicationOptions;
 
 fn main() -> Result<()> {
@@ -65,6 +66,12 @@ fn main() -> Result<()> {
         Arc::new(CalibreConverter),
         Arc::new(ZipArchiver),
         Arc::new(GitClient),
+        Arc::new(WorkspaceSeriesMetadataProvider::new(
+            args.input
+                .parent()
+                .unwrap_or(std::path::Path::new("."))
+                .to_path_buf(),
+        )),
     );
 
     // Execute publication pipeline

@@ -20,6 +20,7 @@ use crate::engines::traits::{
     MarkdownTransformEngine, QuoteFixerEngine, ValidatorEngine, WhitespaceTrimmerEngine,
     WordAnalyzerEngine, WordReplacementEngine,
 };
+use crate::resource_access::series_metadata::SeriesMetadataProvider;
 use crate::resource_access::traits::{ArchiveAccess, CalibreAccess, GitAccess, PandocAccess};
 use crate::resource_access::{config, file};
 use crate::utilities::types::{BookMetadata, BookRevisionInfo, PublicationOptions, ReplacePair};
@@ -126,6 +127,7 @@ pub struct EbookPublicationManager {
     calibre_access: Arc<dyn CalibreAccess>,
     archive_access: Arc<dyn ArchiveAccess>,
     git_access: Arc<dyn GitAccess>,
+    series_metadata_provider: Arc<dyn SeriesMetadataProvider>,
 }
 
 impl EbookPublicationManager {
@@ -142,6 +144,7 @@ impl EbookPublicationManager {
         calibre_access: Arc<dyn CalibreAccess>,
         archive_access: Arc<dyn ArchiveAccess>,
         git_access: Arc<dyn GitAccess>,
+        series_metadata_provider: Arc<dyn SeriesMetadataProvider>,
     ) -> Self {
         Self {
             validator,
@@ -154,6 +157,7 @@ impl EbookPublicationManager {
             calibre_access,
             archive_access,
             git_access,
+            series_metadata_provider,
         }
     }
 
@@ -279,18 +283,29 @@ impl EbookPublicationManager {
                 revision_info.as_ref(),
             )?;
 
-            // Prepend copyright page to content if it exists
+            let previous_books = self
+                .series_metadata_provider
+                .previous_books_for(input_path, &metadata)?;
+            let previous_books_page = self
+                .markdown_transformer
+                .generate_previous_books_page(book_folder, &previous_books)?;
+
+            // Prepend generated front matter before the manuscript content.
             let has_copyright_page = copyright_page.is_some();
-            let content_with_copyright = if let Some(ref copyright) = copyright_page {
-                format!("{}\n\n{}", copyright, replacement_result.content)
-            } else {
-                replacement_result.content.clone()
-            };
+            let content_with_front_matter = [
+                copyright_page.as_deref(),
+                previous_books_page.as_deref(),
+                Some(replacement_result.content.as_str()),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join("\n\n");
 
             // Transform markdown structure
             let formatted_text = self
                 .markdown_transformer
-                .transform(&content_with_copyright)?;
+                .transform(&content_with_front_matter)?;
 
             // Write the fixed content
             file::write_file(&final_output_path, &formatted_text)?;
@@ -513,11 +528,16 @@ mod tests {
     use crate::resource_access::calibre::CalibreConverter;
     use crate::resource_access::git::GitClient;
     use crate::resource_access::pandoc::PandocConverter;
+    use crate::resource_access::series_metadata::WorkspaceSeriesMetadataProvider;
     use std::fs;
     use tempfile::TempDir;
 
     /// Helper function to create a Manager with default Engine and Resource Access implementations
     fn create_test_manager() -> EbookPublicationManager {
+        create_test_manager_for_workspace(PathBuf::from("/tmp"))
+    }
+
+    fn create_test_manager_for_workspace(workspace_path: PathBuf) -> EbookPublicationManager {
         EbookPublicationManager::new(
             Arc::new(Validator),
             Arc::new(QuoteFixer),
@@ -529,6 +549,7 @@ mod tests {
             Arc::new(CalibreConverter),
             Arc::new(ZipArchiver),
             Arc::new(GitClient),
+            Arc::new(WorkspaceSeriesMetadataProvider::new(workspace_path)),
         )
     }
 
@@ -679,6 +700,59 @@ mod tests {
         assert!(content.contains("All Rights Reserved"));
         assert!(!content.contains("# Tab 1"));
         assert!(content.contains("# Capitolul 1"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_manager_inserts_previous_books_after_copyright() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let previous_dir = temp_dir.path().join("previous");
+        fs::create_dir_all(&previous_dir)?;
+        fs::write(
+            previous_dir.join("metadata.yaml"),
+            "---\ntitle: Primul volum\nauthor: Jane Doe\nbelongs-to-collection: Saga\ngroup-position: 1\n---\n",
+        )?;
+
+        let current_dir = temp_dir.path().join("current");
+        fs::create_dir_all(&current_dir)?;
+        let input_path = current_dir.join("book.md");
+        let output_path = current_dir.join("fixed.md");
+        fs::write(&input_path, "## Capitolul 1\n\nContent.")?;
+        fs::write(current_dir.join("copyright.txt"), "All Rights Reserved")?;
+        fs::write(
+            current_dir.join("metadata.yaml"),
+            "---\ntitle: Al doilea volum\nauthor: Jane Doe\nbelongs-to-collection: Saga\ngroup-position: 2\n---\n",
+        )?;
+
+        let manager = create_test_manager_for_workspace(temp_dir.path().to_path_buf());
+        manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: Some(&output_path),
+            enable_word_stats: false,
+            enable_publishing: true,
+            publication_options: PublicationOptions {
+                epub: false,
+                pdf: false,
+                azw3: false,
+                ..PublicationOptions::default()
+            },
+            config_root: None,
+            replace_pairs: None,
+        })?;
+
+        let content = fs::read_to_string(&output_path)?;
+        let copyright_index = content.find("All Rights Reserved").unwrap();
+        let previous_books_index = content.find("Cărțile anterioare").unwrap();
+        let chapter_index = content.find("# Capitolul 1").unwrap();
+
+        assert!(copyright_index < previous_books_index);
+        assert!(previous_books_index < chapter_index);
+        assert!(content.contains("<span class=\"previous-book-number\">I.</span>"));
+        assert!(
+            content.contains("<span class=\"previous-book-title\"><em>Primul volum</em></span>")
+        );
+        assert!(!content.contains("- I."));
 
         Ok(())
     }

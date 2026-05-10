@@ -290,3 +290,33 @@ h1.copyright-page {
     font-size: 0.85em;
     margin-top: 1.5em;
 }
+
+/* --- 11. PREVIOUS BOOKS PAGE --- */
+h1.previous-books-page {
+    text-align: center;
+    margin-top: 30%;
+    font-variant: small-caps;
+    letter-spacing: 0.08em;
+}
+
+.previous-books-list {
+    margin-top: 2.5rem;
+    text-align: center;
+}
+
+.previous-book-entry {
+    margin: 0.7rem 0;
+    font-size: 1.05em;
+    text-indent: 0;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.previous-book-number {
+    display: inline-block;
+    margin-right: 0.35em;
+}
+
+.previous-book-title {
+    display: inline-block;
+}

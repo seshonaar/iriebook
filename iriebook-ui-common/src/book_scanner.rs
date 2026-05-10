@@ -38,6 +38,7 @@ fn get_changed_folders(repo_path: &Path, git_client: &GitClient) -> HashMap<Path
 /// - Files directly in the root directory
 /// - Files named `summary.md` (case-insensitive)
 /// - Files containing `fixed.md` in the name
+/// - Previous-books page templates
 ///
 /// Returns a sorted list of BookInfo by display name
 pub fn scan_for_books(root_dir: &Path) -> Result<Vec<BookInfo>> {
@@ -133,6 +134,11 @@ pub fn scan_for_books(root_dir: &Path) -> Result<Vec<BookInfo>> {
 
         // Exclude summary.md
         if filename == "summary.md" {
+            continue;
+        }
+
+        // Exclude generated/editable front-matter templates
+        if filename == "previous-books-template.md" {
             continue;
         }
 
@@ -294,6 +300,25 @@ mod tests {
         for book in &books {
             assert!(!book.display_name.contains("fixed"));
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_scan_for_books_excludes_previous_books_templates() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+        fs::create_dir(root.join("book"))?;
+        fs::write(root.join("book/story.md"), "# Story")?;
+        fs::write(
+            root.join("book/previous-books-template.md"),
+            "# Cărțile anterioare\n\n{{#books}}\n{{roman}}. *{{title}}*\n{{/books}}",
+        )?;
+
+        let books = scan_for_books(root)?;
+
+        assert_eq!(books.len(), 1);
+        assert_eq!(books[0].display_name, "story.md");
 
         Ok(())
     }

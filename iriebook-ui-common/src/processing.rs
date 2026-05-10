@@ -300,7 +300,7 @@ pub fn process_single_book(
         managers::ebook_publication::{EbookPublicationManager, PublishArgs},
         resource_access::{
             archive::ZipArchiver, calibre::CalibreConverter, git::GitClient,
-            pandoc::PandocConverter,
+            pandoc::PandocConverter, series_metadata::WorkspaceSeriesMetadataProvider,
         },
     };
 
@@ -316,6 +316,9 @@ pub fn process_single_book(
         Arc::new(CalibreConverter),
         Arc::new(ZipArchiver),
         Arc::new(GitClient),
+        Arc::new(WorkspaceSeriesMetadataProvider::new(
+            book_path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+        )),
     );
 
     // Load metadata to get replace pairs

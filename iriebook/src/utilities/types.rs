@@ -117,6 +117,48 @@ pub struct BookRevisionInfo {
     pub commit_date: String, // YYYY-MM-DD
 }
 
+/// Metadata for one book in a series, as used by generated front matter.
+#[derive(Debug, Clone, PartialEq, Default, serde::Deserialize, serde::Serialize, Type)]
+pub struct SeriesBook {
+    pub title: String,
+    pub author: String,
+    pub collection: String,
+    pub position: u32,
+    pub roman_position: String,
+}
+
+pub fn roman_numeral(mut value: u32) -> String {
+    if value == 0 {
+        return String::new();
+    }
+
+    let numerals = [
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
+    ];
+
+    let mut result = String::new();
+    for (arabic, roman) in numerals {
+        while value >= arabic {
+            result.push_str(roman);
+            value -= arabic;
+        }
+    }
+
+    result
+}
+
 /// Publication output options shared across UI and core processing flows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
 pub struct PublicationOptions {
@@ -444,11 +486,13 @@ mod tests {
         assert_eq!(metadata.language, Some("ro-RO".to_string()));
         assert_eq!(metadata.cover_image, Some("cover.jpg".to_string()));
         assert!(metadata.rights.is_some());
-        assert!(metadata
-            .rights
-            .as_ref()
-            .unwrap()
-            .contains("All Rights Reserved"));
+        assert!(
+            metadata
+                .rights
+                .as_ref()
+                .unwrap()
+                .contains("All Rights Reserved")
+        );
     }
 
     #[test]
@@ -553,11 +597,13 @@ mod tests {
         assert_eq!(with_defaults.language, Some("ro-RO".to_string()));
         assert_eq!(with_defaults.cover_image, Some("cover.jpg".to_string()));
         assert!(with_defaults.rights.is_some());
-        assert!(with_defaults
-            .rights
-            .as_ref()
-            .unwrap()
-            .contains("All Rights Reserved"));
+        assert!(
+            with_defaults
+                .rights
+                .as_ref()
+                .unwrap()
+                .contains("All Rights Reserved")
+        );
     }
 
     #[test]
