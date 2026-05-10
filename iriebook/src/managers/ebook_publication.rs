@@ -15,6 +15,7 @@ use chrono::{DateTime, Utc};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::engines::text_processing::markdown_transform::strip_leading_markdown_h1;
 use crate::engines::traits::{
     MarkdownTransformEngine, QuoteFixerEngine, ValidatorEngine, WhitespaceTrimmerEngine,
     WordAnalyzerEngine, WordReplacementEngine,
@@ -184,6 +185,7 @@ impl EbookPublicationManager {
 
         // Stage 1: Input & Validation
         let content = file::read_file(input_path)?;
+        let content = strip_leading_markdown_h1(&content);
         let bytes_read = content.len();
 
         // Validate content - capture errors to display nicely instead of bubbling up
@@ -640,6 +642,43 @@ mod tests {
         assert!(result.validation_passed, "Expected validation to pass");
         assert!(result.quotes_converted > 0, "Expected quotes converted");
         assert!(result.output_path.is_some(), "Expected output path");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_manager_strips_leading_google_docs_tab_heading_before_copyright() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let input_path = temp_dir.path().join("test.md");
+        let output_path = temp_dir.path().join("fixed.md");
+
+        fs::write(
+            &input_path,
+            "# Tab 1\n\n## Capitolul 1\n\nContent from the real first page.",
+        )?;
+        fs::write(temp_dir.path().join("copyright.txt"), "All Rights Reserved")?;
+
+        let manager = create_test_manager();
+
+        manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: Some(&output_path),
+            enable_word_stats: false,
+            enable_publishing: true,
+            publication_options: PublicationOptions {
+                epub: false,
+                pdf: false,
+                azw3: false,
+                ..PublicationOptions::default()
+            },
+            config_root: None,
+            replace_pairs: None,
+        })?;
+
+        let content = fs::read_to_string(&output_path)?;
+        assert!(content.contains("All Rights Reserved"));
+        assert!(!content.contains("# Tab 1"));
+        assert!(content.contains("# Capitolul 1"));
 
         Ok(())
     }

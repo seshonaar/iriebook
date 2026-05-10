@@ -724,6 +724,39 @@ fn transform_impl(content: &str) -> String {
     render_items(items)
 }
 
+pub(crate) fn strip_leading_markdown_h1(markdown: &str) -> String {
+    let Some((first_line, rest)) = markdown.split_once('\n') else {
+        return if is_markdown_h1(markdown) {
+            String::new()
+        } else {
+            markdown.to_string()
+        };
+    };
+
+    if !is_markdown_h1(first_line) {
+        return markdown.to_string();
+    }
+
+    strip_one_leading_blank_line(rest).to_string()
+}
+
+fn is_markdown_h1(line: &str) -> bool {
+    let line = line.trim_end_matches('\r');
+    line.starts_with("# ") && !line.starts_with("##")
+}
+
+fn strip_one_leading_blank_line(markdown: &str) -> &str {
+    let Some(blank_line_end) = markdown.find('\n').map(|index| index + 1) else {
+        return markdown;
+    };
+
+    if markdown[..blank_line_end].trim().is_empty() {
+        &markdown[blank_line_end..]
+    } else {
+        markdown
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
