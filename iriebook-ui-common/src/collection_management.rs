@@ -14,9 +14,12 @@ use std::path::{Path, PathBuf};
 
 // Serde helper module to serialize PathBuf as String
 mod pathbuf_as_string {
-    use serde::{Serializer, Serialize};
+    use serde::{Serialize, Serializer};
 
-    pub fn serialize<S>(path: &std::path::Path, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    pub fn serialize<S>(
+        path: &std::path::Path,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -81,10 +84,7 @@ pub fn check_for_duplicate(workspace_root: &Path, md_filename: &str) -> Result<O
 /// 4. Returns comprehensive result for UI to consume
 ///
 /// Framework-agnostic, testable without UI widgets
-pub fn add_book_with_rescan(
-    workspace_root: &Path,
-    source_md: &Path,
-) -> Result<AddBookResult> {
+pub fn add_book_with_rescan(workspace_root: &Path, source_md: &Path) -> Result<AddBookResult> {
     // Add book using core file operations
     let (book_path, is_duplicate) = file::add_book_to_workspace(workspace_root, source_md)?;
 
@@ -93,9 +93,9 @@ pub fn add_book_with_rescan(
         .with_context(|| format!("Failed to rescan workspace: {}", workspace_root.display()))?;
 
     // Find the newly added book in the list (by path matching)
-    let new_book_index = books.iter().position(|book| {
-        book.path.as_path() == book_path
-    });
+    let new_book_index = books
+        .iter()
+        .position(|book| book.path.as_path() == book_path);
 
     Ok(AddBookResult {
         book_path,
@@ -125,9 +125,9 @@ pub fn change_book_with_rescan(
         .with_context(|| format!("Failed to rescan workspace: {}", workspace_root.display()))?;
 
     // Find the updated book in the list
-    let updated_book_index = books.iter().position(|book| {
-        book.path.as_path() == new_book_path
-    });
+    let updated_book_index = books
+        .iter()
+        .position(|book| book.path.as_path() == new_book_path);
 
     Ok(ChangeBookResult {
         new_book_path,
@@ -143,30 +143,27 @@ pub fn change_book_with_rescan(
 /// 2. Calls `iriebook::resource_access::file::delete_book_folder()`
 /// 3. Rescans the workspace to get updated book list
 /// 4. Returns the updated book list
-pub fn delete_book_with_rescan(
-    book_path: &Path,
-    workspace_root: &Path,
-) -> Result<Vec<BookInfo>> {
+pub fn delete_book_with_rescan(book_path: &Path, workspace_root: &Path) -> Result<Vec<BookInfo>> {
     // 1. Safety check: book_path must be within workspace_root
     // We check if the parent of book_path (the book folder) is a child of workspace_root
     // e.g. workspace/book_folder/book.md -> parent is workspace/book_folder -> parent is workspace
-    let book_folder = book_path.parent().ok_or_else(|| {
-        anyhow::anyhow!("Book path has no parent: {}", book_path.display())
-    })?;
-    
+    let book_folder = book_path
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("Book path has no parent: {}", book_path.display()))?;
+
     // Canonicalize paths for safer comparison if possible, but fallback to direct check
     // since temp paths might be complex.
     // For now, simple starts_with check on absolute paths or relative matching.
-    
+
     // We assume both are absolute or relative in the same way.
     if !book_folder.starts_with(workspace_root) {
-         anyhow::bail!(
+        anyhow::bail!(
             "Security Error: Cannot delete book outside workspace. Book: {}, Workspace: {}",
             book_folder.display(),
             workspace_root.display()
         );
     }
-    
+
     // Double check that we are not deleting the workspace root itself
     if book_folder == workspace_root {
         anyhow::bail!("Security Error: Cannot delete workspace root");
@@ -305,11 +302,8 @@ mod tests {
         fs::write(&new_source, "# Updated")?;
 
         // Change book file
-        let change_result = change_book_with_rescan(
-            &add_result.book_path,
-            &new_source,
-            workspace_root,
-        )?;
+        let change_result =
+            change_book_with_rescan(&add_result.book_path, &new_source, workspace_root)?;
 
         // Path should be same
         assert_eq!(change_result.new_book_path, add_result.book_path);
@@ -337,11 +331,8 @@ mod tests {
         // Change book file
         let new_source = temp_dir.path().join("updated.md");
         fs::write(&new_source, "# Updated")?;
-        let change_result = change_book_with_rescan(
-            &add_result.book_path,
-            &new_source,
-            workspace_root,
-        )?;
+        let change_result =
+            change_book_with_rescan(&add_result.book_path, &new_source, workspace_root)?;
 
         // Updated book index should be valid
         assert!(change_result.updated_book_index.is_some());
@@ -349,7 +340,10 @@ mod tests {
 
         // Verify the book at that index is the one we changed
         assert!(index < change_result.books.len());
-        assert_eq!(change_result.books[index].path.as_path(), change_result.new_book_path);
+        assert_eq!(
+            change_result.books[index].path.as_path(),
+            change_result.new_book_path
+        );
 
         Ok(())
     }

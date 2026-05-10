@@ -3,8 +3,8 @@
 use crate::state::{AppStateHolder, GoogleAuthState};
 use iriebook::resource_access::{CredentialStore, GitHubAuthenticator, GoogleDocInfo, PollResult};
 use iriebook_ui_common::{
-    processing::DefaultBookProcessor, BatchGoogleDocsSyncProcessor, BookInfo, DeviceFlowInfo,
-    GoogleDocsBatchSyncUpdateEvent, GoogleDocsProgressEvent,
+    BatchGoogleDocsSyncProcessor, BookInfo, DeviceFlowInfo, GoogleDocsBatchSyncUpdateEvent,
+    GoogleDocsProgressEvent, processing::DefaultBookProcessor,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -181,14 +181,18 @@ pub async fn google_list_docs(
         .ok_or_else(|| "App state not initialized".to_string())?;
 
     let docs_client = app_state.google_docs_client();
-    let result = iriebook_ui_common::list_documents(&app_state.google_authenticator(), &*docs_client, 50)
-        .await;
+    let result =
+        iriebook_ui_common::list_documents(&app_state.google_authenticator(), &*docs_client, 50)
+            .await;
 
     #[cfg(feature = "e2e-mocks")]
     {
         use tracing::warn;
         match &result {
-            Ok(docs) => warn!("📋 [E2E-TAURI] google_list_docs returned {} docs", docs.len()),
+            Ok(docs) => warn!(
+                "📋 [E2E-TAURI] google_list_docs returned {} docs",
+                docs.len()
+            ),
             Err(e) => warn!("📋 [E2E-TAURI] google_list_docs error: {}", e),
         }
     }
@@ -266,15 +270,16 @@ pub async fn google_sync_selected(
         .get()
         .ok_or_else(|| "App state not initialized".to_string())?;
 
-    BatchGoogleDocsSyncProcessor::new(app_state.workspace_path().to_path_buf()).sync_books(
-        books,
-        app_state_holder.publication_options(),
-        app_state.google_authenticator(),
-        app_state.google_docs_manager(),
-        Arc::new(DefaultBookProcessor),
-        move |event| {
-            let _ = GoogleDocsBatchSyncUpdateEvent(event).emit(&app);
-        },
-    )
-    .await
+    BatchGoogleDocsSyncProcessor::new(app_state.workspace_path().to_path_buf())
+        .sync_books(
+            books,
+            app_state_holder.publication_options(),
+            app_state.google_authenticator(),
+            app_state.google_docs_manager(),
+            Arc::new(DefaultBookProcessor),
+            move |event| {
+                let _ = GoogleDocsBatchSyncUpdateEvent(event).emit(&app);
+            },
+        )
+        .await
 }

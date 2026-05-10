@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use specta::Type;
+use crate::git_state::{DeviceFlowInfo, GitAuthStatus, GitCommit, GitSyncStatus};
 use crate::session::SessionData;
 use crate::ui_state::BookInfo;
-use crate::git_state::{GitSyncStatus, GitAuthStatus, DeviceFlowInfo, GitCommit};
+use serde::{Deserialize, Serialize};
+use specta::Type;
 
 /// Progress state for batch processing
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

@@ -121,9 +121,9 @@ pub async fn get_book_processing_diff(
     book_path: &str,
     diff_manager: &DiffManager,
 ) -> Result<iriebook::utilities::types::DiffComparison, String> {
-    use std::path::Path;
     use iriebook::resource_access::file;
     use iriebook::utilities::types::{DiffRequest, DiffSourceId, DisplayName};
+    use std::path::Path;
 
     let original_path = Path::new(book_path);
 

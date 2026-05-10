@@ -11,7 +11,9 @@ use tauri::State;
 
 #[tauri::command]
 #[specta::specta]
-pub fn load_session(app_state_holder: State<'_, AppStateHolder>) -> Result<Option<SessionData>, String> {
+pub fn load_session(
+    app_state_holder: State<'_, AppStateHolder>,
+) -> Result<Option<SessionData>, String> {
     // In e2e-mocks mode, check for IRIEBOOK_WORKSPACE env var
     // If set, return a fake session with that workspace path
     #[cfg(feature = "e2e-mocks")]

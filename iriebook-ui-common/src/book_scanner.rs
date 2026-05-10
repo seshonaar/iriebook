@@ -18,13 +18,14 @@ fn get_changed_folders(repo_path: &Path, git_client: &GitClient) -> HashMap<Path
         // Group changed files by their parent folder
         for file_path in changed_files {
             if let Some(parent) = file_path.parent()
-                && let Some(file_name) = file_path.file_name() {
-                    let file_name_str = file_name.to_string_lossy().to_string();
-                    changed_folders
-                        .entry(parent.to_path_buf())
-                        .or_default()
-                        .push(file_name_str);
-                }
+                && let Some(file_name) = file_path.file_name()
+            {
+                let file_name_str = file_name.to_string_lossy().to_string();
+                changed_folders
+                    .entry(parent.to_path_buf())
+                    .or_default()
+                    .push(file_name_str);
+            }
         }
     }
 
@@ -57,7 +58,10 @@ pub fn scan_for_books(root_dir: &Path) -> Result<Vec<BookInfo>> {
         .into_iter()
         .filter_entry(|entry| {
             // Skip hidden directories
-            !entry.file_name().to_str().is_some_and(|s| s.starts_with('.'))
+            !entry
+                .file_name()
+                .to_str()
+                .is_some_and(|s| s.starts_with('.'))
         });
 
     for entry in walker {
@@ -93,9 +97,9 @@ pub fn scan_for_books(root_dir: &Path) -> Result<Vec<BookInfo>> {
 
         // Skip files in irie/ workspace directories
         let is_in_irie_dir = match path.strip_prefix(root_dir) {
-            Ok(relative) => relative.components().any(|comp| {
-                comp.as_os_str().to_str() == Some("irie")
-            }),
+            Ok(relative) => relative
+                .components()
+                .any(|comp| comp.as_os_str().to_str() == Some("irie")),
             Err(_) => false,
         };
 
@@ -105,9 +109,9 @@ pub fn scan_for_books(root_dir: &Path) -> Result<Vec<BookInfo>> {
 
         // Skip files in output directories
         let is_in_output_dir = match path.strip_prefix(root_dir) {
-            Ok(relative) => relative.components().any(|comp| {
-                comp.as_os_str().to_str() == Some(OUTPUT_DIR_NAME)
-            }),
+            Ok(relative) => relative
+                .components()
+                .any(|comp| comp.as_os_str().to_str() == Some(OUTPUT_DIR_NAME)),
             Err(_) => false,
         };
 
@@ -138,19 +142,26 @@ pub fn scan_for_books(root_dir: &Path) -> Result<Vec<BookInfo>> {
         }
 
         // Create display name from the file name
-        let display_name = path.file_name()
+        let display_name = path
+            .file_name()
             .and_then(|f| f.to_str())
             .unwrap_or("unknown")
             .to_string();
 
         let book_path = BookPath::new(path.to_path_buf());
         let cover_image = find_cover_image(path);
-        let metadata = iriebook::resource_access::file::load_metadata(path).ok().flatten();
-        let google_docs_sync_info = iriebook::resource_access::file::load_google_docs_sync_info(path).ok().flatten();
+        let metadata = iriebook::resource_access::file::load_metadata(path)
+            .ok()
+            .flatten();
+        let google_docs_sync_info =
+            iriebook::resource_access::file::load_google_docs_sync_info(path)
+                .ok()
+                .flatten();
 
         // Get changed files for this book's folder (efficient lookup in pre-computed map)
         let git_changed_files = if let Some(book_folder) = path.parent() {
-            changed_folders.get(book_folder)
+            changed_folders
+                .get(book_folder)
                 .cloned()
                 .unwrap_or_default()
         } else {
@@ -460,8 +471,14 @@ mod tests {
         let books = scan_for_books(root)?;
 
         // Find the books
-        let book1 = books.iter().find(|b| b.path.as_path().ends_with("book1/chapter.md")).unwrap();
-        let book2 = books.iter().find(|b| b.path.as_path().ends_with("book2/chapter.md")).unwrap();
+        let book1 = books
+            .iter()
+            .find(|b| b.path.as_path().ends_with("book1/chapter.md"))
+            .unwrap();
+        let book2 = books
+            .iter()
+            .find(|b| b.path.as_path().ends_with("book2/chapter.md"))
+            .unwrap();
 
         assert!(book1.has_git_changes());
         assert!(book1.git_changed_files.contains(&"chapter.md".to_string()));
@@ -522,7 +539,11 @@ mod tests {
         let books = scan_for_books(root)?;
         assert_eq!(books.len(), 1);
         assert!(books[0].has_git_changes());
-        assert!(books[0].git_changed_files.contains(&"cover.jpg".to_string()));
+        assert!(
+            books[0]
+                .git_changed_files
+                .contains(&"cover.jpg".to_string())
+        );
 
         Ok(())
     }

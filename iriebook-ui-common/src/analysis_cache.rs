@@ -5,8 +5,8 @@
 
 use crate::processing::WordAnalysisStats;
 use iriebook::resource_access::file::{
-    get_file_modified_timestamp, load_analysis_cache, save_analysis_cache, CachedAnalysis,
-    CachedAnalysisStats,
+    CachedAnalysis, CachedAnalysisStats, get_file_modified_timestamp, load_analysis_cache,
+    save_analysis_cache,
 };
 use serde::Serialize;
 use specta::Type;
@@ -112,8 +112,7 @@ fn compute_analysis(book_path: &Path) -> Result<WordAnalysisStats, String> {
     use iriebook::resource_access::file::read_file;
 
     // Read the book content
-    let content = read_file(book_path)
-        .map_err(|e| format!("Failed to read book: {}", e))?;
+    let content = read_file(book_path).map_err(|e| format!("Failed to read book: {}", e))?;
 
     // Run word analysis with default config
     let analyzer = WordAnalyzer;

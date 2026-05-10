@@ -1,7 +1,7 @@
 //! Application update functionality using tauri-plugin-updater
 
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::Serialize;
 use specta::Type;
@@ -37,7 +37,10 @@ pub async fn check_for_updates(app: tauri::AppHandle) -> Result<(), String> {
         Ok(u) => u,
         Err(e) => {
             let msg = e.to_string();
-            let _ = UpdateProgressEvent(UpdateProgress::Error { message: msg.clone() }).emit(&app);
+            let _ = UpdateProgressEvent(UpdateProgress::Error {
+                message: msg.clone(),
+            })
+            .emit(&app);
             return Err(msg);
         }
     };
@@ -46,7 +49,10 @@ pub async fn check_for_updates(app: tauri::AppHandle) -> Result<(), String> {
         Ok(u) => u,
         Err(e) => {
             let msg = e.to_string();
-            let _ = UpdateProgressEvent(UpdateProgress::Error { message: msg.clone() }).emit(&app);
+            let _ = UpdateProgressEvent(UpdateProgress::Error {
+                message: msg.clone(),
+            })
+            .emit(&app);
             return Err(msg);
         }
     };
@@ -84,7 +90,10 @@ pub async fn check_for_updates(app: tauri::AppHandle) -> Result<(), String> {
                 .await
             {
                 let msg = e.to_string();
-                let _ = UpdateProgressEvent(UpdateProgress::Error { message: msg.clone() }).emit(&app);
+                let _ = UpdateProgressEvent(UpdateProgress::Error {
+                    message: msg.clone(),
+                })
+                .emit(&app);
                 return Err(msg);
             }
 

@@ -1,10 +1,10 @@
 use iriebook::utilities::types::PublicationOptions;
+use iriebook_ui_common::AppState;
 #[cfg(feature = "e2e-mocks")]
 use iriebook_ui_common::app_state::AppStateBuilder;
-use iriebook_ui_common::AppState;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{Mutex, oneshot};
 
 #[cfg(feature = "e2e-mocks")]
 use iriebook_test_support::{

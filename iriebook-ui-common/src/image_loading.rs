@@ -1,5 +1,5 @@
 use anyhow::Result;
-use base64::{engine::general_purpose::STANDARD, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD};
 use image::imageops::FilterType;
 use image::{GenericImageView, ImageReader};
 use serde::{Deserialize, Serialize};
@@ -135,9 +135,7 @@ pub fn load_cover_data(path: &Path) -> Result<(Vec<u8>, u32, u32)> {
     };
 
     // 3. Try to load from cache if valid
-    if !should_regenerate
-        && let Some(thumb_dir) = &thumbnail_path
-    {
+    if !should_regenerate && let Some(thumb_dir) = &thumbnail_path {
         let thumbnail_path = thumb_dir.join("thumbnail.jpg");
         if let Ok(img) = ImageReader::open(&thumbnail_path)?.decode() {
             let rgba = img.to_rgba8();

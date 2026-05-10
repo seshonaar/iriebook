@@ -36,9 +36,7 @@ pub async fn sync_repository(
     match result {
         SyncResult::Synced => Ok("Synced successfully".to_string()),
         SyncResult::SyncedAndPushed => Ok("Synced and pushed pending commits".to_string()),
-        SyncResult::SyncedPushFailed(msg) => {
-            Ok(format!("Synced, but push failed: {}", msg))
-        }
+        SyncResult::SyncedPushFailed(msg) => Ok(format!("Synced, but push failed: {}", msg)),
     }
 }
 
@@ -67,9 +65,7 @@ pub async fn save_repository(
 
     match result {
         SaveResult::SavedAndPushed => Ok("Committed and pushed successfully".to_string()),
-        SaveResult::SavedPushPending(msg) => {
-            Ok(format!("Committed, push pending: {}", msg))
-        }
+        SaveResult::SavedPushPending(msg) => Ok(format!("Committed, push pending: {}", msg)),
         SaveResult::NothingToCommit => Ok("No changes to commit".to_string()),
     }
 }
@@ -192,7 +188,6 @@ pub fn get_remote_url(workspace_path: &Path) -> Result<String, String> {
 
 #[cfg(test)]
 mod tests {
-    
 
     // Note: These are integration tests that would require a real repository
     // For now, we're just testing that the functions are callable

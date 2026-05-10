@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize, Serializer, Deserializer};
+use iriebook::utilities::types::{BookMetadata, GoogleDocsSyncInfo};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use specta::Type;
 use std::path::{Path, PathBuf};
-use iriebook::utilities::types::{BookMetadata, GoogleDocsSyncInfo};
 
 /// NewType wrapper for book file path
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Type)]

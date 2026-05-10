@@ -152,15 +152,12 @@ mod tests {
         processing::ProcessingResult,
         ui_state::{BookPath, PublishEnabled, WordStatsEnabled},
     };
-    use iriebook::{
-        resource_access::traits::SyncResult,
-        utilities::error::IrieBookError,
-    };
+    use iriebook::{resource_access::traits::SyncResult, utilities::error::IrieBookError};
     use std::{
         path::{Path, PathBuf},
         sync::{
-            atomic::{AtomicBool, Ordering},
             Mutex,
+            atomic::{AtomicBool, Ordering},
         },
     };
 
@@ -274,15 +271,16 @@ mod tests {
         let process_called = Arc::new(AtomicBool::new(false));
         let processor = Arc::new(MockBookProcessor::new(process_called));
 
-        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
-            books,
-            PublicationOptions::default(),
-            token_provider,
-            syncer,
-            processor,
-            |_| {},
-        )
-        .await;
+        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace"))
+            .sync_books(
+                books,
+                PublicationOptions::default(),
+                token_provider,
+                syncer,
+                processor,
+                |_| {},
+            )
+            .await;
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "No books are linked to Google Docs");
@@ -303,17 +301,18 @@ mod tests {
         let process_called = Arc::new(AtomicBool::new(false));
         let processor = Arc::new(MockBookProcessor::new(process_called));
 
-        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
-            books,
-            PublicationOptions::default(),
-            token_provider,
-            syncer,
-            processor,
-            move |event| {
-                events_clone.lock().unwrap().push(event);
-            },
-        )
-        .await;
+        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace"))
+            .sync_books(
+                books,
+                PublicationOptions::default(),
+                token_provider,
+                syncer,
+                processor,
+                move |event| {
+                    events_clone.lock().unwrap().push(event);
+                },
+            )
+            .await;
 
         assert!(result.is_ok());
 
@@ -350,17 +349,18 @@ mod tests {
         let process_called = Arc::new(AtomicBool::new(false));
         let processor = Arc::new(MockBookProcessor::new(process_called));
 
-        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
-            books,
-            PublicationOptions::default(),
-            token_provider,
-            syncer,
-            processor,
-            move |event| {
-                events_clone.lock().unwrap().push(event);
-            },
-        )
-        .await;
+        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace"))
+            .sync_books(
+                books,
+                PublicationOptions::default(),
+                token_provider,
+                syncer,
+                processor,
+                move |event| {
+                    events_clone.lock().unwrap().push(event);
+                },
+            )
+            .await;
 
         assert!(result.is_ok());
 
@@ -405,17 +405,18 @@ mod tests {
         let process_called = Arc::new(AtomicBool::new(false));
         let processor = Arc::new(MockBookProcessor::new(process_called));
 
-        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
-            books,
-            PublicationOptions::default(),
-            token_provider,
-            syncer,
-            processor,
-            move |event| {
-                events_clone.lock().unwrap().push(event);
-            },
-        )
-        .await;
+        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace"))
+            .sync_books(
+                books,
+                PublicationOptions::default(),
+                token_provider,
+                syncer,
+                processor,
+                move |event| {
+                    events_clone.lock().unwrap().push(event);
+                },
+            )
+            .await;
 
         assert!(result.is_ok());
 
@@ -433,16 +434,14 @@ mod tests {
         assert_eq!(started_count, 3);
 
         // Verify we got the AllDone event with correct counts
-        let all_done = collected
-            .iter()
-            .find_map(|e| match e {
-                GoogleDocsBatchSyncEvent::AllDone {
-                    total_books,
-                    success_count,
-                    fail_count,
-                } => Some((*total_books, *success_count, *fail_count)),
-                _ => None,
-            });
+        let all_done = collected.iter().find_map(|e| match e {
+            GoogleDocsBatchSyncEvent::AllDone {
+                total_books,
+                success_count,
+                fail_count,
+            } => Some((*total_books, *success_count, *fail_count)),
+            _ => None,
+        });
 
         assert!(all_done.is_some());
         let (total, success, fail) = all_done.unwrap();
@@ -471,17 +470,18 @@ mod tests {
         let process_called = Arc::new(AtomicBool::new(false));
         let processor = Arc::new(MockBookProcessor::new(process_called));
 
-        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace")).sync_books(
-            books,
-            PublicationOptions::default(),
-            token_provider,
-            syncer,
-            processor,
-            move |event| {
-                events_clone.lock().unwrap().push(event);
-            },
-        )
-        .await;
+        let result = BatchGoogleDocsSyncProcessor::new(PathBuf::from("/workspace"))
+            .sync_books(
+                books,
+                PublicationOptions::default(),
+                token_provider,
+                syncer,
+                processor,
+                move |event| {
+                    events_clone.lock().unwrap().push(event);
+                },
+            )
+            .await;
 
         assert!(result.is_ok());
 
@@ -491,16 +491,14 @@ mod tests {
         let collected = events.lock().unwrap();
 
         // Find AllDone event
-        let all_done = collected
-            .iter()
-            .find_map(|e| match e {
-                GoogleDocsBatchSyncEvent::AllDone {
-                    total_books,
-                    success_count,
-                    fail_count,
-                } => Some((*total_books, *success_count, *fail_count)),
-                _ => None,
-            });
+        let all_done = collected.iter().find_map(|e| match e {
+            GoogleDocsBatchSyncEvent::AllDone {
+                total_books,
+                success_count,
+                fail_count,
+            } => Some((*total_books, *success_count, *fail_count)),
+            _ => None,
+        });
 
         assert!(all_done.is_some());
         let (total, success, fail) = all_done.unwrap();

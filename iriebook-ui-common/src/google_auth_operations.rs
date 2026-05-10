@@ -169,14 +169,14 @@ pub async fn list_documents(
     #[cfg(feature = "e2e-mocks")]
     eprintln!("[E2E-UI-COMMON] 📋 list_documents: Listing Google Docs");
 
-    let token = authenticator
-        .get_valid_token()
-        .await
-        .map_err(|e| {
-            #[cfg(feature = "e2e-mocks")]
-            eprintln!("[E2E-UI-COMMON] ❌ list_documents: Failed to get token: {}", e);
-            format!("Not authenticated: {}", e)
-        })?;
+    let token = authenticator.get_valid_token().await.map_err(|e| {
+        #[cfg(feature = "e2e-mocks")]
+        eprintln!(
+            "[E2E-UI-COMMON] ❌ list_documents: Failed to get token: {}",
+            e
+        );
+        format!("Not authenticated: {}", e)
+    })?;
 
     #[cfg(feature = "e2e-mocks")]
     eprintln!("[E2E-UI-COMMON] 🔑 list_documents: Got token, calling API");

@@ -69,7 +69,10 @@ impl CoverLoadingEngine for DefaultCoverLoadingEngine {
         let mut state = self.state.lock().unwrap();
 
         // Return cached status immediately if available
-        if matches!(state.status, CoverStatus::Ready { .. } | CoverStatus::Loading) {
+        if matches!(
+            state.status,
+            CoverStatus::Ready { .. } | CoverStatus::Loading
+        ) {
             return state.status.clone();
         }
 
