@@ -692,8 +692,46 @@ fn needs_paragraph_spacing(current: &ContentItem, next: &ContentItem) -> bool {
     )
 }
 
+/// Merge consecutive Dedication items (optionally separated by BlankLine) into one
+fn merge_dedications(items: Vec<ContentItem>) -> Vec<ContentItem> {
+    let mut merged = Vec::new();
+    let mut i = 0;
+    while i < items.len() {
+        if let ContentItem::Dedication(text) = &items[i] {
+            let mut parts = vec![text.clone()];
+            let mut j = i + 1;
+            while j < items.len() {
+                match &items[j] {
+                    ContentItem::Dedication(t) => {
+                        parts.push(t.clone());
+                        j += 1;
+                    }
+                    ContentItem::BlankLine => {
+                        if j + 1 < items.len()
+                            && matches!(items[j + 1], ContentItem::Dedication(_))
+                        {
+                            j += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    _ => break,
+                }
+            }
+            let combined = parts.join("</em></p>\n<p><em>");
+            merged.push(ContentItem::Dedication(combined));
+            i = j;
+        } else {
+            merged.push(items[i].clone());
+            i += 1;
+        }
+    }
+    merged
+}
+
 /// Render ContentItems back to markdown string
 fn render_items(items: Vec<ContentItem>) -> String {
+    let items = merge_dedications(items);
     let mut lines = Vec::new();
 
     for (i, item) in items.iter().enumerate() {
@@ -1656,6 +1694,17 @@ More text.
         assert!(result.contains("# {.dedication-page .unnumbered .unlisted}"));
         assert!(result.contains("<div class=\"dedication\">"));
         assert!(result.contains("To those who dream"));
+    }
+
+    #[test]
+    fn consecutive_dedication_h3_lines_merge_into_single_page() {
+        let input = "### *Pentru acele inimi cititoare.*\n\n### *Si, apropo, altceva.*";
+        let transformer = MarkdownTransformer;
+        let result = transformer.transform(input).unwrap();
+
+        let page_count = result.matches("# {.dedication-page .unnumbered .unlisted}").count();
+        assert_eq!(page_count, 1, "should have exactly one dedication page, got:\n{result}");
+        assert!(result.contains("<em>Pentru acele inimi cititoare.</em></p>\n<p><em>Si, apropo, altceva.</em>"));
     }
 
     #[test]

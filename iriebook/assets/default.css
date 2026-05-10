@@ -226,10 +226,12 @@ h1.dedication-page {
 /* Centered on its own page, after title */
 .dedication {
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     min-height: 85vh;
     text-align: center;
+    gap: 0.5em;
 }
 
 .dedication p {
@@ -237,7 +239,7 @@ h1.dedication-page {
     font-style: italic;
     font-weight: normal;
     margin: 0;
-    padding: 2em;
+    padding: 0 2em;
     line-height: 1.8;
     text-indent: 0;
 }
