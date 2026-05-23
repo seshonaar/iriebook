@@ -285,6 +285,8 @@ fn build_pdf_pandoc_command(
         .arg(&pdf_config.pdf_engine)
         .arg("--metadata-file")
         .arg(metadata_path)
+        .arg("-M")
+        .arg("has-frontmatter=false")
         .arg("--standalone")
         .arg("--include-in-header")
         .arg(pdf_header_path)
@@ -307,10 +309,17 @@ fn build_pdf_pandoc_command(
         .arg("-V")
         .arg(format!("geometry:top={}", pdf_config.top_margin))
         .arg("-V")
-        .arg(format!("geometry:bottom={}", pdf_config.bottom_margin));
+        .arg(format!("geometry:bottom={}", pdf_config.bottom_margin))
+        .arg("-V")
+        .arg("geometry:footskip=0.85cm")
+        .arg("-V")
+        .arg("documentclass=scrbook")
+        .arg("-V")
+        .arg("classoption=twoside")
+        .arg("-V")
+        .arg("classoption=open=any");
 
     if !pdf_config.justified {
-        command.arg("-V").arg("documentclass=scrbook");
         command.arg("-V").arg("classoption=DIV=calc");
         command.arg("-V").arg("include-before=\\raggedright");
     }
@@ -345,6 +354,18 @@ fn write_pdf_latex_header(
 \usepackage{{fontspec}}
 \usepackage{{etoolbox}}
 \usepackage{{indentfirst}}
+\usepackage{{scrlayer-scrpage}}
+
+\clearpairofpagestyles
+\newcommand{{\irieCenteredPageNumber}}{{%
+  \ifodd\value{{page}}%
+    \hspace*{{\dimexpr.5\paperwidth-1in-\oddsidemargin-.5\textwidth\relax}}%
+  \else
+    \hspace*{{\dimexpr.5\paperwidth-1in-\evensidemargin-.5\textwidth\relax}}%
+  \fi
+  \makebox[0pt][c]{{\pagemark}}%
+}}
+\cfoot*{{\irieCenteredPageNumber}}
 
 \setlength{{\parindent}}{{1.5em}}
 \setlength{{\parskip}}{{0pt}}
@@ -355,27 +376,23 @@ fn write_pdf_latex_header(
 
 {}
 
-\titleformat{{\section}}
-  {{\normalfont\Large\bfseries\centering\MakeUppercase}}
+\titleformat{{\chapter}}
+  {{\normalfont\Large\bfseries\centering}}
   {{}}
   {{0pt}}
-  {{}}
-\titlespacing*{{\section}}{{0pt}}{{0pt}}{{4em}}
+  {{\MakeUppercase}}
+\titlespacing*{{\chapter}}{{0pt}}{{0.15\textheight}}{{4em}}
 
 \newif\ifirieMainMatterStarted
 \newif\ifirieInToc
-\pretocmd{{\section}}{{%
+\pretocmd{{\chapter}}{{%
   \ifirieInToc
   \else
-    \ifirieMainMatterStarted
-      \clearpage
-      \vspace*{{0.15\textheight}}
-    \else
-      \clearpage
+    \ifirieMainMatterStarted\else
+      \cleardoublepage
       \global\irieMainMatterStartedtrue
-      \pagestyle{{plain}}
-      \thispagestyle{{plain}}
-      \vspace*{{0.15\textheight}}
+      \pagestyle{{scrheadings}}
+      \thispagestyle{{scrheadings}}
     \fi
   \fi
 }}{{}}{{}}
@@ -390,19 +407,13 @@ fn write_pdf_latex_header(
   \vspace{{1em}}\par%
 }}
 
-\newcommand{{\irieBlankPage}}{{%
-  \thispagestyle{{empty}}%
-  \null%
-  \newpage%
-}}
-
 \newenvironment{{irieDedication}}
-  {{\clearpage\thispagestyle{{empty}}\vspace*{{\fill}}\begin{{center}}\itshape\large}}
-  {{\end{{center}}\vspace*{{\fill}}\clearpage\irieBlankPage}}
+  {{\thispagestyle{{empty}}\vspace*{{\fill}}\begin{{center}}\itshape\large}}
+  {{\end{{center}}\vspace*{{\fill}}\clearpage\thispagestyle{{empty}}\null\clearpage}}
 
 \newenvironment{{irieCopyright}}
-  {{\clearpage\thispagestyle{{empty}}\begingroup\setlength{{\parindent}}{{0pt}}\small\vspace*{{4em}}}}
-  {{\par\endgroup\clearpage}}
+  {{\thispagestyle{{empty}}\begingroup\setlength{{\parindent}}{{0pt}}\small\vspace*{{4em}}}}
+  {{\par\endgroup}}
 
 \newenvironment{{irieCopyrightDisclaimer}}
   {{\par\small\setlength{{\parindent}}{{0pt}}}}
@@ -410,9 +421,9 @@ fn write_pdf_latex_header(
 
 \makeatletter
 \renewcommand{{\maketitle}}{{%
-  \begin{{titlepage}}
   \thispagestyle{{empty}}
   \pagestyle{{empty}}
+  \begingroup
   \centering
   \vspace*{{5em}}
   \irieRenderTitlePageTopStars
@@ -421,8 +432,7 @@ fn write_pdf_latex_header(
   \vspace{{2.6em}}
   {{\irieTitlePageAuthorStyle\MakeUppercase{{\@author}}\par}}
   \vfill
-  \end{{titlepage}}
-  \setcounter{{page}}{{1}}
+  \endgroup
   \pagestyle{{empty}}
 }}
 \makeatother
@@ -490,7 +500,6 @@ fn build_pdf_cover_command(
   \noindent\makebox[\paperwidth][c]{{\includegraphics[{}]{{{}}}}}
   \restoregeometry
   \clearpage
-  \setcounter{{page}}{{1}}
   \pagestyle{{empty}}
 }}
 \AtBeginDocument{{\irieCoverPage}}
@@ -552,7 +561,7 @@ function Header(el)
   end
 
   if has_class(el, 'dedication-page') or has_class(el, 'copyright-page') then
-    return {}
+    return pandoc.RawBlock('latex', '\\clearpage')
   end
   return nil
 end
@@ -1294,6 +1303,8 @@ mod tests {
         assert!(args.contains(&"xelatex".to_string()));
         assert!(args.contains(&"--metadata-file".to_string()));
         assert!(args.contains(&"metadata.yaml".to_string()));
+        assert!(args.contains(&"-M".to_string()));
+        assert!(args.contains(&"has-frontmatter=false".to_string()));
         assert!(args.contains(&"mainfont=Liberation Serif".to_string()));
         assert!(args.contains(&"fontsize=11pt".to_string()));
         assert!(args.contains(&"linestretch=1.2".to_string()));
@@ -1303,6 +1314,10 @@ mod tests {
         assert!(args.contains(&"geometry:outer=1.8cm".to_string()));
         assert!(args.contains(&"geometry:top=1.8cm".to_string()));
         assert!(args.contains(&"geometry:bottom=1.8cm".to_string()));
+        assert!(args.contains(&"geometry:footskip=0.85cm".to_string()));
+        assert!(args.contains(&"documentclass=scrbook".to_string()));
+        assert!(args.contains(&"classoption=twoside".to_string()));
+        assert!(args.contains(&"classoption=open=any".to_string()));
         assert!(args.contains(&"--include-in-header".to_string()));
         assert!(args.contains(&"pdf-style.tex".to_string()));
         assert!(args.contains(&"--lua-filter".to_string()));
@@ -1353,15 +1368,25 @@ mod tests {
         assert!(include.contains("\\newcommand{\\irieSceneBreak}"));
         assert!(include.contains("\\newenvironment{irieDedication}"));
         assert!(include.contains("\\newenvironment{irieCopyright}"));
-        assert!(include.contains("\\newcommand{\\irieBlankPage}"));
         assert!(include.contains("\\usepackage{indentfirst}"));
+        assert!(include.contains("\\usepackage{scrlayer-scrpage}"));
+        assert!(include.contains("\\newcommand{\\irieCenteredPageNumber}"));
+        assert!(include.contains("\\cfoot*{\\irieCenteredPageNumber}"));
         assert!(include.contains("\\ifirieMainMatterStarted"));
+        assert!(include.contains("\\pretocmd{\\chapter}"));
+        assert!(include.contains("\\cleardoublepage"));
+        assert!(include.contains("\\titleformat{\\chapter}"));
+        assert!(include.contains("\\MakeUppercase"));
         assert!(include.contains("\\renewcommand{\\maketitle}"));
+        assert!(!include.contains("\\setcounter{page}"));
+        assert!(include.contains("\\pagestyle{scrheadings}"));
+        assert!(!include.contains("\\begin{titlepage}"));
+        assert!(!include.contains("\\clearpage\n  \\thispagestyle{empty}\n  \\pagestyle{empty}\n  \\begingroup"));
         assert!(!include.contains("\\AtBeginDocument{\\irieCoverPage}"));
     }
 
     #[test]
-    fn write_pdf_latex_header_keeps_only_trailing_blank_page_for_dedication() {
+    fn write_pdf_latex_header_does_not_force_extra_blank_page_after_dedication() {
         let temp_dir = TempDir::new().unwrap();
         let output_pdf = temp_dir.path().join("book.pdf");
 
@@ -1374,9 +1399,10 @@ mod tests {
         .unwrap();
         let include = std::fs::read_to_string(include_path).unwrap();
 
-        assert!(include.contains("\\irieBlankPage"));
-        assert!(include.contains("\\clearpage\\irieBlankPage"));
-        assert!(!include.contains("\\ifodd\\value{page}"));
+        assert!(!include.contains("\\irieBlankPage"));
+        assert!(include.contains("{\\thispagestyle{empty}\\vspace*{\\fill}\\begin{center}"));
+        assert!(include.contains("{\\end{center}\\vspace*{\\fill}\\clearpage\\thispagestyle{empty}\\null\\clearpage}"));
+        assert!(!include.contains("\\newenvironment{irieDedication}\n  {\\clearpage"));
         assert!(!include.contains("\\irieDedicationOpening"));
     }
 
@@ -1393,6 +1419,7 @@ mod tests {
         assert!(filter.contains("irieDedication"));
         assert!(filter.contains("irieCopyright"));
         assert!(filter.contains("previous-books-page"));
+        assert!(filter.contains("return pandoc.RawBlock('latex', '\\\\clearpage')"));
         assert!(filter.contains("heading = heading .. ':'"));
         assert!(filter.contains("pandoc.Para({ pandoc.Str(heading) })"));
         assert!(filter.contains("previous-books-list"));
