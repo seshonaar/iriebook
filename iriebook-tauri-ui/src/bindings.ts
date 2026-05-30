@@ -293,6 +293,14 @@ async googleLinkDoc(bookPath: string, docId: string) : Promise<Result<null, stri
     else return { status: "error", error: e  as any };
 }
 },
+async googleAddBookFromDoc(workspaceRoot: string, docId: string, docName: string) : Promise<Result<AddBookResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("google_add_book_from_doc", { workspaceRoot, docId, docName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async googleSyncDoc(bookPath: string) : Promise<Result<string, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("google_sync_doc", { bookPath }) };

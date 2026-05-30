@@ -45,6 +45,8 @@
   },
   "dialog": {
     "title": "Link to Google Doc",
+    "addTitle": "Add from Google Docs",
+    "addDescription": "Select a Google Doc to add as a book. IrieBook will create a matching local manuscript file, link it, and sync the latest content.",
     "description": "Select a Google Doc to link with \"{{bookName}}\"",
     "search": "Search documents...",
     "loading": "Loading documents...",
@@ -52,7 +54,8 @@
     "noMatches": "No documents match your search",
     "modified": "Modified {{date}}",
     "actions": {
-      "link": "Link"
+      "link": "Link",
+      "add": "Add and sync"
     },
     "errors": {
       "loadFailed": "Failed to load documents"

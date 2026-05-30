@@ -121,6 +121,12 @@ vi.mock("../bindings", () => ({
     googleLinkDoc: vi.fn(() =>
       Promise.resolve({ status: "ok" as const, data: null })
     ),
+    googleAddBookFromDoc: vi.fn(() =>
+      Promise.resolve({
+        status: "ok" as const,
+        data: { book_path: "", is_duplicate: false, books: [], new_book_index: null },
+      })
+    ),
     googleSyncDoc: vi.fn(() =>
       Promise.resolve({ status: "ok" as const, data: "Synced" })
     ),

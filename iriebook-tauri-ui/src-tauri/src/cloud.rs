@@ -3,8 +3,8 @@
 use crate::state::{AppStateHolder, GoogleAuthState};
 use iriebook::resource_access::{CredentialStore, GitHubAuthenticator, GoogleDocInfo, PollResult};
 use iriebook_ui_common::{
-    BatchGoogleDocsSyncProcessor, BookInfo, DeviceFlowInfo, GoogleDocsBatchSyncUpdateEvent,
-    GoogleDocsProgressEvent, processing::DefaultBookProcessor,
+    AddBookResult, BatchGoogleDocsSyncProcessor, BookInfo, DeviceFlowInfo,
+    GoogleDocsBatchSyncUpdateEvent, GoogleDocsProgressEvent, processing::DefaultBookProcessor,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -213,6 +213,38 @@ pub async fn google_link_doc(
         .ok_or_else(|| "App state not initialized".to_string())?;
 
     iriebook_ui_common::link_document(&path, doc_id, &app_state.google_docs_manager())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn google_add_book_from_doc(
+    app_state_holder: State<'_, AppStateHolder>,
+    workspace_root: String,
+    doc_id: String,
+    doc_name: String,
+    app: tauri::AppHandle,
+) -> Result<AddBookResult, String> {
+    let workspace = PathBuf::from(workspace_root);
+    let app_state = app_state_holder
+        .get()
+        .ok_or_else(|| "App state not initialized".to_string())?;
+
+    let app_handle = app.clone();
+    let progress_callback = move |msg: String| {
+        let _ = GoogleDocsProgressEvent(msg).emit(&app_handle);
+    };
+
+    iriebook_ui_common::add_book_from_google_doc(
+        &workspace,
+        doc_id,
+        doc_name,
+        app_state_holder.publication_options(),
+        &app_state.google_authenticator(),
+        &app_state.google_docs_manager(),
+        &DefaultBookProcessor,
+        Some(progress_callback),
+    )
+    .await
 }
 
 #[tauri::command]

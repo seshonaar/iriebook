@@ -6,11 +6,15 @@
 //! Following Volatility-Based Design principles, this orchestration logic lives
 //! in ui-common rather than in specific UI frameworks, making UIs thin and replaceable.
 
+use crate::book_scanner::scan_for_books;
+use crate::collection_management::AddBookResult;
 use crate::processing::BookProcessor;
 use crate::ui_state::{PublishEnabled, WordStatsEnabled};
+use anyhow::Context;
 use iriebook::managers::google_docs_sync::GoogleDocsSyncManager;
+use iriebook::resource_access::file;
 use iriebook::resource_access::traits::{DocumentSyncer, SyncResult, TokenProvider};
-use iriebook::utilities::types::PublicationOptions;
+use iriebook::utilities::types::{BookMetadata, PublicationOptions};
 use std::path::Path;
 
 /// Link a book to a Google Doc
@@ -54,6 +58,93 @@ pub fn link_document(
     google_docs_manager
         .link_document(book_path, doc_id)
         .map_err(|e| e.to_string())
+}
+
+/// Add a Google Doc as a local book, link it, sync its content, and rescan the workspace.
+pub async fn add_book_from_google_doc<F, T, P>(
+    workspace_root: &Path,
+    doc_id: String,
+    doc_name: String,
+    publication_options: PublicationOptions,
+    token_provider: &T,
+    google_docs_manager: &GoogleDocsSyncManager,
+    book_processor: &P,
+    mut progress_callback: Option<F>,
+) -> Result<AddBookResult, String>
+where
+    F: FnMut(String),
+    T: TokenProvider,
+    P: BookProcessor,
+{
+    let (book_path, is_duplicate) =
+        prepare_google_docs_book(workspace_root, &doc_name).map_err(|e| e.to_string())?;
+
+    link_document(&book_path, doc_id, google_docs_manager)?;
+
+    sync_document(
+        &book_path,
+        Some(workspace_root),
+        publication_options,
+        token_provider,
+        google_docs_manager,
+        book_processor,
+        progress_callback
+            .as_mut()
+            .map(|callback| callback as &mut F),
+    )
+    .await?;
+
+    let books = scan_for_books(workspace_root)
+        .with_context(|| format!("Failed to rescan workspace: {}", workspace_root.display()))
+        .map_err(|e| e.to_string())?;
+    let new_book_index = books
+        .iter()
+        .position(|book| book.path.as_path() == book_path);
+
+    Ok(AddBookResult {
+        book_path,
+        is_duplicate,
+        books,
+        new_book_index,
+    })
+}
+
+fn prepare_google_docs_book(
+    workspace_root: &Path,
+    doc_name: &str,
+) -> anyhow::Result<(std::path::PathBuf, bool)> {
+    let folder_name = file::slugify(doc_name);
+    if folder_name.is_empty() {
+        anyhow::bail!("Google Doc name cannot be empty");
+    }
+
+    let book_folder = workspace_root.join(&folder_name);
+    let is_duplicate = book_folder.exists();
+    std::fs::create_dir_all(book_folder.join("irie"))
+        .with_context(|| format!("Failed to create book folder: {}", book_folder.display()))?;
+
+    let book_path = book_folder.join(format!("{folder_name}.md"));
+    if !book_path.exists() {
+        file::write_file(&book_path, "")?;
+    }
+
+    let metadata_path = book_folder.join("metadata.yaml");
+    if !metadata_path.exists() {
+        let metadata = BookMetadata {
+            title: doc_name.to_string(),
+            author: "Unknown Author".to_string(),
+            belongs_to_collection: None,
+            group_position: None,
+            language: None,
+            rights: None,
+            cover_image: None,
+            replace_pairs: None,
+            identifier: None,
+        };
+        file::save_metadata(&book_path, &metadata)?;
+    }
+
+    Ok((book_path, is_duplicate))
 }
 
 /// Sync a book from its linked Google Doc with progress events
@@ -223,6 +314,8 @@ pub fn unlink_document(
 mod tests {
     use super::*;
     use crate::processing::ProcessingResult;
+    use iriebook::resource_access::traits::GoogleDocInfo;
+    use iriebook::resource_access::traits::GoogleDocsAccess;
     use iriebook::utilities::error::IrieBookError;
     use std::path::PathBuf;
     use std::sync::Arc;
@@ -356,6 +449,68 @@ mod tests {
                 ))
             }
         }
+    }
+
+    struct MockGoogleDocsAccess;
+
+    #[async_trait::async_trait]
+    impl GoogleDocsAccess for MockGoogleDocsAccess {
+        async fn list_documents(
+            &self,
+            _token: &str,
+            _max_results: u32,
+        ) -> Result<Vec<GoogleDocInfo>, IrieBookError> {
+            Ok(Vec::new())
+        }
+
+        async fn export_as_markdown(
+            &self,
+            doc_id: &str,
+            token: &str,
+        ) -> Result<String, IrieBookError> {
+            assert_eq!(doc_id, "doc-123");
+            assert_eq!(token, "test-token");
+            Ok("# Synced Manuscript\n\nBlessed content.".to_string())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_add_book_from_google_doc_creates_named_file_links_and_syncs() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let process_called = Arc::new(AtomicBool::new(false));
+        let token_provider = MockTokenProvider::new("test-token");
+        let google_docs_manager = GoogleDocsSyncManager::new(Arc::new(MockGoogleDocsAccess));
+        let processor = MockBookProcessor::new(process_called.clone());
+
+        let result = add_book_from_google_doc(
+            temp_dir.path(),
+            "doc-123".to_string(),
+            "My Google Book!".to_string(),
+            PublicationOptions::default(),
+            &token_provider,
+            &google_docs_manager,
+            &processor,
+            None::<fn(String)>,
+        )
+        .await
+        .unwrap();
+
+        let expected_book_path = temp_dir.path().join("my-google-book/my-google-book.md");
+        assert_eq!(result.book_path, expected_book_path);
+        assert!(!result.is_duplicate);
+        assert_eq!(
+            std::fs::read_to_string(&expected_book_path).unwrap(),
+            "# Synced Manuscript\n\nBlessed content."
+        );
+        assert!(
+            temp_dir
+                .path()
+                .join("my-google-book/google-docs-sync.yaml")
+                .exists()
+        );
+        assert!(process_called.load(Ordering::SeqCst));
+        assert_eq!(result.books.len(), 1);
+        assert_eq!(result.new_book_index, Some(0));
     }
 
     #[tokio::test]

@@ -211,7 +211,7 @@ export function MetadataDisplay({
                 key={output.path}
                 type="button"
                 variant="link"
-                className="h-auto px-0 text-base lowercase"
+                className="h-auto px-0 text-base lowercase text-sky-300 hover:text-sky-200"
                 onClick={() => handleOpenOutput(output.path)}
               >
                 {output.format}

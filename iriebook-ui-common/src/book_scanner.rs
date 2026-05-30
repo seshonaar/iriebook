@@ -156,18 +156,22 @@ pub fn scan_for_books(root_dir: &Path) -> Result<Vec<BookInfo>> {
             continue;
         }
 
-        // Create display name from the file name
-        let display_name = path
-            .file_name()
-            .and_then(|f| f.to_str())
-            .unwrap_or("unknown")
-            .to_string();
-
         let book_path = BookPath::new(path.to_path_buf());
         let cover_image = find_cover_image(path);
         let metadata = iriebook::resource_access::file::load_metadata(path)
             .ok()
             .flatten();
+        let display_name = metadata
+            .as_ref()
+            .map(|metadata| metadata.title.trim())
+            .filter(|title| !title.is_empty())
+            .map(str::to_string)
+            .unwrap_or_else(|| {
+                path.file_name()
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("unknown")
+                    .to_string()
+            });
         let google_docs_sync_info =
             iriebook::resource_access::file::load_google_docs_sync_info(path)
                 .ok()
@@ -288,6 +292,27 @@ mod tests {
         assert_eq!(books[1].display_name, "chapter2.md");
         assert_eq!(books[2].display_name, "intro.md");
         assert_eq!(books[3].display_name, "valid.md");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_scan_for_books_uses_metadata_title_as_display_name() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        fs::create_dir(root.join("cronicile"))?;
+        let book_file = root.join("cronicile/cronicile.md");
+        fs::write(&book_file, "# Manuscript")?;
+        fs::write(
+            root.join("cronicile/metadata.yaml"),
+            "---\ntitle: Cronicile vampirilor din Bucuresti\nauthor: Unknown Author\n---\n",
+        )?;
+
+        let books = scan_for_books(root)?;
+
+        assert_eq!(books.len(), 1);
+        assert_eq!(books[0].display_name, "Cronicile vampirilor din Bucuresti");
 
         Ok(())
     }

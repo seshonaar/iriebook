@@ -19,8 +19,8 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
         <input
           type="checkbox"
           className={cn(
-            "peer h-4 w-4 shrink-0 rounded-sm border border-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-            "appearance-none bg-background checked:bg-primary checked:border-primary",
+            "peer h-5 w-5 shrink-0 rounded-sm border-2 border-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+            "appearance-none bg-zinc-300 transition-colors hover:bg-zinc-200 checked:border-primary checked:bg-primary checked:hover:bg-primary",
             className
           )}
           ref={ref}
@@ -29,7 +29,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
         />
         <Check
           className={cn(
-            "pointer-events-none absolute left-0 h-4 w-4 text-primary-foreground opacity-0 peer-checked:opacity-100"
+            "pointer-events-none absolute left-0 h-5 w-5 text-primary-foreground opacity-0 peer-checked:opacity-100"
           )}
           strokeWidth={3}
         />

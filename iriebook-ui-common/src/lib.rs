@@ -51,7 +51,9 @@ pub use git_operations::{
 };
 pub use git_state::{DeviceFlowInfo, GitAuthStatus, GitCommit, GitSyncStatus};
 pub use google_auth_operations::{check_authenticated, list_documents, logout, start_auth_flow};
-pub use google_docs_operations::{link_document, sync_document, unlink_document};
+pub use google_docs_operations::{
+    add_book_from_google_doc, link_document, sync_document, unlink_document,
+};
 pub use image_loading::{
     CoverImageData, THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH, load_cover_as_data_url, load_cover_data,
 };

@@ -108,6 +108,7 @@ pub fn run() {
             // Cloud: Google Docs
             cloud::google_list_docs,
             cloud::google_link_doc,
+            cloud::google_add_book_from_doc,
             cloud::google_sync_doc,
             cloud::google_sync_selected,
             cloud::google_unlink_doc,
