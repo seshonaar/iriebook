@@ -1,4 +1,7 @@
-use crate::ui_state::{BookInfo, BookPath};
+use crate::{
+    book_satellites::is_known_book_satellite_file,
+    ui_state::{BookInfo, BookPath},
+};
 use anyhow::Result;
 use iriebook::resource_access::file::OUTPUT_DIR_NAME;
 use iriebook::resource_access::git::GitClient;
@@ -37,6 +40,7 @@ fn get_changed_folders(repo_path: &Path, git_client: &GitClient) -> HashMap<Path
 /// Excludes:
 /// - Files directly in the root directory
 /// - Files named `summary.md` (case-insensitive)
+/// - Known satellite files such as `blurb.md` (case-insensitive)
 /// - Files containing `fixed.md` in the name
 /// - Previous-books page templates
 ///
@@ -134,6 +138,11 @@ pub fn scan_for_books(root_dir: &Path) -> Result<Vec<BookInfo>> {
 
         // Exclude summary.md
         if filename == "summary.md" {
+            continue;
+        }
+
+        // Exclude known companion files that live next to the manuscript.
+        if is_known_book_satellite_file(&filename) {
             continue;
         }
 
@@ -240,12 +249,30 @@ mod tests {
         fs::create_dir(root.join("book3"))?;
         fs::write(root.join("book3/summary.md"), "# Summary")?;
         fs::write(root.join("book3/chapter-fixed.md"), "# Fixed")?;
+        fs::write(root.join("book3/blurb.md"), "# Blurb")?;
         fs::write(root.join("book3/valid.md"), "# Valid")?;
 
         fs::create_dir(root.join(".hidden"))?;
         fs::write(root.join(".hidden/secret.md"), "# Secret")?;
 
         Ok(temp_dir)
+    }
+
+    #[test]
+    fn test_scan_for_books_excludes_known_satellite_markdown_files() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        fs::create_dir(root.join("book"))?;
+        fs::write(root.join("book/manuscript.md"), "# Manuscript")?;
+        fs::write(root.join("book/blurb.md"), "# Blurb")?;
+
+        let books = scan_for_books(root)?;
+
+        assert_eq!(books.len(), 1);
+        assert_eq!(books[0].display_name, "manuscript.md");
+
+        Ok(())
     }
 
     #[test]

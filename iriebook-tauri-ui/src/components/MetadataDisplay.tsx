@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { commands, type BookMetadata, type BookOutputLink, type ChangeBookResult } from "../bindings";
+import { commands, type BookMetadata, type BookOutputLink, type BookSatelliteFile, type ChangeBookResult } from "../bindings";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -37,6 +37,7 @@ export function MetadataDisplay({
   const { state, dispatch } = useAppContext();
   const [isChanging, setIsChanging] = useState(false);
   const [outputLinks, setOutputLinks] = useState<BookOutputLink[]>([]);
+  const [satelliteFiles, setSatelliteFiles] = useState<BookSatelliteFile[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +66,29 @@ export function MetadataDisplay({
     };
   }, [bookPath, state.isProcessing]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSatelliteFiles = async () => {
+      try {
+        const result = await commands.getBookSatelliteFiles();
+        if (!cancelled) {
+          setSatelliteFiles(result.status === "ok" ? result.data : []);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSatelliteFiles([]);
+        }
+      }
+    };
+
+    loadSatelliteFiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleOpenOutput = async (path: string) => {
     try {
       const result = await commands.openFile(path);
@@ -85,6 +109,19 @@ export function MetadataDisplay({
       await commands.openFolder(folderPath);
     } catch (error) {
       console.error("Failed to open folder:", error);
+    }
+  };
+
+  const handleOpenSatelliteFile = async (fileName: string) => {
+    try {
+      const result = await commands.openBookSatelliteFile(bookPath, fileName);
+      if (result.status === "error") {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      toast.error(t('metadata.display.openSatelliteFailed'), {
+        description: String(error),
+      });
     }
   };
 
@@ -208,6 +245,15 @@ export function MetadataDisplay({
               <GitCompareArrows className="mr-2 h-4 w-4" />
               <span>{t('metadata.display.viewChanges')}</span>
             </DropdownMenuItem>
+            {satelliteFiles.map((file) => (
+              <DropdownMenuItem
+                key={file.file_name}
+                onClick={() => handleOpenSatelliteFile(file.file_name)}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                <span>{t('metadata.display.openSatellite', { label: file.label })}</span>
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "iriebook-tauri-ui",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "identifier": "com.seshonaar.iriebook-tauri-ui",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -22,18 +22,14 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": [
-          "**"
-        ]
+        "scope": ["**"]
       }
     }
   },
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": [
-      "appimage"
-    ],
+    "targets": ["appimage"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -46,9 +42,7 @@
     "updater": {
       "active": true,
       "dangerousInsecureTransportProtocol": true,
-      "endpoints": [
-        "http://drogon3.local:8000/update.json"
-      ],
+      "endpoints": ["http://drogon3.local:8000/update.json"],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE5MUU5QTI1NzExRTE0QzIKUldUQ0ZCNXhKWm9lcVpJMFRjdi9qc2JVTUlxN0hnbm05UlE1MVZFTmpocEJac2RRcFRvL3JOczgK"
     }
   }

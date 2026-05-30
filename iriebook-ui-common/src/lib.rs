@@ -8,6 +8,7 @@ pub mod analysis_cache;
 pub mod app_state;
 pub mod batch_google_docs_sync;
 pub mod batch_processing;
+pub mod book_satellites;
 pub mod book_scanner;
 pub mod book_viewing;
 pub mod collection_management;
@@ -30,6 +31,10 @@ pub use analysis_cache::{AnalysisResponse, get_or_compute_analysis};
 pub use app_state::AppState;
 pub use batch_google_docs_sync::BatchGoogleDocsSyncProcessor;
 pub use batch_processing::BatchProcessor;
+pub use book_satellites::{
+    BookSatelliteFile, ensure_book_satellite_file, is_known_book_satellite_file,
+    known_book_satellite_files,
+};
 pub use book_scanner::scan_for_books;
 pub use book_viewing::{BookOutputFormat, BookOutputLink, get_available_book_outputs};
 pub use collection_management::{

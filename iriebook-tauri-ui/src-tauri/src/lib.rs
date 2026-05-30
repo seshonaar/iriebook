@@ -76,6 +76,8 @@ pub fn run() {
             infrastructure::select_file,
             infrastructure::open_folder,
             infrastructure::open_file,
+            infrastructure::get_book_satellite_files,
+            infrastructure::open_book_satellite_file,
             infrastructure::open_browser,
             // Books: scanning, covers, metadata, processing, CRUD
             books::scan_books,

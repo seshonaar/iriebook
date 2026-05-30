@@ -8,7 +8,9 @@
     "rights": "Rights",
     "noMetadata": "No metadata available",
     "changeFile": "Change file",
-    "viewChanges": "View processing changes"
+    "viewChanges": "View processing changes",
+    "openSatellite": "Open {{label}}",
+    "openSatelliteFailed": "Failed to open book file"
   },
   "editor": {
     "title": "Edit Metadata",

@@ -2,7 +2,9 @@
 
 use crate::state::AppStateHolder;
 use iriebook::utilities::types::PublicationOptions;
+use iriebook_ui_common::BookSatelliteFile;
 use iriebook_ui_common::session::{SessionData, save_session as save_session_impl};
+use std::path::Path;
 #[cfg(feature = "e2e-mocks")]
 use std::path::PathBuf;
 use tauri::State;
@@ -112,6 +114,20 @@ pub fn open_folder(path: String) -> Result<(), String> {
 #[tauri::command]
 #[specta::specta]
 pub fn open_file(path: String) -> Result<(), String> {
+    open::that(&path).map_err(|e| format!("Failed to open file: {}", e))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_book_satellite_files() -> Result<Vec<BookSatelliteFile>, String> {
+    Ok(iriebook_ui_common::known_book_satellite_files())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn open_book_satellite_file(book_path: String, file_name: String) -> Result<(), String> {
+    let path = iriebook_ui_common::ensure_book_satellite_file(Path::new(&book_path), &file_name)
+        .map_err(|e| e.to_string())?;
     open::that(&path).map_err(|e| format!("Failed to open file: {}", e))
 }
 

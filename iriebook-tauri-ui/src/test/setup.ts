@@ -36,6 +36,12 @@ vi.mock("../bindings", () => ({
     openFile: vi.fn(() =>
       Promise.resolve({ status: "ok" as const, data: null })
     ),
+    getBookSatelliteFiles: vi.fn(() =>
+      Promise.resolve({ status: "ok" as const, data: [] })
+    ),
+    openBookSatelliteFile: vi.fn(() =>
+      Promise.resolve({ status: "ok" as const, data: null })
+    ),
     loadCoverImage: vi.fn(() =>
       Promise.resolve({
         status: "ok" as const,

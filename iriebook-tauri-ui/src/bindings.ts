@@ -69,6 +69,22 @@ async openFile(path: string) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async getBookSatelliteFiles() : Promise<Result<BookSatelliteFile[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_book_satellite_files") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async openBookSatelliteFile(bookPath: string, fileName: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("open_book_satellite_file", { bookPath, fileName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async openBrowser(url: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("open_browser", { url }) };
@@ -472,6 +488,7 @@ export type BookOutputLink = { format: BookOutputFormat; path: string }
  * NewType wrapper for book file path
  */
 export type BookPath = string
+export type BookSatelliteFile = { file_name: string; label: string }
 /**
  * Result of changing a book's source file
  */
