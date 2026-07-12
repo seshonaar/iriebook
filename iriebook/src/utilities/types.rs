@@ -166,6 +166,62 @@ pub struct PublicationOptions {
     pub epub: bool,
     pub pdf: bool,
     pub azw3: bool,
+    #[serde(default)]
+    pub pdf_page_profile: PdfPageProfile,
+}
+
+/// Named PDF trim sizes exposed in the UI.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PdfPageProfile {
+    /// 5.5in x 8.5in, commonly sold as Digest trim size.
+    #[default]
+    Digest,
+    /// ISO A5 trim size: 148mm x 210mm.
+    A5,
+}
+
+impl PdfPageProfile {
+    pub const ALL: [Self; 2] = [Self::Digest, Self::A5];
+
+    pub fn dimensions(self) -> (&'static str, &'static str) {
+        match self {
+            Self::Digest => ("5.5in", "8.5in"),
+            Self::A5 => ("148mm", "210mm"),
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Digest => "Digest (5.5\" x 8.5\")",
+            Self::A5 => "A5 (148 x 210 mm)",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
+pub struct PdfPageProfileInfo {
+    pub profile: PdfPageProfile,
+    pub label: String,
+    pub width: String,
+    pub height: String,
+}
+
+pub fn available_pdf_page_profiles() -> Vec<PdfPageProfileInfo> {
+    PdfPageProfile::ALL
+        .into_iter()
+        .map(|profile| {
+            let (width, height) = profile.dimensions();
+            PdfPageProfileInfo {
+                profile,
+                label: profile.label().to_string(),
+                width: width.to_string(),
+                height: height.to_string(),
+            }
+        })
+        .collect()
 }
 
 impl Default for PublicationOptions {
@@ -175,6 +231,7 @@ impl Default for PublicationOptions {
             epub: true,
             pdf: true,
             azw3: true,
+            pdf_page_profile: PdfPageProfile::default(),
         }
     }
 }
@@ -672,10 +729,29 @@ mod tests {
             epub: false,
             pdf: false,
             azw3: true,
+            pdf_page_profile: PdfPageProfile::Digest,
         }
         .normalized();
 
         assert!(options.epub);
         assert!(options.azw3);
+    }
+
+    #[test]
+    fn pdf_page_profile_dimensions_match_trim_sizes() {
+        assert_eq!(PdfPageProfile::Digest.dimensions(), ("5.5in", "8.5in"));
+        assert_eq!(PdfPageProfile::A5.dimensions(), ("148mm", "210mm"));
+    }
+
+    #[test]
+    fn available_pdf_page_profiles_exposes_catalog_metadata() {
+        let profiles = available_pdf_page_profiles();
+
+        assert_eq!(profiles.len(), 2);
+        assert_eq!(profiles[0].profile, PdfPageProfile::Digest);
+        assert_eq!(profiles[0].label, "Digest (5.5\" x 8.5\")");
+        assert_eq!(profiles[1].profile, PdfPageProfile::A5);
+        assert_eq!(profiles[1].width, "148mm");
+        assert_eq!(profiles[1].height, "210mm");
     }
 }

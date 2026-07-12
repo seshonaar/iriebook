@@ -29,6 +29,14 @@ async setPublicationOptions(publicationOptions: PublicationOptions) : Promise<Re
     else return { status: "error", error: e  as any };
 }
 },
+async getPdfPageProfiles() : Promise<Result<PdfPageProfileInfo[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_pdf_page_profiles") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async initMockState(workspacePath: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("init_mock_state", { workspacePath }) };
@@ -671,6 +679,19 @@ export type GoogleDocsSyncInfo = { "google-doc-id": string; "sync-status": strin
  */
 export type Identifier = { scheme?: string | null; text?: string | null }
 /**
+ * Named PDF trim sizes exposed in the UI.
+ */
+export type PdfPageProfile = 
+/**
+ * 5.5in x 8.5in, commonly sold as Digest trim size.
+ */
+"digest" | 
+/**
+ * ISO A5 trim size: 148mm x 210mm.
+ */
+"a5"
+export type PdfPageProfileInfo = { profile: PdfPageProfile; label: string; width: string; height: string }
+/**
  * Events emitted during book processing (serializable for Tauri events)
  */
 export type ProcessingEvent = 
@@ -693,7 +714,7 @@ export type ProcessingUpdateEvent = ProcessingEvent
 /**
  * Publication output options shared across UI and core processing flows.
  */
-export type PublicationOptions = { embed_cover: boolean; epub: boolean; pdf: boolean; azw3: boolean }
+export type PublicationOptions = { embed_cover: boolean; epub: boolean; pdf: boolean; azw3: boolean; pdf_page_profile?: PdfPageProfile }
 /**
  * A single word replacement pair (case-sensitive, whole-word)
  */

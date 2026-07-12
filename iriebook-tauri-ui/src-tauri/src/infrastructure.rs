@@ -1,7 +1,9 @@
 //! Infrastructure commands: session management, dialogs, and system utilities
 
 use crate::state::AppStateHolder;
-use iriebook::utilities::types::PublicationOptions;
+use iriebook::utilities::types::{
+    PdfPageProfileInfo, PublicationOptions, available_pdf_page_profiles,
+};
 use iriebook_ui_common::BookSatelliteFile;
 use iriebook_ui_common::session::{SessionData, save_session as save_session_impl};
 use std::path::Path;
@@ -69,6 +71,12 @@ pub fn set_publication_options(
 ) -> Result<(), String> {
     app_state_holder.set_publication_options(publication_options);
     Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_pdf_page_profiles() -> Result<Vec<PdfPageProfileInfo>, String> {
+    Ok(available_pdf_page_profiles())
 }
 
 // ============= FILE/FOLDER DIALOGS =============

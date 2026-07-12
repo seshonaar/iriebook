@@ -178,6 +178,7 @@ fn prepare_google_docs_book(
 /// use iriebook::managers::google_docs_sync::GoogleDocsSyncManager;
 /// use iriebook::resource_access::google_auth::GoogleAuthenticator;
 /// use iriebook::resource_access::google_docs::GoogleDocsClient;
+/// use iriebook::utilities::types::PublicationOptions;
 /// use std::path::Path;
 /// use std::sync::Arc;
 ///
@@ -191,6 +192,7 @@ fn prepare_google_docs_book(
 /// let result = sync_document(
 ///     Path::new("/path/to/book.md"),
 ///     None,
+///     PublicationOptions::default(),
 ///     &authenticator,  // implements TokenProvider
 ///     &manager,        // implements DocumentSyncer
 ///     &processor,      // implements BookProcessor

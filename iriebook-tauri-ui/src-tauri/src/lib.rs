@@ -71,6 +71,7 @@ pub fn run() {
             infrastructure::load_session,
             infrastructure::save_session,
             infrastructure::set_publication_options,
+            infrastructure::get_pdf_page_profiles,
             infrastructure::init_mock_state,
             infrastructure::select_folder,
             infrastructure::select_file,

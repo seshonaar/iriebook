@@ -5,7 +5,7 @@
 
 use iriebook::managers::ebook_publication::PublishArgs;
 use iriebook::resource_access::pandoc::PandocConverter;
-use iriebook::utilities::types::PublicationOptions;
+use iriebook::utilities::types::{PdfPageProfile, PublicationOptions};
 use iriebook_test_support::{
     GitCall, MockArchiveAccess, MockCalibreAccess, MockGitAccess, MockGoogleDocsAccess,
     MockPandocAccess, TestWorkspace,
@@ -326,6 +326,7 @@ cover-image: cover.jpg
         enable_publishing: true,
         publication_options: PublicationOptions {
             embed_cover: false,
+            pdf_page_profile: PdfPageProfile::A5,
             ..PublicationOptions::default()
         },
         config_root: None,
@@ -359,6 +360,8 @@ cover-image: cover.jpg
         !pdf_calls[0].metadata_content.contains("cover-image"),
         "PDF metadata must also remove cover-image when embedding is disabled"
     );
+    assert_eq!(pdf_calls[0].pdf_config.page_width, "148mm");
+    assert_eq!(pdf_calls[0].pdf_config.page_height, "210mm");
 }
 
 /// Test: Disabling cover embedding still creates an EPUB when metadata names a missing cover

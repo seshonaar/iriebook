@@ -231,6 +231,10 @@ impl EbookPublicationManager {
                 config::IrieBookConfig::default()
             }
         };
+        let mut effective_pdf_config = loaded_config.pdf.clone();
+        let (pdf_page_width, pdf_page_height) = publication_options.pdf_page_profile.dimensions();
+        effective_pdf_config.page_width = pdf_page_width.to_string();
+        effective_pdf_config.page_height = pdf_page_height.to_string();
 
         // Conditionally analyze words based on enable_word_stats flag
         let word_analysis = match enable_word_stats {
@@ -365,7 +369,7 @@ impl EbookPublicationManager {
                         epub_output_path = Some(output_epub.clone());
                     }
 
-                    if publication_options.pdf && loaded_config.pdf.enabled {
+                    if publication_options.pdf && effective_pdf_config.enabled {
                         let output_pdf = output_epub.with_extension("pdf");
                         let metadata_for_pdf = match temp_metadata_path.as_deref() {
                             Some(path) => path.to_path_buf(),
@@ -377,7 +381,7 @@ impl EbookPublicationManager {
                             &final_output_path,
                             &output_pdf,
                             &metadata_for_pdf,
-                            &loaded_config.pdf,
+                            &effective_pdf_config,
                             embed_cover,
                         )?;
                         command_outputs.push(format!("pandoc-pdf: {}", pdf_output));

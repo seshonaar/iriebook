@@ -5,6 +5,10 @@
       "wordStats": "Word Statistics",
       "embedCover": "Embed cover"
     },
+    "pdfSize": {
+      "label": "PDF size",
+      "loading": "Loading..."
+    },
     "status": {
       "selected": "{{count}} book(s) selected",
       "currentBook": "Current book: {{name}}",
