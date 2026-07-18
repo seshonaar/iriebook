@@ -135,6 +135,15 @@ Before the Irie can work its magic, certain spirits must be present in your real
 - Run `scripts/install-arch-deps.sh --with-e2e` if you also want UI E2E test dependencies and `tauri-driver`
 - The script detects `paru` or `yay` for optional AUR packages, and can be previewed with `--dry-run`
 
+**Ubuntu 24.04 AppImage builder with Podman** - Safer artifacts for Kubuntu/Ubuntu 24.04
+
+- Run `TAURI_SIGNING_PRIVATE_KEY_PASSWORD=... scripts/build-appimage-podman.sh` from the `tools` repo
+- The script builds inside an Ubuntu 24.04 container so the AppImage does not inherit newer Arch/CachyOS system library requirements
+- The parent private `../build.sh` wrapper uses this Podman path by default; pass `--host` there only when you intentionally want a local host build
+- By default it expects the updater private key at `../iriebook_update.key`; override with `TAURI_SIGNING_PRIVATE_KEY=/path/to/key`
+- No signing secret is stored in the repo; pass `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` through your shell, password manager, or CI secret store
+- Pass `--rebuild` to refresh the container image, or `--no-prepare-update` to skip update manifest preparation
+
 ### Architecture Philosophy
 
 The Husband has crafted the Irie following an ancient wisdom known as the Righting Software Method. This philosophy teaches that code should be organized by what changes together—its volatility—not by what it does.

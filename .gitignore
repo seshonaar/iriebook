@@ -18,6 +18,9 @@
 *.profraw
 *.profdata
 
+# Local container build caches
+.podman-cache/
+
 # Backup files
 *.bak
 

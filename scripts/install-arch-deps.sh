@@ -20,6 +20,7 @@ PACMAN_PACKAGES=(
     npm
     openssl
     pandoc-cli
+    podman
     pkgconf
     rustup
     texlive-fontsextra
@@ -59,7 +60,7 @@ Options:
   -h, --help             Show this help.
 
 Core groups covered:
-  - Build/dev: base-devel, rustup, nodejs, npm, pkgconf, openssl
+  - Build/dev: base-devel, rustup, nodejs, npm, pkgconf, openssl, podman
   - Runtime: git, calibre, pandoc-cli
   - PDF: texlive-xetex plus recommended/extra TeX fonts for EB Garamond
   - Tauri Linux: webkit2gtk-4.1, libayatana-appindicator, librsvg
