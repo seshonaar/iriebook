@@ -129,6 +129,12 @@ Before the Irie can work its magic, certain spirits must be present in your real
 - Visit rust-lang.org for the proper installation ritual for your realm
 - A simple `cargo build --release` in iriebook will craft the CLI; `npm run tauri build` in iriebook-tauri-ui will conjure the desktop face
 
+**CachyOS / Arch Linux installer** - One command for the full local setup
+
+- Run `scripts/install-arch-deps.sh` to install the core runtime, build, PDF, Calibre, Node, Rust, and Tauri Linux dependencies
+- Run `scripts/install-arch-deps.sh --with-e2e` if you also want UI E2E test dependencies and `tauri-driver`
+- The script detects `paru` or `yay` for optional AUR packages, and can be previewed with `--dry-run`
+
 ### Architecture Philosophy
 
 The Husband has crafted the Irie following an ancient wisdom known as the Righting Software Method. This philosophy teaches that code should be organized by what changes together—its volatility—not by what it does.
