@@ -248,6 +248,7 @@ fn build_pandoc_command(
     cover_path: Option<&Path>,
 ) -> Command {
     let mut command = Command::new("pandoc");
+    command::remove_appimage_environment(&mut command);
     command
         .arg(fixed_md)
         .arg("-o")
@@ -277,6 +278,7 @@ fn build_pdf_pandoc_command(
     pdf_filter_path: &Path,
 ) -> Command {
     let mut command = Command::new("pandoc");
+    command::remove_appimage_environment(&mut command);
     command
         .arg(fixed_md)
         .arg("-o")
@@ -1326,6 +1328,28 @@ mod tests {
     }
 
     #[test]
+    fn build_pdf_pandoc_command_removes_appimage_environment() {
+        let config = PdfConfig::default();
+        let command = build_pdf_pandoc_command(
+            Path::new("fixed.md"),
+            Path::new("book.pdf"),
+            Path::new("metadata.yaml"),
+            &config,
+            Path::new("pdf-style.tex"),
+            Path::new("pdf-style.lua"),
+        );
+
+        for expected in command::appimage_environment_keys() {
+            assert!(
+                command
+                    .get_envs()
+                    .any(|(key, value)| key == *expected && value.is_none()),
+                "{expected} was not removed"
+            );
+        }
+    }
+
+    #[test]
     fn write_pdf_latex_header_references_first_page_cover() {
         let temp_dir = TempDir::new().unwrap();
         let output_pdf = temp_dir.path().join("book.pdf");
@@ -1381,7 +1405,9 @@ mod tests {
         assert!(!include.contains("\\setcounter{page}"));
         assert!(include.contains("\\pagestyle{scrheadings}"));
         assert!(!include.contains("\\begin{titlepage}"));
-        assert!(!include.contains("\\clearpage\n  \\thispagestyle{empty}\n  \\pagestyle{empty}\n  \\begingroup"));
+        assert!(!include.contains(
+            "\\clearpage\n  \\thispagestyle{empty}\n  \\pagestyle{empty}\n  \\begingroup"
+        ));
         assert!(!include.contains("\\AtBeginDocument{\\irieCoverPage}"));
     }
 
@@ -1401,7 +1427,9 @@ mod tests {
 
         assert!(!include.contains("\\irieBlankPage"));
         assert!(include.contains("{\\thispagestyle{empty}\\vspace*{\\fill}\\begin{center}"));
-        assert!(include.contains("{\\end{center}\\vspace*{\\fill}\\clearpage\\thispagestyle{empty}\\null\\clearpage}"));
+        assert!(include.contains(
+            "{\\end{center}\\vspace*{\\fill}\\clearpage\\thispagestyle{empty}\\null\\clearpage}"
+        ));
         assert!(!include.contains("\\newenvironment{irieDedication}\n  {\\clearpage"));
         assert!(!include.contains("\\irieDedicationOpening"));
     }

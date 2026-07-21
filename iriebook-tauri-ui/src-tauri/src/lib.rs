@@ -6,6 +6,7 @@
 mod books;
 mod cloud;
 mod diff;
+mod external_open;
 mod git;
 mod infrastructure;
 mod state;

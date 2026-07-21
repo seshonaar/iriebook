@@ -1,5 +1,6 @@
 //! Cloud-related commands: GitHub auth, Google auth, and Google Docs operations
 
+use crate::external_open;
 use crate::state::{AppStateHolder, GoogleAuthState};
 use iriebook::resource_access::{CredentialStore, GitHubAuthenticator, GoogleDocInfo, PollResult};
 use iriebook_ui_common::{
@@ -101,7 +102,7 @@ pub async fn google_auth_start(
     // Delegate to ui-common with browser callback
     let result =
         iriebook_ui_common::start_auth_flow(&app_state.google_authenticator(), rx, |url| {
-            open::that(url).map_err(|e| format!("Failed to open browser: {}", e))
+            external_open::open_text_target(url).map_err(|e| format!("Failed to open browser: {e}"))
         })
         .await;
 

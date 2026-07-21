@@ -68,7 +68,8 @@ fn convert_to_kindle_impl(input_md: &Path, input_epub: &Path) -> Result<String, 
         })?;
 
     // Build ebook-convert command
-    let output = Command::new("ebook-convert")
+    let mut convert_command = Command::new("ebook-convert");
+    command::remove_appimage_environment(&mut convert_command)
         .arg(input_epub)
         .arg(&output_kindle)
         .arg("--output-profile")
@@ -77,7 +78,9 @@ fn convert_to_kindle_impl(input_md: &Path, input_epub: &Path) -> Result<String, 
         .arg("--title")
         .arg(&metadata.title)
         .arg("--authors")
-        .arg(&metadata.author)
+        .arg(&metadata.author);
+
+    let output = convert_command
         .output()
         .map_err(|e| IrieBookError::FileRead {
             path: "ebook-convert".into(),
@@ -104,17 +107,18 @@ fn stamp_metadata_impl(
     series: &str,
     index: u32,
 ) -> Result<String, IrieBookError> {
-    let output = Command::new("ebook-meta")
+    let mut meta_command = Command::new("ebook-meta");
+    command::remove_appimage_environment(&mut meta_command)
         .arg(file_path)
         .arg("--series")
         .arg(series)
         .arg("--index")
-        .arg(index.to_string())
-        .output()
-        .map_err(|e| IrieBookError::FileRead {
-            path: "ebook-meta".into(),
-            source: e,
-        })?;
+        .arg(index.to_string());
+
+    let output = meta_command.output().map_err(|e| IrieBookError::FileRead {
+        path: "ebook-meta".into(),
+        source: e,
+    })?;
 
     Ok(command::format_output(output))
 }
@@ -130,8 +134,10 @@ fn view_ebook_impl(epub_path: &Path) -> Result<String, IrieBookError> {
     }
 
     // Launch ebook-viewer in background (don't wait)
-    Command::new("ebook-viewer")
-        .arg(epub_path)
+    let mut viewer_command = Command::new("ebook-viewer");
+    command::remove_appimage_environment(&mut viewer_command).arg(epub_path);
+
+    viewer_command
         .spawn()
         .map_err(|e| IrieBookError::FileRead {
             path: "ebook-viewer".into(),

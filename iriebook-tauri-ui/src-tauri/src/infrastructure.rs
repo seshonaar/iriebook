@@ -1,5 +1,6 @@
 //! Infrastructure commands: session management, dialogs, and system utilities
 
+use crate::external_open;
 use crate::state::AppStateHolder;
 use iriebook::utilities::types::{
     PdfPageProfileInfo, PublicationOptions, available_pdf_page_profiles,
@@ -116,13 +117,13 @@ pub fn select_file(
 #[tauri::command]
 #[specta::specta]
 pub fn open_folder(path: String) -> Result<(), String> {
-    open::that(&path).map_err(|e| format!("Failed to open folder: {}", e))
+    external_open::open_path(Path::new(&path)).map_err(|e| format!("Failed to open folder: {e}"))
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn open_file(path: String) -> Result<(), String> {
-    open::that(&path).map_err(|e| format!("Failed to open file: {}", e))
+    external_open::open_path(Path::new(&path)).map_err(|e| format!("Failed to open file: {e}"))
 }
 
 #[tauri::command]
@@ -136,13 +137,13 @@ pub fn get_book_satellite_files() -> Result<Vec<BookSatelliteFile>, String> {
 pub fn open_book_satellite_file(book_path: String, file_name: String) -> Result<(), String> {
     let path = iriebook_ui_common::ensure_book_satellite_file(Path::new(&book_path), &file_name)
         .map_err(|e| e.to_string())?;
-    open::that(&path).map_err(|e| format!("Failed to open file: {}", e))
+    external_open::open_path(&path).map_err(|e| format!("Failed to open file: {e}"))
 }
 
 #[tauri::command]
 #[specta::specta]
 pub async fn open_browser(url: String) -> Result<(), String> {
-    open::that(&url).map_err(|e| format!("Failed to open browser: {}", e))
+    external_open::open_text_target(&url).map_err(|e| format!("Failed to open browser: {e}"))
 }
 
 // ============= TEST SUPPORT (E2E MOCK INITIALIZER) =============
