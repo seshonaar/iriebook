@@ -153,6 +153,11 @@ vi.mock("../bindings", () => ({
       once: vi.fn(() => Promise.resolve(() => {})),
       emit: vi.fn(),
     },
+    googleDocsBatchSyncUpdateEvent: {
+      listen: vi.fn(() => Promise.resolve(() => {})),
+      once: vi.fn(() => Promise.resolve(() => {})),
+      emit: vi.fn(),
+    },
     bookListChangedEvent: {
       listen: vi.fn(() => Promise.resolve(() => {})),
       once: vi.fn(() => Promise.resolve(() => {})),
