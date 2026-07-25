@@ -182,6 +182,28 @@ calibre_app_binary() {
     fi
 }
 
+ensure_tex_bin_path() {
+    [[ "$SKIP_TEX" == false ]] || return
+
+    local zshenv="$HOME/.zshenv"
+    local marker="# MacTeX binaries"
+
+    if [[ -f "$zshenv" ]] && grep -qF "$marker" "$zshenv"; then
+        log '/Library/TeX/texbin is already in .zshenv.'
+        return
+    fi
+
+    log 'Adding /Library/TeX/texbin to .zshenv…'
+    {
+        echo ''
+        echo "$marker"
+        echo 'case ":${PATH}:" in'
+        echo '  *:/Library/TeX/texbin:*) ;;'
+        echo '  *) PATH="/Library/TeX/texbin:${PATH}" ;;'
+        echo 'esac'
+    } >> "$zshenv"
+}
+
 ensure_calibre_cli_links() {
     local prefix
     local tool
@@ -315,6 +337,7 @@ fi
 ensure_xcode_command_line_tools
 install_brew_packages "${packages[@]}"
 install_brew_casks "${casks[@]}"
+ensure_tex_bin_path
 ensure_calibre_cli_links
 ensure_rust_default_toolchain
 install_npm_dependencies
