@@ -136,6 +136,13 @@ Before the Irie can work its magic, certain spirits must be present in your real
 - Run `scripts/install-arch-deps.sh --with-e2e` if you also want UI E2E test dependencies and `tauri-driver`
 - The script detects `paru` or `yay` for optional AUR packages, and can be previewed with `--dry-run`
 
+**macOS Homebrew installer** - Groundwork for future DMG builds
+
+- Run `scripts/install-macos-deps.sh` on macOS to install runtime ebook tools, PDF support, and build prerequisites through Homebrew
+- Run `scripts/install-macos-deps.sh --runtime-only` if you only want Git, Pandoc, Calibre, and MacTeX, with no Node/Rust/just build tools
+- After `npm install` in `iriebook-tauri-ui`, `npm run tauri -- build` on Apple Silicon macOS uses `src-tauri/tauri.macos.conf.json` and emits a DMG
+- DMG creation, signing, and notarization still need macOS/Xcode tooling; this cannot be fully verified from Linux
+
 **Ubuntu 24.04 AppImage builder with Podman** - Safer artifacts for Kubuntu/Ubuntu 24.04
 
 - Run `TAURI_SIGNING_PRIVATE_KEY_PASSWORD=... scripts/build-appimage-podman.sh` from the `tools` repo
