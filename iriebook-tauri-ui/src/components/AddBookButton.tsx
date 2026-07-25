@@ -3,7 +3,9 @@ import { useTranslation } from "react-i18next";
 import { commands, type AddBookResult, type GoogleDocInfo } from "../bindings";
 import { Button } from "./ui/button";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { GoogleAuthDialog } from "./GoogleAuthDialog";
 import { GoogleDocPickerDialog } from "./GoogleDocPickerDialog";
+import { useGoogleAuthGate } from "../hooks/useGoogleAuthGate";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +29,7 @@ export function AddBookButton({
   const [showGoogleDocDialog, setShowGoogleDocDialog] = useState(false);
   const [pendingFile, setPendingFile] = useState<string | null>(null);
   const [duplicateName, setDuplicateName] = useState<string>("");
+  const auth = useGoogleAuthGate();
 
   const handleAddLocalBook = async () => {
     if (!workspaceRoot) {
@@ -148,7 +151,9 @@ export function AddBookButton({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setShowGoogleDocDialog(true)}>
+          <DropdownMenuItem
+            onClick={() => auth.ensureAuthenticated(() => setShowGoogleDocDialog(true))}
+          >
             <Cloud className="mr-2 h-4 w-4 text-blue-500" />
             <span>{t('books.list.addFromGoogleDocs')}</span>
           </DropdownMenuItem>
@@ -169,6 +174,13 @@ export function AddBookButton({
           onSelect={handleAddGoogleDoc}
         />
       )}
+
+      <GoogleAuthDialog
+        open={auth.showAuthFlow}
+        isAuthenticating={auth.isAuthenticating}
+        authError={auth.authError}
+        onCancel={auth.cancelAuthFlow}
+      />
 
       <ConfirmDialog
         open={showDuplicateDialog}
