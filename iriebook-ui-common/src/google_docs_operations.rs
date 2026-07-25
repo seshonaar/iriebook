@@ -91,7 +91,7 @@ where
 
     link_document(&book_path, doc_id, google_docs_manager)?;
 
-    sync_document(
+    let sync_result = sync_document(
         &book_path,
         Some(workspace_root),
         publication_options,
@@ -102,7 +102,13 @@ where
             .as_mut()
             .map(|callback| callback as &mut F),
     )
-    .await?;
+    .await;
+
+    if let Err(error) = sync_result {
+        if !error.starts_with("Synced but processing failed:") {
+            return Err(error);
+        }
+    }
 
     let books = scan_for_books(workspace_root)
         .with_context(|| format!("Failed to rescan workspace: {}", workspace_root.display()))
@@ -525,6 +531,42 @@ mod tests {
         assert!(process_called.load(Ordering::SeqCst));
         assert_eq!(result.books.len(), 1);
         assert_eq!(result.new_book_index, Some(0));
+    }
+
+    #[tokio::test]
+    async fn test_add_book_from_google_doc_refreshes_books_when_processing_fails() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let process_called = Arc::new(AtomicBool::new(false));
+        let token_provider = MockTokenProvider::new("test-token");
+        let google_docs_manager = GoogleDocsSyncManager::new(Arc::new(MockGoogleDocsAccess));
+        let processor = MockBookProcessor::failing(process_called.clone());
+
+        let result = add_book_from_google_doc(
+            temp_dir.path(),
+            GoogleDocRef {
+                doc_id: "doc-123".to_string(),
+                doc_name: "Book Without Cover".to_string(),
+            },
+            PublicationOptions::default(),
+            &token_provider,
+            &google_docs_manager,
+            &processor,
+            None::<fn(String)>,
+        )
+        .await
+        .unwrap();
+
+        let expected_book_path = temp_dir
+            .path()
+            .join("book-without-cover/book-without-cover.md");
+        assert_eq!(result.book_path, expected_book_path);
+        assert!(process_called.load(Ordering::SeqCst));
+        assert_eq!(result.books.len(), 1);
+        assert_eq!(result.new_book_index, Some(0));
+        assert_eq!(
+            std::fs::read_to_string(&expected_book_path).unwrap(),
+            "# Synced Manuscript\n\nBlessed content."
+        );
     }
 
     #[tokio::test]
