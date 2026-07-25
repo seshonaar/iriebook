@@ -240,6 +240,35 @@ fn resolve_cover_path(
     Ok(Some(cover_path))
 }
 
+#[cfg(target_os = "macos")]
+fn resolve_pandoc_path() -> &'static str {
+    for path in ["/opt/homebrew/bin/pandoc", "/usr/local/bin/pandoc"] {
+        if std::path::Path::new(path).exists() {
+            return path;
+        }
+    }
+    "pandoc"
+}
+
+#[cfg(not(target_os = "macos"))]
+fn resolve_pandoc_path() -> &'static str {
+    "pandoc"
+}
+
+#[cfg(target_os = "macos")]
+fn resolve_pdf_engine_path(engine: &str) -> String {
+    let texbin = format!("/Library/TeX/texbin/{}", engine);
+    if std::path::Path::new(&texbin).exists() {
+        return texbin;
+    }
+    engine.to_string()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn resolve_pdf_engine_path(engine: &str) -> String {
+    engine.to_string()
+}
+
 fn build_pandoc_command(
     fixed_md: &Path,
     output_epub: &Path,
@@ -247,7 +276,7 @@ fn build_pandoc_command(
     metadata_path: &Path,
     cover_path: Option<&Path>,
 ) -> Command {
-    let mut command = Command::new("pandoc");
+    let mut command = Command::new(resolve_pandoc_path());
     command::remove_appimage_environment(&mut command);
     command
         .arg(fixed_md)
@@ -277,14 +306,14 @@ fn build_pdf_pandoc_command(
     pdf_header_path: &Path,
     pdf_filter_path: &Path,
 ) -> Command {
-    let mut command = Command::new("pandoc");
+    let mut command = Command::new(resolve_pandoc_path());
     command::remove_appimage_environment(&mut command);
     command
         .arg(fixed_md)
         .arg("-o")
         .arg(output_pdf)
         .arg("--pdf-engine")
-        .arg(&pdf_config.pdf_engine)
+        .arg(&resolve_pdf_engine_path(&pdf_config.pdf_engine))
         .arg("--metadata-file")
         .arg(metadata_path)
         .arg("-M")
@@ -1302,7 +1331,7 @@ mod tests {
         assert!(args.contains(&"book.pdf".to_string()));
         assert!(args.contains(&"--pdf-engine".to_string()));
         assert!(!args.contains(&"--toc".to_string()));
-        assert!(args.contains(&"xelatex".to_string()));
+        assert!(args.iter().any(|a| a.ends_with("xelatex")));
         assert!(args.contains(&"--metadata-file".to_string()));
         assert!(args.contains(&"metadata.yaml".to_string()));
         assert!(args.contains(&"-M".to_string()));
