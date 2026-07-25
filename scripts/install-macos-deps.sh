@@ -149,6 +149,23 @@ ensure_rust_default_toolchain() {
     run_cmd rustup default stable
 }
 
+install_npm_dependencies() {
+    if [[ "$SKIP_BUILD_TOOLS" == true ]]; then
+        return
+    fi
+
+    local tauri_ui_dir
+    tauri_ui_dir="$(cd "$(dirname "$0")/.." && pwd)/iriebook-tauri-ui"
+
+    if [[ ! -d "$tauri_ui_dir" ]]; then
+        log "Tauri UI directory not found at $tauri_ui_dir, skipping npm install."
+        return
+    fi
+
+    log 'Installing npm dependencies for iriebook-tauri-ui…'
+    run_cmd npm --prefix "$tauri_ui_dir" install
+}
+
 calibre_app_binary() {
     local tool=$1
     local app_path="/Applications/calibre.app/Contents/MacOS/$tool"
@@ -293,6 +310,7 @@ install_brew_packages "${packages[@]}"
 install_brew_casks "${casks[@]}"
 ensure_calibre_cli_links
 ensure_rust_default_toolchain
+install_npm_dependencies
 verify_commands
 verify_tex_files
 
