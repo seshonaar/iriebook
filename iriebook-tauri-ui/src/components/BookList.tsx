@@ -96,9 +96,13 @@ export function BookList() {
   if (state.books.length === 0) {
     return (
       <div className="bg-card border border-border rounded-lg p-8 text-center">
-        <p className="text-muted-foreground">
+        <p className="mb-4 text-muted-foreground">
           {t('books.list.noBooks')}
         </p>
+        <AddBookButton
+          workspaceRoot={state.selectedFolder}
+          onBookAdded={handleBookAdded}
+        />
       </div>
     );
   }
