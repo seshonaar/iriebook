@@ -26,6 +26,7 @@ PACMAN_PACKAGES=(
     texlive-fontsextra
     texlive-fontsrecommended
     texlive-latex
+    texlive-latexextra
     texlive-latexrecommended
     texlive-xetex
     webkit2gtk-4.1
@@ -62,7 +63,7 @@ Options:
 Core groups covered:
   - Build/dev: base-devel, rustup, nodejs, npm, pkgconf, openssl, podman
   - Runtime: git, calibre, pandoc-cli
-  - PDF: texlive-xetex plus recommended/extra TeX fonts for EB Garamond
+  - PDF: texlive-xetex, KOMA-Script, LaTeX extras, plus recommended/extra TeX fonts
   - Tauri Linux: webkit2gtk-4.1, libayatana-appindicator, librsvg
 USAGE
 }
@@ -91,6 +92,10 @@ pacman_target_installed() {
 
     if pacman -Qq "$target" >/dev/null 2>&1; then
         return 0
+    fi
+
+    if pacman -Si "$target" >/dev/null 2>&1; then
+        return 1
     fi
 
     mapfile -t group_members < <(pacman -Sgq "$target" 2>/dev/null | sort -u)
@@ -140,6 +145,39 @@ install_pacman_packages() {
 
     log "Installing pacman packages: ${missing[*]}"
     run_cmd sudo pacman -S --needed "${missing[@]}"
+}
+
+mark_pacman_packages_explicit() {
+    local package
+    local member
+    local explicit=()
+    local group_members=()
+
+    if [[ "$DRY_RUN" == true ]]; then
+        log "Dry run: would mark pacman packages as explicit: $*"
+        return
+    fi
+
+    for package in "$@"; do
+        if pacman -Qq "$package" >/dev/null 2>&1; then
+            explicit+=("$package")
+            continue
+        fi
+
+        mapfile -t group_members < <(pacman -Sgq "$package" 2>/dev/null | sort -u)
+        for member in "${group_members[@]}"; do
+            if pacman -Qq "$member" >/dev/null 2>&1; then
+                explicit+=("$member")
+            fi
+        done
+    done
+
+    if [[ "${#explicit[@]}" -eq 0 ]]; then
+        return
+    fi
+
+    log "Marking pacman packages as explicitly installed: ${explicit[*]}"
+    run_cmd sudo pacman -D --asexplicit "${explicit[@]}"
 }
 
 install_aur_packages() {
@@ -207,7 +245,7 @@ install_tauri_driver() {
 }
 
 verify_commands() {
-    local required=(git node npm rustup pandoc ebook-convert ebook-meta ebook-viewer)
+    local required=(git node npm rustup pandoc xelatex kpsewhich ebook-convert ebook-meta ebook-viewer)
     local command
     local missing=()
 
@@ -229,6 +267,31 @@ verify_commands() {
     fi
 
     log 'Core commands are available.'
+}
+
+verify_tex_files() {
+    local required_files=(scrbook.cls titlesec.sty)
+    local file
+    local missing=()
+
+    if [[ "$DRY_RUN" == true ]]; then
+        log 'Dry run: skipping TeX file verification.'
+        return
+    fi
+
+    for file in "${required_files[@]}"; do
+        if ! kpsewhich "$file" >/dev/null 2>&1; then
+            missing+=("$file")
+        fi
+    done
+
+    if [[ "${#missing[@]}" -gt 0 ]]; then
+        log "These TeX files are still missing: ${missing[*]}"
+        log 'Install/reinstall texlive-latexrecommended and texlive-latexextra, then rerun this script.'
+        return
+    fi
+
+    log 'Required TeX files are available.'
 }
 
 verify_e2e_commands() {
@@ -294,6 +357,7 @@ if [[ "$INSTALL_E2E" == true ]]; then
 fi
 
 install_pacman_packages "${packages[@]}"
+mark_pacman_packages_explicit "${packages[@]}"
 
 if [[ "$INSTALL_E2E" == true ]]; then
     install_aur_packages "${E2E_AUR_PACKAGES[@]}"
@@ -302,6 +366,7 @@ fi
 ensure_rust_default_toolchain
 install_tauri_driver
 verify_commands
+verify_tex_files
 verify_e2e_commands
 
 log 'Dependency install finished. Cool runnings.'

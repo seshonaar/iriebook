@@ -113,7 +113,8 @@ Before the Irie can work its magic, certain spirits must be present in your real
 **XeLaTeX** - The print PDF engine
 
 - This typesetting engine gives Pandoc the power to create print-quality PDFs
-- In the Ubuntu/Debian lands, invoke: `sudo apt install texlive-xetex`
+- In the Ubuntu/Debian lands, invoke: `sudo apt install texlive-xetex texlive-latex-recommended texlive-latex-extra`
+- IrieBook's default PDF class uses KOMA-Script (`scrbook.cls`) and `titlesec.sty`; on CachyOS / Arch these are provided by `texlive-latexrecommended` and `texlive-latexextra`
 - PDF defaults use EB Garamond; in the Ubuntu/Debian lands, invoke: `sudo apt install fonts-ebgaramond`
 - If you prefer a font that is already commonly installed on Ubuntu, set `pdf.font_family` to `Liberation Serif` in your library `config.json`
 
