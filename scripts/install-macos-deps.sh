@@ -80,6 +80,12 @@ brew_cask_installed() {
     brew list --cask "$1" >/dev/null 2>&1
 }
 
+cask_app_exists() {
+    local cask=$1
+    local app_path="/Applications/${cask}.app"
+    [[ -d "$app_path" ]]
+}
+
 install_brew_packages() {
     local packages=("$@")
     local package
@@ -106,9 +112,10 @@ install_brew_casks() {
     local missing=()
 
     for cask in "${casks[@]}"; do
-        if ! brew_cask_installed "$cask"; then
-            missing+=("$cask")
+        if brew_cask_installed "$cask" || cask_app_exists "$cask"; then
+            continue
         fi
+        missing+=("$cask")
     done
 
     if [[ "${#missing[@]}" -eq 0 ]]; then
