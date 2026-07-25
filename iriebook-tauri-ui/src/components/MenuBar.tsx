@@ -9,7 +9,7 @@ import {
   DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu";
 import { AboutDialog } from "./AboutDialog";
-import { FolderOpenIcon, XIcon, HelpCircleIcon, DownloadIcon } from "lucide-react";
+import { FolderOpenIcon, XIcon, HelpCircleIcon, DownloadIcon, BookOpenIcon } from "lucide-react";
 import { commands } from "../bindings";
 import { toast } from "sonner";
 
@@ -47,6 +47,19 @@ export function MenuBar({ onSelectFolder, currentFolder }: MenuBarProps) {
   const handleCheckForUpdates = async () => {
     // Errors are emitted as events and shown in Results panel
     await commands.checkForUpdates();
+  };
+
+  const handleOpenAuthoringGuide = async () => {
+    try {
+      const result = await commands.openAuthoringGuide();
+      if (result.status === "error") {
+        throw new Error(result.error);
+      }
+    } catch (err) {
+      toast.error(t('help.guide.openError'), {
+        description: String(err),
+      });
+    }
   };
 
   return (
@@ -88,6 +101,11 @@ export function MenuBar({ onSelectFolder, currentFolder }: MenuBarProps) {
             <DropdownMenuItem onClick={handleCheckForUpdates}>
               <DownloadIcon className="mr-2 h-4 w-4" />
               {t('menu.help.checkForUpdates')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleOpenAuthoringGuide}>
+              <BookOpenIcon className="mr-2 h-4 w-4" />
+              {t('menu.help.authoringGuide')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setAboutDialogOpen(true)}>

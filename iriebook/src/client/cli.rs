@@ -20,7 +20,7 @@ use crate::managers::ebook_publication::PublicationResult;
 #[command(version, about, long_about = None)]
 pub struct Args {
     /// Input markdown file to process
-    pub input: PathBuf,
+    pub input: Option<PathBuf>,
 
     /// Custom output path (default: INPUT-fixed.md)
     #[arg(short, long)]
@@ -37,6 +37,10 @@ pub struct Args {
     /// Enable ebook publication (write output files)
     #[arg(long)]
     pub publish: bool,
+
+    /// Print the authoring conventions guide and exit
+    #[arg(long)]
+    pub conventions: bool,
 }
 
 /// Format and display results to the user (Client presentation layer)

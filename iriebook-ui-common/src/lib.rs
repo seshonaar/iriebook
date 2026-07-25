@@ -18,6 +18,7 @@ pub mod git_operations;
 pub mod git_state;
 pub mod google_auth_operations;
 pub mod google_docs_operations;
+pub mod help_page;
 pub mod image_loading;
 pub mod managers;
 pub mod metadata_utils;
@@ -52,8 +53,9 @@ pub use git_operations::{
 pub use git_state::{DeviceFlowInfo, GitAuthStatus, GitCommit, GitSyncStatus};
 pub use google_auth_operations::{check_authenticated, list_documents, logout, start_auth_flow};
 pub use google_docs_operations::{
-    add_book_from_google_doc, link_document, sync_document, unlink_document,
+    GoogleDocRef, add_book_from_google_doc, link_document, sync_document, unlink_document,
 };
+pub use help_page::write_help_page;
 pub use image_loading::{
     CoverImageData, THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH, load_cover_as_data_url, load_cover_data,
 };

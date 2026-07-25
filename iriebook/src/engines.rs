@@ -15,6 +15,8 @@
 
 pub mod traits;
 
+pub mod help;
+
 pub mod text_processing {
     pub mod markdown_transform;
     pub mod quote_fixer;

@@ -101,6 +101,14 @@ async openBrowser(url: string) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async openAuthoringGuide() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("open_authoring_guide") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async scanBooks(path: string) : Promise<Result<BookInfo[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("scan_books", { path }) };

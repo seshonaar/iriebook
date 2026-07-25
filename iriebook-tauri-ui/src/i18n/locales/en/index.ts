@@ -11,6 +11,7 @@ import toasts from './toasts.json';
 import log from './log.json';
 import diff from './diff.json';
 import analysis from './analysis.json';
+import help from './help.json';
 
 export default {
   common,
@@ -26,4 +27,5 @@ export default {
   log,
   diff,
   analysis,
+  help,
 };

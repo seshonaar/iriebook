@@ -60,11 +60,20 @@ pub fn link_document(
         .map_err(|e| e.to_string())
 }
 
+/// Identification of a Google Doc to import.
+///
+/// Groups the document ID (from its URL) together with its human-readable name,
+/// which becomes the basis for the local book folder and file names.
+#[derive(Debug, Clone)]
+pub struct GoogleDocRef {
+    pub doc_id: String,
+    pub doc_name: String,
+}
+
 /// Add a Google Doc as a local book, link it, sync its content, and rescan the workspace.
 pub async fn add_book_from_google_doc<F, T, P>(
     workspace_root: &Path,
-    doc_id: String,
-    doc_name: String,
+    doc: GoogleDocRef,
     publication_options: PublicationOptions,
     token_provider: &T,
     google_docs_manager: &GoogleDocsSyncManager,
@@ -76,6 +85,7 @@ where
     T: TokenProvider,
     P: BookProcessor,
 {
+    let GoogleDocRef { doc_id, doc_name } = doc;
     let (book_path, is_duplicate) =
         prepare_google_docs_book(workspace_root, &doc_name).map_err(|e| e.to_string())?;
 
@@ -486,8 +496,10 @@ mod tests {
 
         let result = add_book_from_google_doc(
             temp_dir.path(),
-            "doc-123".to_string(),
-            "My Google Book!".to_string(),
+            GoogleDocRef {
+                doc_id: "doc-123".to_string(),
+                doc_name: "My Google Book!".to_string(),
+            },
             PublicationOptions::default(),
             &token_provider,
             &google_docs_manager,

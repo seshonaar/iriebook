@@ -237,8 +237,7 @@ pub async fn google_add_book_from_doc(
 
     iriebook_ui_common::add_book_from_google_doc(
         &workspace,
-        doc_id,
-        doc_name,
+        iriebook_ui_common::GoogleDocRef { doc_id, doc_name },
         app_state_holder.publication_options(),
         &app_state.google_authenticator(),
         &app_state.google_docs_manager(),

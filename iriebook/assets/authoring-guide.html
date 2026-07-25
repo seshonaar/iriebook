@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IrieBook Authoring Guide</title>
+<style>
+:root {
+    color-scheme: light;
+    --paper: #faf7ef;
+    --ink: #201b15;
+    --muted: #665b4d;
+    --rule: #dcc58d;
+    --soft-rule: #e6dcc2;
+    --code-bg: #f0eadc;
+    --panel: #fffdf8;
+    --accent: #8a5a18;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 18px;
+    line-height: 1.65;
+}
+main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 5rem;
+}
+h1, h2, h3 { line-height: 1.22; color: #14110d; }
+h1 { margin: 0 0 0.35em; font-size: clamp(2rem, 5vw, 4rem); letter-spacing: -0.04em; }
+h2 { margin-top: 2.4em; padding-bottom: 0.25em; border-bottom: 1px solid var(--soft-rule); font-size: 1.55em; }
+h3 { margin-top: 1.7em; font-size: 1.18em; }
+p { margin: 0.72em 0; }
+a { color: #704100; }
+code {
+    font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+    background: var(--code-bg);
+    padding: 0.08em 0.35em;
+    border-radius: 4px;
+    color: #694914;
+    font-size: 0.92em;
+}
+pre {
+    margin: 0.8em 0;
+    padding: 1em 1.15em;
+    overflow-x: auto;
+    border-radius: 8px;
+    background: #2b2620;
+    color: #f4ecd8;
+    font-size: 0.9em;
+}
+pre code { background: transparent; color: inherit; padding: 0; }
+blockquote {
+    margin: 1em 0;
+    padding: 0.55em 1em;
+    border-left: 4px solid var(--rule);
+    background: #fff8e6;
+    color: #4a3a15;
+}
+table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+th, td { border: 1px solid #ddd1ad; padding: 0.5em 0.7em; text-align: left; vertical-align: top; }
+th { background: #f0eadc; }
+ul, ol { padding-left: 1.45em; }
+hr { border: 0; border-top: 1px solid var(--soft-rule); margin: 2.2em 0; }
+.lede { margin: 0 0 1.25em; color: var(--muted); font-size: 1.15em; }
+.golden-rule { font-size: 1.03em; }
+.toc {
+    columns: 2 22rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--soft-rule);
+    border-radius: 12px;
+    background: var(--panel);
+}
+.toc li { break-inside: avoid; }
+.example-pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 1rem;
+    margin: 1.25em 0;
+}
+.source-card, .rendering-example {
+    border: 1px solid var(--soft-rule);
+    border-radius: 12px;
+    background: var(--panel);
+    overflow: hidden;
+}
+.example-label {
+    margin: 0;
+    padding: 0.55rem 0.8rem;
+    background: #eee3c8;
+    color: #4b3820;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.source-card pre { margin: 0; border-radius: 0; }
+.ebook-page {
+    min-height: 16rem;
+    margin: 0;
+    padding: 2.4rem 2rem;
+    background: #fffaf0;
+    color: #20170f;
+    font-family: Georgia, "Times New Roman", serif;
+    box-shadow: inset 0 0 0 1px rgba(80, 55, 25, 0.08);
+}
+.ebook-page + .ebook-page { border-top: 1px dashed #d5c091; }
+.ebook-chapter-title {
+    margin: 0 0 0.15em;
+    text-align: center;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+}
+.ebook-subtitle {
+    margin: 0 0 1.8em;
+    text-align: center;
+    font-style: italic;
+    color: #4e4438;
+}
+.ebook-plain-h3 {
+    margin: 1.5em 0 0.8em;
+    font-size: 1.05em;
+    font-weight: 700;
+}
+.ebook-scene-break {
+    margin: 1.7em 0;
+    text-align: center;
+    color: var(--accent);
+    font-size: 1.35em;
+}
+.poem-line { margin: 0.2em 0; font-style: italic; }
+.dedication-page {
+    display: flex;
+    min-height: 18rem;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-style: italic;
+}
+.copyright-page {
+    font-size: 0.92em;
+}
+.title-page {
+    display: flex;
+    min-height: 18rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+.title-page .series { letter-spacing: 0.16em; text-transform: uppercase; color: #76613d; }
+.title-page .book-title { margin: 0.3em 0; font-size: 2.1em; letter-spacing: 0.08em; text-transform: uppercase; }
+.title-page .author { margin-top: 1.5em; letter-spacing: 0.12em; text-transform: uppercase; }
+.note { color: var(--muted); }
+@media (max-width: 760px) {
+    body { font-size: 16px; }
+    main { padding-inline: 0.9rem; }
+    .example-pair { grid-template-columns: 1fr; }
+    .ebook-page { padding: 1.7rem 1.1rem; }
+}
+</style>
+</head>
+<body>
+<main>
+<h1>IrieBook Authoring Guide</h1>
+<p class="lede"><strong>How to write in Google Docs so the EPUB and PDF come out exactly as you wish.</strong></p>
+<p>When IrieBook syncs your Google Doc, it transforms the document into the final ebook. This guide describes every convention you can rely on: what to type in the doc, and what effect it produces in the output.</p>
+<blockquote class="golden-rule"><p><strong>The golden rule:</strong> Use Google Docs' built-in heading styles (Heading 1 / 2 / 3) and italics. Manual formatting (fonts, sizes, colours) is ignored.</p></blockquote>
+
+<h2>Table of Contents</h2>
+<ol class="toc">
+    <li><a href="#document-flow">How the document becomes an ebook</a></li>
+    <li><a href="#chapter-headings">Chapter headings</a></li>
+    <li><a href="#chapter-subtitles">Chapter titles with subtitles</a></li>
+    <li><a href="#scene-breaks">Scene breaks</a></li>
+    <li><a href="#dedications">Dedications</a></li>
+    <li><a href="#italic-lines">Italic lines and poetry</a></li>
+    <li><a href="#dialogue">Dialogue and quote curling</a></li>
+    <li><a href="#apostrophes">Apostrophes</a></li>
+    <li><a href="#whitespace">Whitespace</a></li>
+    <li><a href="#word-replacement">Word replacement</a></li>
+    <li><a href="#special-characters">Special characters and Romanian diacritics</a></li>
+    <li><a href="#front-matter">Front matter pages</a></li>
+    <li><a href="#metadata">metadata.yaml example</a></li>
+    <li><a href="#config">config.json field reference</a></li>
+    <li><a href="#assembly-order">Front-matter assembly order</a></li>
+    <li><a href="#validation">Validation gates</a></li>
+    <li><a href="#cheat-sheet">Quick cheat-sheet</a></li>
+</ol>
+
+<h2 id="document-flow">1. How the Document Becomes an Ebook</h2>
+<p>The journey has four steps:</p>
+<ol>
+    <li><strong>Google Doc export.</strong> IrieBook exports your document through the Google Drive API. Heading styles and italics are captured along with the text.</li>
+    <li><strong>Document shaping.</strong> IrieBook's engine renumbers chapters, inserts scene breaks, builds the dedication and copyright pages, and tidies whitespace.</li>
+    <li><strong>EPUB forging.</strong> Pandoc wraps the document with the bundled stylesheet (<code>default.css</code>) into a valid EPUB.</li>
+    <li><strong>Kindle sapphire.</strong> Calibre converts the EPUB to AZW3.</li>
+</ol>
+
+<h2 id="chapter-headings">2. Chapter Headings</h2>
+<p><strong>Convention:</strong> Write every chapter heading as a <strong>[H2]</strong>. IrieBook promotes these to top-level chapters in the output: centered, uppercase, bold, each starting on a new page.</p>
+<h3>Numbered chapters</h3>
+<p>Any heading whose <strong>last word is an Arabic numeral</strong> is a numbered chapter. The number is <strong>renumbered sequentially starting at 1</strong> in the output, so gaps or duplicates in the source are smoothed away.</p>
+<p>The "prefix" is everything before the trailing number. All headings with the same prefix form a series and are renumbered independently:</p>
+<table>
+    <thead><tr><th>Google Docs</th><th>Ebook output</th></tr></thead>
+    <tbody>
+        <tr><td><code>Chapter 1</code></td><td>Chapter 1</td></tr>
+        <tr><td><code>Capitolul 5</code></td><td>Capitolul 2</td></tr>
+        <tr><td><code>Epilog 3</code></td><td>Epilog 1</td></tr>
+        <tr><td><code>42</code></td><td>1</td></tr>
+    </tbody>
+</table>
+<ul>
+    <li><code>Chapter</code>, <code>Capitolul</code>, and <code>Epilog</code> are all prefixes.</li>
+    <li><code>42</code> has no prefix, so it belongs to the empty-prefix series and becomes <code>1</code>.</li>
+    <li><strong>The first spelling IrieBook sees for a prefix becomes the canonical name</strong> for that series.</li>
+</ul>
+<blockquote><p><strong>Roman numerals are not recognised.</strong> <code>Chapter IX</code> is treated as plain text. Use Arabic digits (<code>Chapter 9</code>) if you want numbering.</p></blockquote>
+<h3>Non-numbered chapters</h3>
+<p>A heading whose last word is <strong>not</strong> an Arabic numeral is preserved verbatim. <code>Prologue</code>, <code>Epilogue</code>, <code>Introduction</code>, and <code>Prelude</code> all render as-is in the ebook.</p>
+<h3>Typo tolerance between prefixes</h3>
+<p>Prefixes are matched <strong>case-insensitively</strong> with an edit distance of up to <strong>{{FUZZY_PREFIX_MAX_EDIT_DISTANCE}}</strong> characters. If you write <code>Capitol 1</code> in one place and <code>Capitolul 5</code> in another, IrieBook treats them as the same series and renumbers them consistently using the first spelling encountered.</p>
+<h3>Other heading levels</h3>
+<ul>
+    <li><strong>[H1]</strong> is for front matter and structural breaks. IrieBook automatically strips the document title that Google Docs injects as a tab heading.</li>
+    <li><strong>[H3]</strong> is an ordinary in-chapter sub-section header, unless its entire content is italic, in which case it becomes a <a href="#dedications">dedication</a>.</li>
+</ul>
+<blockquote><p><strong>Google Docs tab heading caveat:</strong> Google Docs can export an automatic <code>Tab</code> heading before the real manuscript. IrieBook strips the English <code>Tab</code> heading today. The Romanian label <code>Fila</code> is not stripped yet, so it may appear incorrectly in the generated book until that language-specific cleanup is fixed.</p></blockquote>
+<p>A regular H3 is not promoted to a chapter, does not start a new page, and does not get IrieBook-specific HTML. Internally it stays as <code>### Heading text</code>, so Pandoc and the reading app render it as a normal third-level heading inside the current chapter.</p>
+<div class="example-pair">
+    <div class="source-card">
+        <p class="example-label">In your Google Doc</p>
+        <pre><code>[H2] Author's Note
+
+This book borrows a few words from Romanian folklore.
+
+[H3] Romanian Terms
+
+Strigoi refers to a restless spirit in old village stories.</code></pre>
+    </div>
+    <div class="rendering-example">
+        <p class="example-label">Rendered in the ebook</p>
+        <section class="ebook-page">
+            <h3 class="ebook-chapter-title">Author's Note</h3>
+            <p>This book borrows a few words from Romanian folklore.</p>
+            <h4 class="ebook-plain-h3">Romanian Terms</h4>
+            <p>Strigoi refers to a restless spirit in old village stories.</p>
+        </section>
+    </div>
+</div>
+
+<h2 id="chapter-subtitles">3. Chapter Titles with Subtitles</h2>
+<p>A subtitle renders as an <strong>italic, centered paragraph</strong> tucked just under the heading. Separate the title from the subtitle on the <strong>same line</strong> with a dash.</p>
+<div class="example-pair">
+    <div class="source-card">
+        <p class="example-label">In your Google Doc</p>
+        <pre><code>[H2] Chapter 1 - The Beginning</code></pre>
+    </div>
+    <div class="rendering-example">
+        <p class="example-label">Rendered in the ebook</p>
+        <section class="ebook-page">
+            <h3 class="ebook-chapter-title">Chapter 1</h3>
+            <p class="ebook-subtitle">The Beginning</p>
+            <p>The first paragraph begins here...</p>
+        </section>
+    </div>
+</div>
+<h3>Supported dash separators</h3>
+<table>
+    <thead><tr><th>Separator</th><th>In Google Docs write...</th></tr></thead>
+    <tbody>
+        <tr><td>En dash with spaces</td><td><code>[H2] Chapter 1 – The Beginning</code></td></tr>
+        <tr><td>Em dash with spaces</td><td><code>[H2] Chapter 1 — The Beginning</code></td></tr>
+        <tr><td>Hyphen with spaces</td><td><code>[H2] Chapter 1 - The Beginning</code></td></tr>
+        <tr><td>Hyphen, no spaces</td><td><code>[H2] Chapter1-The Beginning</code></td></tr>
+    </tbody>
+</table>
+<h3>Space-separated subtitle</h3>
+<p>If the heading is exactly three or more words and the second word is an Arabic number, the first two words become the title and the rest becomes the subtitle. For <code>[H2] Chapter 1 The Beginning</code>, the title becomes <code>Chapter 1</code> and the subtitle becomes <code>The Beginning</code>.</p>
+<h3>Escaped dashes</h3>
+<p>Backslash-escaped dashes, a common Google Docs export artefact, are cleaned up automatically. <code>[H2] Capitolul 1 \- Bianca</code> becomes <code>Capitolul 1</code> with subtitle <code>Bianca</code>.</p>
+<h3>Empty subtitle</h3>
+<p>A dash with nothing after it is dropped. <code>[H2] Chapter 1 -</code> becomes just <code>Chapter 1</code>.</p>
+<h3>Sentence guard</h3>
+<p>If the text after the dash contains sentence punctuation (period, comma, exclamation, question mark), the whole line is kept as the title and <strong>no subtitle is emitted</strong>. This stops a paragraph accidentally fused onto a heading from being misread as a subtitle.</p>
+<h3>Non-numbered chapter with subtitle</h3>
+<p>Prologues and epilogues can carry subtitles too, via any of the dash forms: <code>[H2] Prologue - The Beginning</code> or <code>[H2] Epilogue - Final Words</code>.</p>
+
+<h2 id="scene-breaks">4. Scene Breaks</h2>
+<p>A scene break renders as a centered ornament, the floral heart glyph <strong>❦</strong>, sitting between two prose passages.</p>
+<p><strong>You do not insert scene breaks yourself.</strong> IrieBook decides for you, based on the rhythm of the prose:</p>
+<ul>
+    <li>A blank line is promoted to a scene break <strong>only when</strong> there are at least <strong>{{CHUNKY_PARAGRAPH_THRESHOLD}}</strong> consecutive paragraph lines immediately before it and at least <strong>{{CHUNKY_PARAGRAPH_THRESHOLD}}</strong> consecutive paragraph lines immediately after it.</li>
+    <li>Both neighbours must be ordinary prose paragraphs, not italics and not headings.</li>
+    <li>Scene breaks are <strong>suppressed</strong> next to any heading, subtitle, or italic line, so chapter openings, dedications, and poems are never split by an ornament.</li>
+</ul>
+<div class="example-pair">
+    <div class="source-card">
+        <p class="example-label">In your Google Doc</p>
+        <pre><code>Ten or more prose paragraphs...
+
+[blank line]
+
+Ten or more prose paragraphs...</code></pre>
+    </div>
+    <div class="rendering-example">
+        <p class="example-label">Rendered in the ebook</p>
+        <section class="ebook-page">
+            <p>The scene draws to a quiet close.</p>
+            <p>One last thought lingers in the room.</p>
+            <p class="ebook-scene-break">❦</p>
+            <p>The next scene opens under a different sky.</p>
+            <p>Everything has shifted, softly but surely.</p>
+        </section>
+    </div>
+</div>
+<p><strong>In practice:</strong> long, chunky scenes separated by a blank line get a ❦. Short passages, poems, and dialogue clusters do not. If you want a guaranteed visual gap inside a short scene, write it as two separate chapters instead.</p>
+
+<h2 id="dedications">5. Dedications</h2>
+<p>A dedication becomes its own centered, unnumbered page, vertically centered on the screen, in italics, and hidden from the table of contents.</p>
+<p><strong>Convention:</strong> write the dedication as a <strong>[H3] whose entire content is italic</strong>.</p>
+<div class="example-pair">
+    <div class="source-card">
+        <p class="example-label">In your Google Doc</p>
+        <pre><code>[H3] For my family,
+with all my heart
+
+[H2] Chapter 1</code></pre>
+    </div>
+    <div class="rendering-example">
+        <p class="example-label">Rendered in the ebook</p>
+        <section class="ebook-page dedication-page">
+            <p>For my family,<br>with all my heart</p>
+        </section>
+        <section class="ebook-page">
+            <h3 class="ebook-chapter-title">Chapter 1</h3>
+            <p>The story begins...</p>
+        </section>
+    </div>
+</div>
+<p>Rules:</p>
+<ul>
+    <li>The whole heading content must be italic. A partially italic heading like <code>[H3] Some *italic* word</code> is treated as an ordinary H3, <strong>not</strong> a dedication.</li>
+    <li><strong>Consecutive</strong> dedication lines, optionally separated by blank lines, are merged into a single dedication page with multiple paragraphs.</li>
+</ul>
+
+<h2 id="italic-lines">6. Italic Lines and Poetry</h2>
+<p>A paragraph line in italics (Google Docs italics) is detected as an <strong>italic line</strong> and rendered distinctly. Importantly, italic lines never trigger scene breaks before or after them. This protects multi-stanza poems from being sliced apart.</p>
+<div class="example-pair">
+    <div class="source-card">
+        <p class="example-label">In your Google Doc</p>
+        <pre><code>The river runs beneath the hill,
+and carries every dream it will.</code></pre>
+        <p class="note">Apply Google Docs italics to each poem line.</p>
+    </div>
+    <div class="rendering-example">
+        <p class="example-label">Rendered in the ebook</p>
+        <section class="ebook-page">
+            <p class="poem-line">The river runs beneath the hill,</p>
+            <p class="poem-line">and carries every dream it will.</p>
+        </section>
+    </div>
+</div>
+<p>Blank lines between italic lines are safe. No ornament will appear among them.</p>
+
+<h2 id="dialogue">7. Dialogue and Quote Curling</h2>
+<p><strong>Convention:</strong> always use <strong>double quotes</strong> for dialogue. IrieBook converts them automatically into proper typographic quotes (left and right).</p>
+<div class="example-pair">
+    <div class="source-card">
+        <p class="example-label">In your Google Doc</p>
+        <pre><code>"Hello," she said.</code></pre>
+    </div>
+    <div class="rendering-example">
+        <p class="example-label">Rendered in the ebook</p>
+        <section class="ebook-page">
+            <p>“Hello,” she said.</p>
+        </section>
+    </div>
+</div>
+<blockquote><p>Already-curly quotes are also accepted. IrieBook will normalise them.</p></blockquote>
+<p>The curler is a state machine: it alternates opening and closing, so every pair balances. <strong>Double quotes must be even in number</strong>. An odd count is a <a href="#validation">validation error</a> and blocks publication.</p>
+<p>Formatting (italics, bold) inside quotes is left untouched by the curler.</p>
+<blockquote><p><strong>Single quotes for dialogue are forbidden.</strong> See <a href="#apostrophes">Apostrophes</a>.</p></blockquote>
+
+<h2 id="apostrophes">8. Apostrophes</h2>
+<p>Legitimate apostrophes (straight <code>'</code>) are auto-curled. Dialogue single quotes are <strong>rejected</strong> as errors.</p>
+<table>
+    <thead><tr><th>Case</th><th>Example</th><th>Result</th></tr></thead>
+    <tbody>
+        <tr><td>Contractions</td><td><code>it's</code>, <code>can't</code>, <code>we're</code></td><td>curled</td></tr>
+        <tr><td>Possessives</td><td><code>John's</code>, <code>James'</code></td><td>curled</td></tr>
+        <tr><td>Abbreviated years</td><td><code>'70s</code>, <code>'80s</code></td><td>curled</td></tr>
+        <tr><td>Omitted letters</td><td><code>'cause</code>, <code>'til</code>, <code>'em</code></td><td>curled</td></tr>
+        <tr><td>Romanian elision</td><td><code>dracu'</code>, <code>intr'</code></td><td>curled</td></tr>
+    </tbody>
+</table>
+<p><strong>Never</strong> use single quotes to wrap spoken dialogue. Use double quotes for dialogue instead. The validator lists every offending line, column, and context so you can find them fast.</p>
+
+<h2 id="whitespace">9. Whitespace (Cleaned Automatically)</h2>
+<p>You can be a little messy. IrieBook tidies whitespace before shaping:</p>
+<table>
+    <thead><tr><th>Issue</th><th>What happens</th></tr></thead>
+    <tbody>
+        <tr><td>Multiple consecutive spaces</td><td>Collapsed to a single space</td></tr>
+        <tr><td>Tabs</td><td>Converted to a single space, then collapsed</td></tr>
+        <tr><td>2+ blank lines in a row</td><td>Capped at a single blank line</td></tr>
+        <tr><td>Leading / trailing spaces on a line</td><td>Trimmed</td></tr>
+        <tr><td>Windows line endings</td><td>Normalised to Unix</td></tr>
+    </tbody>
+</table>
+<p>These run before the markdown shaping, so the scene-break threshold counts clean paragraphs.</p>
+
+<h2 id="word-replacement">10. Word Replacement</h2>
+<p>For case-sensitive, whole-word find/replace, typically to add diacritics the manuscript is missing, use <strong>Edit Metadata</strong> in the Irie app and add a replacement pair:</p>
+<div class="source-card">
+    <p class="example-label">Irie metadata editor</p>
+    <pre><code>Source: Rene
+Target: René</code></pre>
+</div>
+<p>Do not hand-write replacement pairs into <code>metadata.yaml</code>. The editor owns this feature; the storage format may move behind the scenes.</p>
+<p>Behaviour:</p>
+<ul>
+    <li><strong>Whole word only.</strong> The standalone word <code>Rene</code> changes, but the inside of <code>Irene</code> is untouched.</li>
+    <li><strong>Case-sensitive.</strong> <code>Rene</code> matches <code>Rene</code>, nothing else.</li>
+    <li><strong>Automatic uppercase variant.</strong> If the target differs from the source when uppercased, the ALL-CAPS form is replaced too, so <code>RENE</code> becomes <code>RENÉ</code>.</li>
+    <li>Word boundaries include hyphens, so <code>Andre-Rene</code> becomes <code>Andre-René</code>.</li>
+</ul>
+<p>Word replacement runs <strong>last</strong> in the pipeline, after quote curling and whitespace trimming.</p>
+
+<h2 id="special-characters">11. Special Characters and Romanian Diacritics</h2>
+<ul>
+    <li><strong>UTF-8 BOM is stripped</strong> on read. Files Google Docs or Windows export with a leading byte-order mark are cleaned; output is always written <strong>without</strong> a BOM.</li>
+</ul>
+
+<h2 id="front-matter">12. Front Matter Pages (Auto-generated)</h2>
+<h3>Copyright page</h3>
+<p><strong>Trigger:</strong> place a <strong><code>copyright.txt</code></strong> file in the book folder, next to <code>book.md</code>. If the file is absent, no copyright page is generated.</p>
+<p>The page is built from the file's contents plus your metadata:</p>
+<ul>
+    <li>The owner line: the copyright symbol, the current year, and the author.</li>
+    <li>The <code>rights</code> field from metadata, with any leading copyright-year prefix stripped.</li>
+    <li>The full contents of <code>copyright.txt</code> as the disclaimer block.</li>
+    <li>The ISBN / identifier, when present.</li>
+    <li>The IrieBook revision stamp, when published from a git repo.</li>
+</ul>
+<blockquote><p>When a <code>copyright.txt</code> exists, Pandoc's own auto-generated rights line is suppressed so there is no duplicate.</p></blockquote>
+<div class="example-pair">
+    <div class="source-card">
+        <p class="example-label">metadata.yaml</p>
+        <pre><code>title: Moonlit Blood
+author: Jane Doe
+rights: All rights reserved.
+identifier:
+  - scheme: ISBN-13
+    text: 978-1-23456-789-0</code></pre>
+        <p class="example-label">copyright.txt</p>
+        <pre><code>No part of this publication may be reproduced,
+distributed, or transmitted in any form without the prior written
+permission of the author.</code></pre>
+    </div>
+    <div class="rendering-example">
+        <p class="example-label">Rendered copyright page</p>
+        <section class="ebook-page copyright-page">
+            <p>© 2025 Jane Doe. All rights reserved.</p>
+            <p>No part of this publication may be reproduced, distributed, or transmitted in any form without the prior written permission of the author.</p>
+            <p>ISBN-13: 978-1-23456-789-0</p>
+        </section>
+    </div>
+</div>
+<h3>Previous-books page (series recap)</h3>
+<p><strong>Trigger:</strong> set <a href="#metadata"><code>belongs-to-collection</code></a> <strong>and</strong> <code>group-position</code> in <code>metadata.yaml</code>. The page lists every earlier book in the same collection found in your workspace, sorted ascending.</p>
+<pre><code>title: Moonlit Blood
+author: Jane Doe
+belongs-to-collection: Night Garden
+group-position: 3</code></pre>
+<p>A <strong><code>previous-books-template.md</code></strong> file is auto-created in the book folder on first run. Edit it to customise the layout. It uses Mustache-style placeholders inside a <code>{{#books}}</code> ... <code>{{/books}}</code> block:</p>
+<pre><code># Also in the Night Garden series
+
+{{#books}}
+{{roman}}. {{title}}
+Book {{position}} by {{author}}
+
+{{/books}}</code></pre>
+<table>
+    <thead><tr><th>Placeholder</th><th>Meaning</th></tr></thead>
+    <tbody>
+        <tr><td><code>{{roman}}</code></td><td>Roman numeral of the book's position (I, II, III ...)</td></tr>
+        <tr><td><code>{{position}}</code></td><td>Arabic position number</td></tr>
+        <tr><td><code>{{title}}</code></td><td>Book title</td></tr>
+        <tr><td><code>{{author}}</code></td><td>Book author</td></tr>
+    </tbody>
+</table>
+<h3>Title page</h3>
+<p>The title page is <strong>generated by Pandoc</strong> from your metadata. You do not author it in the document. Two metadata fields can add series information above the title:</p>
+<ul>
+    <li><strong><code>belongs-to-collection</code> + <code>group-position</code></strong> — when both are set, a row of stars equal to the book's position and the series name are injected above the title.</li>
+</ul>
+<div class="example-pair">
+    <div class="source-card">
+        <p class="example-label">metadata.yaml</p>
+        <pre><code>title: Moonlit Blood
+author: Jane Doe
+belongs-to-collection: Night Garden
+group-position: 3</code></pre>
+    </div>
+    <div class="rendering-example">
+        <p class="example-label">Rendered title page</p>
+        <section class="ebook-page title-page">
+            <p class="series">★ ★ ★<br>Night Garden</p>
+            <p class="book-title">Moonlit Blood</p>
+            <p class="author">Jane Doe</p>
+        </section>
+    </div>
+</div>
+<h2 id="metadata">13. metadata.yaml Example</h2>
+<p>The <code>metadata.yaml</code> file sits in the book folder next to <code>book.md</code>. It may be wrapped in <code>---</code> frontmatter delimiters or be plain YAML. Both work.</p>
+<blockquote><p><strong>Editable in Irie:</strong> Title, author, series name, series position, and word replacements can all be edited directly in the Irie app. Click Edit Metadata on the book. Word replacements are an editor feature; do not hand-author them in <code>metadata.yaml</code>.</p></blockquote>
+<div class="source-card">
+    <p class="example-label">metadata.yaml</p>
+    <pre><code>title: Moonlit Blood
+author: Jane Doe
+language: ro-RO
+rights: All Rights Reserved
+cover-image: cover.jpg
+belongs-to-collection: Night Garden
+group-position: 3
+identifier:
+  - scheme: ISBN-13
+    text: 978-1-23456-789-0</code></pre>
+</div>
+<p><code>title</code> and <code>author</code> are required and must be non-empty. They drive the title page, copyright owner line, and output filename.</p>
+<p><code>language</code> defaults to <code>ro-RO</code>, <code>cover-image</code> defaults to <code>cover.jpg</code>, and <code>rights</code> defaults to the current year plus "All Rights Reserved" when absent.</p>
+<p>Set <code>belongs-to-collection</code> and <code>group-position</code> together to enable the previous-books page and title-page series banner. <code>identifier</code> entries, such as ISBN-13, appear on the copyright page as <code>scheme: text</code>.</p>
+
+<h2 id="config">14. config.json Field Reference</h2>
+<p>Configuration is read from two places: <code>~/.iriebook/config.json</code> for machine-wide defaults, then a workspace-local <code>config.json</code> in the library root. The local file wins.</p>
+<h3>Word analysis</h3>
+<ul>
+    <li><strong><code>word_analysis.excluded_words</code></strong> — array of strings filtered out of word-frequency analysis. A default set of Romanian stopwords is always present; local words are <strong>merged in</strong>, not replacing the defaults.</li>
+</ul>
+<h3>PDF print settings (under <code>pdf</code>)</h3>
+<p>To change PDF output, create or edit this file in your book library folder:</p>
+<div class="source-card">
+    <p class="example-label">config.json</p>
+    <pre><code>{
+  "pdf": {
+    "enabled": true,
+    "page_width": "5.5in",
+    "page_height": "8.5in",
+    "font_family": "Liberation Serif",
+    "font_size": "11pt",
+    "line_spacing": 1.2,
+    "inner_margin": "2.2cm",
+    "outer_margin": "1.8cm",
+    "top_margin": "1.8cm",
+    "bottom_margin": "1.8cm",
+    "justified": true,
+    "pdf_engine": "xelatex"
+  }
+}</code></pre>
+</div>
+<p>Use inch values like <code>5.5in</code>, metric values like <code>2.2cm</code>, or point values like <code>11pt</code> where shown. Set <code>enabled</code> to <code>false</code> if you only want EPUB/AZW3 output.</p>
+<p>At publish time, a <strong>page-size profile</strong> can override the page dimensions: Digest is 5.5in by 8.5in; A5 is 148 by 210 mm.</p>
+
+<h2 id="assembly-order">15. Front-matter Assembly Order</h2>
+<p>Front matter is assembled in this fixed order:</p>
+<ol>
+    <li><strong>Copyright page</strong> (if <code>copyright.txt</code> exists)</li>
+    <li><strong>Previous-books page</strong> (if the book is part of a series with earlier entries)</li>
+    <li><strong>Manuscript body</strong> (<code>book.md</code>)</li>
+</ol>
+<p>In the EPUB spine, the flow becomes: <strong>title page, then copyright, then table of contents, then dedication, then body</strong>.</p>
+
+<h2 id="validation">16. Validation Gates (What Blocks Publication)</h2>
+<p>Validation runs as a <strong>hard gate</strong> before any output is written. If it fails, the pipeline reports a <code>validation_failure</code> result and writes <strong>no</strong> files.</p>
+<p>The gate fails when:</p>
+<ul>
+    <li><strong>Double quotes are unbalanced</strong> (odd count). The last offender's line, column, and context are reported.</li>
+    <li><strong>Single quotes are used as dialogue.</strong> Every offender is listed.</li>
+</ul>
+<p>Everything else (whitespace, BOM, quote curling, word replacement) is non-blocking and applied silently.</p>
+
+<h2 id="cheat-sheet">17. Quick Cheat-sheet</h2>
+<table>
+    <thead><tr><th>To produce...</th><th>In Google Docs write...</th></tr></thead>
+    <tbody>
+        <tr><td>Chapter heading</td><td><code>[H2] Chapter 1</code> or <code>[H2] Capitolul 5</code></td></tr>
+        <tr><td>Chapter with subtitle</td><td><code>[H2] Chapter 1 - Title</code></td></tr>
+        <tr><td>Prologue / Epilogue</td><td><code>[H2] Prologue</code> or <code>[H2] Epilogue</code> (no number)</td></tr>
+        <tr><td>Dedication page</td><td><code>[H3] For someone</code>, with the whole H3 italicized in Google Docs</td></tr>
+        <tr><td>Scene break</td><td>automatic, at long-prose boundaries</td></tr>
+        <tr><td>Poetry (no scene breaks)</td><td>one italic paragraph line per poem line</td></tr>
+        <tr><td>Dialogue</td><td><code>"hello"</code> (straight double quotes)</td></tr>
+        <tr><td>Apostrophes</td><td><code>it's</code>, <code>John's</code>, <code>'70s</code> (auto-curled)</td></tr>
+        <tr><td>Copyright page</td><td>put <code>copyright.txt</code> in the book folder</td></tr>
+        <tr><td>Previous-books page</td><td>set <code>belongs-to-collection</code> + <code>group-position</code></td></tr>
+        <tr><td>Series stars on title</td><td><code>belongs-to-collection</code> + <code>group-position</code></td></tr>
+        <tr><td>Word replacements</td><td>Use Edit Metadata in Irie</td></tr>
+        <tr><td>ISBN on copyright</td><td><code>identifier:</code> with scheme + text in <code>metadata.yaml</code></td></tr>
+    </tbody>
+</table>
+</main>
+</body>
+</html>

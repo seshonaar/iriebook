@@ -21,7 +21,7 @@ use regex::Regex;
 use std::path::Path;
 
 const PREVIOUS_BOOKS_TEMPLATE_FILE: &str = "previous-books-template.md";
-const DEFAULT_PREVIOUS_BOOKS_TEMPLATE: &str = "# Cartea anterioară {.previous-books-page .unnumbered .unlisted}\n\n<div class=\"previous-books-list\">\n\n{{#books}}\n<p class=\"previous-book-entry\"><span class=\"previous-book-number\">{{roman}}.</span> <span class=\"previous-book-title\"><em>{{title}}</em></span></p>\n{{/books}}\n\n</div>\n";
+const DEFAULT_PREVIOUS_BOOKS_TEMPLATE: &str = "# Cărțile anterioare {.previous-books-page .unnumbered .unlisted}\n\n<div class=\"previous-books-list\">\n\n{{#books}}\n<p class=\"previous-book-entry\"><span class=\"previous-book-number\">{{roman}}.</span> <span class=\"previous-book-title\"><em>{{title}}</em></span></p>\n{{/books}}\n\n</div>\n";
 
 /// Token representing a single line with metadata
 #[derive(Debug, Clone, PartialEq)]
@@ -147,8 +147,8 @@ fn prefixes_match(a: &str, b: &str) -> bool {
         return true;
     }
 
-    // Allow edit distance of 2 for typo tolerance
-    levenshtein_distance(&a_lower, &b_lower) <= 2
+    // Allow edit distance for typo tolerance
+    levenshtein_distance(&a_lower, &b_lower) <= FUZZY_PREFIX_MAX_EDIT_DISTANCE
 }
 
 /// Get or create a counter for a prefix, returning the next number and incrementing
@@ -585,7 +585,11 @@ fn is_italic_content(item: &ContentItem) -> bool {
 }
 
 /// Minimum consecutive text lines required on both sides of a blank line for scene break
-const CHUNKY_PARAGRAPH_THRESHOLD: usize = 10;
+pub const CHUNKY_PARAGRAPH_THRESHOLD: usize = 10;
+
+/// Maximum Levenshtein edit distance for two chapter prefixes to count as the same series
+/// (typo tolerance, e.g. "Capitol" vs "Capitolul")
+pub const FUZZY_PREFIX_MAX_EDIT_DISTANCE: usize = 2;
 
 /// Count consecutive text lines (paragraphs) backwards from index (exclusive)
 /// Stops at any non-paragraph item (blank line, header, italic, etc.)
@@ -1905,7 +1909,7 @@ More text.
             .unwrap();
 
         assert!(book_folder.join(PREVIOUS_BOOKS_TEMPLATE_FILE).exists());
-        assert!(page.contains("Cartea anterioară"));
+        assert!(page.contains("Cărțile anterioare"));
         assert!(page.contains("<span class=\"previous-book-number\">I.</span>"));
         assert!(page.contains("<span class=\"previous-book-title\"><em>Primul volum</em></span>"));
         assert!(!page.contains("- I."));

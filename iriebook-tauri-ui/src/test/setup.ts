@@ -90,6 +90,9 @@ vi.mock("../bindings", () => ({
     openBrowser: vi.fn(() =>
       Promise.resolve({ status: "ok" as const, data: null })
     ),
+    openAuthoringGuide: vi.fn(() =>
+      Promise.resolve({ status: "ok" as const, data: null })
+    ),
     gitCheckInitialized: vi.fn(() =>
       Promise.resolve({ status: "ok" as const, data: false })
     ),

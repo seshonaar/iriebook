@@ -1978,3 +1978,18 @@ fn test_both_flags_together() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_conventions_flag_prints_guide() {
+    // --conventions prints the authoring guide and exits successfully,
+    // without requiring an input file or any other action flag.
+    Command::new(assert_cmd::cargo::cargo_bin!("iriebook"))
+        .arg("--conventions")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("IrieBook Authoring Guide"))
+        // Interpolated magic number must appear (not the raw token).
+        .stdout(predicate::str::contains("Chapter headings"))
+        // No unresolved token should leak into the output.
+        .stdout(predicate::str::contains("{{CHUNKY_PARAGRAPH_THRESHOLD}}").not());
+}

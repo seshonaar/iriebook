@@ -146,6 +146,16 @@ pub async fn open_browser(url: String) -> Result<(), String> {
     external_open::open_text_target(&url).map_err(|e| format!("Failed to open browser: {e}"))
 }
 
+#[tauri::command]
+#[specta::specta]
+pub fn open_authoring_guide() -> Result<(), String> {
+    let data_dir = dirs::data_local_dir()
+        .ok_or_else(|| "Could not resolve local data directory".to_string())?
+        .join("iriebook");
+    let path = iriebook_ui_common::write_help_page(&data_dir).map_err(|e| e.to_string())?;
+    external_open::open_path(&path).map_err(|e| format!("Failed to open help page: {e}"))
+}
+
 // ============= TEST SUPPORT (E2E MOCK INITIALIZER) =============
 
 #[cfg(feature = "e2e-mocks")]

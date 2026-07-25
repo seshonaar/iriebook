@@ -34,6 +34,12 @@ fn main() -> Result<()> {
 
     let args = Args::parse();
 
+    // Print the authoring conventions guide and exit early.
+    if args.conventions {
+        print!("{}", iriebook::engines::help::authoring_guide_html());
+        return Ok(());
+    }
+
     // Validate that at least one action is requested
     if !args.publish && !args.word_stats {
         eprintln!("Error: No action specified");
@@ -41,17 +47,27 @@ fn main() -> Result<()> {
         eprintln!("Use --publish to generate ebook files (EPUB, Kindle)");
         eprintln!("Use --word-stats to analyze word frequency");
         eprintln!("Use both together for complete processing");
+        eprintln!("Use --conventions to print the authoring guide");
         eprintln!();
         eprintln!("Examples:");
         eprintln!("  iriebook --publish input.md");
         eprintln!("  iriebook --word-stats input.md");
         eprintln!("  iriebook --publish --word-stats input.md");
+        eprintln!("  iriebook --conventions");
         std::process::exit(1);
     }
 
+    let input = match args.input {
+        Some(path) => path,
+        None => {
+            eprintln!("Error: an input markdown file is required for --publish/--word-stats");
+            std::process::exit(1);
+        }
+    };
+
     if args.verbose {
         println!("🔧 IrieBook - Wife's Ebook Publication Pipeline");
-        println!("📖 Input: {}", args.input.display());
+        println!("📖 Input: {}", input.display());
     }
 
     // Create manager with Engine and Resource Access dependencies
@@ -67,7 +83,7 @@ fn main() -> Result<()> {
         Arc::new(ZipArchiver),
         Arc::new(GitClient),
         Arc::new(WorkspaceSeriesMetadataProvider::new(
-            args.input
+            input
                 .parent()
                 .unwrap_or(std::path::Path::new("."))
                 .to_path_buf(),
@@ -76,7 +92,7 @@ fn main() -> Result<()> {
 
     // Execute publication pipeline
     let result = manager.publish(PublishArgs {
-        input_path: &args.input,
+        input_path: &input,
         output_path: args.output.as_deref(),
         enable_word_stats: args.word_stats,
         enable_publishing: args.publish,
