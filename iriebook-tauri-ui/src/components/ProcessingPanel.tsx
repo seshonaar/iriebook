@@ -139,36 +139,41 @@ export function ProcessingPanel() {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <Button
-          type="button"
-          size="default"
-          variant={state.publicationOptions.epub ? "default" : "outline"}
-          disabled={state.isProcessing || state.publicationOptions.azw3}
-          className="min-w-[92px]"
-          onClick={() => updatePublicationOptions({ epub: !state.publicationOptions.epub })}
-        >
-          EPUB
-        </Button>
-        <Button
-          type="button"
-          size="default"
-          variant={state.publicationOptions.pdf ? "default" : "outline"}
-          disabled={state.isProcessing}
-          className="min-w-[92px]"
-          onClick={() => updatePublicationOptions({ pdf: !state.publicationOptions.pdf })}
-        >
-          PDF
-        </Button>
-        <Button
-          type="button"
-          size="default"
-          variant={state.publicationOptions.azw3 ? "default" : "outline"}
-          disabled={state.isProcessing}
-          className="min-w-[92px]"
-          onClick={() => updatePublicationOptions({ azw3: !state.publicationOptions.azw3 })}
-        >
-          AZW3
-        </Button>
+        <div className="flex h-9 min-w-max items-center gap-3 rounded-md border border-input bg-background px-4 shadow-sm">
+          <Switch
+            id="publish-epub"
+            checked={state.publicationOptions.epub}
+            onCheckedChange={(checked) => updatePublicationOptions({ epub: checked })}
+            disabled={state.isProcessing || state.publicationOptions.azw3}
+          />
+          <Label htmlFor="publish-epub" className="cursor-pointer whitespace-nowrap">
+            EPUB
+          </Label>
+        </div>
+
+        <div className="flex h-9 min-w-max items-center gap-3 rounded-md border border-input bg-background px-4 shadow-sm">
+          <Switch
+            id="publish-pdf"
+            checked={state.publicationOptions.pdf}
+            onCheckedChange={(checked) => updatePublicationOptions({ pdf: checked })}
+            disabled={state.isProcessing}
+          />
+          <Label htmlFor="publish-pdf" className="cursor-pointer whitespace-nowrap">
+            PDF
+          </Label>
+        </div>
+
+        <div className="flex h-9 min-w-max items-center gap-3 rounded-md border border-input bg-background px-4 shadow-sm">
+          <Switch
+            id="publish-azw3"
+            checked={state.publicationOptions.azw3}
+            onCheckedChange={(checked) => updatePublicationOptions({ azw3: checked })}
+            disabled={state.isProcessing}
+          />
+          <Label htmlFor="publish-azw3" className="cursor-pointer whitespace-nowrap">
+            AZW3
+          </Label>
+        </div>
 
         <div className="flex h-9 min-w-max items-center gap-3 rounded-md border border-input bg-background px-4 shadow-sm">
           <Switch
