@@ -154,7 +154,6 @@ fn prepare_google_docs_book(
             language: None,
             rights: None,
             cover_image: None,
-            replace_pairs: None,
             identifier: None,
         };
         file::save_metadata(&book_path, &metadata)?;

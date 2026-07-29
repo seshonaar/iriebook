@@ -182,7 +182,9 @@ impl EbookPublicationManager {
         let enable_publishing = args.enable_publishing;
         let publication_options = args.publication_options.normalized();
         let config_root = args.config_root;
-        let replace_pairs = args.replace_pairs;
+        let book_config = file::load_book_config(input_path)?.unwrap_or_default();
+        let config_replace_pairs = book_config.replace_pairs.as_deref();
+        let replace_pairs = args.replace_pairs.or(config_replace_pairs);
 
         // Vector to collect command outputs
         let mut command_outputs = Vec::new();
@@ -232,9 +234,9 @@ impl EbookPublicationManager {
             }
         };
         let mut effective_pdf_config = loaded_config.pdf.clone();
-        let (pdf_page_width, pdf_page_height) = publication_options.pdf_page_profile.dimensions();
-        effective_pdf_config.page_width = pdf_page_width.to_string();
-        effective_pdf_config.page_height = pdf_page_height.to_string();
+        let pdf_output_profile = book_config.pdf.active_profile.output_profile();
+        effective_pdf_config.page_width = pdf_output_profile.page.width.to_string();
+        effective_pdf_config.page_height = pdf_output_profile.page.height.to_string();
 
         // Conditionally analyze words based on enable_word_stats flag
         let word_analysis = match enable_word_stats {

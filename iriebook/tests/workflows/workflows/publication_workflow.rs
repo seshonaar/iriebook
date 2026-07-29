@@ -4,7 +4,7 @@
 //! using mocked external dependencies.
 
 use iriebook::managers::ebook_publication::PublishArgs;
-use iriebook::resource_access::pandoc::PandocConverter;
+use iriebook::resource_access::{file, pandoc::PandocConverter};
 use iriebook::utilities::types::{PdfPageProfile, PublicationOptions};
 use iriebook_test_support::{
     GitCall, MockArchiveAccess, MockCalibreAccess, MockGitAccess, MockGoogleDocsAccess,
@@ -318,6 +318,8 @@ cover-image: cover.jpg
         .with_defaults_for_remaining()
         .build();
 
+    file::set_active_pdf_profile(&book.md_path, PdfPageProfile::Bookbite).unwrap();
+
     let pub_manager = app_state.ebook_publication_manager();
     let result = pub_manager.publish(PublishArgs {
         input_path: &book.md_path,
@@ -326,7 +328,6 @@ cover-image: cover.jpg
         enable_publishing: true,
         publication_options: PublicationOptions {
             embed_cover: false,
-            pdf_page_profile: PdfPageProfile::A5,
             ..PublicationOptions::default()
         },
         config_root: None,

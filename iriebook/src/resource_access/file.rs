@@ -2,7 +2,10 @@
 //!
 //! Handles reading input files and writing output files safely
 
-use crate::utilities::types::{BookMetadata, GoogleDocsSyncInfo};
+use crate::utilities::types::{
+    BookConfig, BookMetadata, GoogleDocsSyncInfo, PdfPageProfile, PdfProfileDocument,
+    PdfProfileImageKind,
+};
 use anyhow::{Context, Result};
 use image::ImageFormat;
 use serde::{Deserialize, Serialize};
@@ -185,6 +188,50 @@ pub fn get_book_folder_file(input_path: &Path, file: &str) -> Result<PathBuf, an
     }
 }
 
+pub fn get_book_folder(input_path: &Path) -> PathBuf {
+    input_path
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
+pub fn get_pdf_profile_folder(
+    input_path: &Path,
+    profile: PdfPageProfile,
+) -> Result<PathBuf, anyhow::Error> {
+    Ok(get_book_folder(input_path)
+        .join("profiles")
+        .join("pdf")
+        .join(pdf_profile_folder_name(profile)))
+}
+
+pub fn get_pdf_profile_file(
+    input_path: &Path,
+    profile: PdfPageProfile,
+    file: &str,
+) -> Result<PathBuf, anyhow::Error> {
+    Ok(get_pdf_profile_folder(input_path, profile)?.join(file))
+}
+
+pub fn get_pdf_profile_image_file(
+    input_path: &Path,
+    profile: PdfPageProfile,
+    kind: PdfProfileImageKind,
+) -> Result<PathBuf, anyhow::Error> {
+    let filename = match kind {
+        PdfProfileImageKind::Cover => "cover.jpg",
+        PdfProfileImageKind::PrintCover => "printcover.jpg",
+    };
+    get_pdf_profile_file(input_path, profile, filename)
+}
+
+pub fn pdf_profile_folder_name(profile: PdfPageProfile) -> &'static str {
+    match profile {
+        PdfPageProfile::Draft2Digital => "draft_2_digital",
+        PdfPageProfile::Bookbite => "bookbite",
+    }
+}
+
 /// Get a file path in the book's irie/ workspace subfolder
 ///
 /// Creates the irie/ directory if it doesn't exist.
@@ -331,6 +378,85 @@ pub fn load_metadata(book_path: &Path) -> Result<Option<BookMetadata>> {
             Ok(Some(metadata))
         }
     }
+}
+
+pub fn load_book_config(book_path: &Path) -> Result<Option<BookConfig>> {
+    let config_path = get_book_folder_file(book_path, "config.json")?;
+
+    match config_path.exists() {
+        false => Ok(None),
+        true => {
+            let content = read_file(&config_path).with_context(|| {
+                format!("Failed to read book config file: {}", config_path.display())
+            })?;
+            let config = serde_json::from_str(&content).with_context(|| {
+                format!("Failed to parse book config JSON: {}", config_path.display())
+            })?;
+            Ok(Some(config))
+        }
+    }
+}
+
+pub fn save_book_config(book_path: &Path, config: &BookConfig) -> Result<()> {
+    let config_path = get_book_folder_file(book_path, "config.json")?;
+    let content = serde_json::to_string_pretty(config).context("Failed to serialize book config")?;
+    write_file(&config_path, &format!("{}\n", content))
+}
+
+pub fn materialize_pdf_profile(
+    book_path: &Path,
+    profile: PdfPageProfile,
+) -> Result<PdfProfileDocument> {
+    let profile_dir = get_pdf_profile_folder(book_path, profile)?;
+    fs::create_dir_all(&profile_dir).with_context(|| {
+        format!(
+            "Failed to create PDF profile directory: {}",
+            profile_dir.display()
+        )
+    })?;
+
+    let document = PdfProfileDocument::from(profile.output_profile());
+    let profile_path = profile_dir.join("profile.json");
+    let content = serde_json::to_string_pretty(&document)
+        .context("Failed to serialize PDF profile document")?;
+    write_file(&profile_path, &format!("{}\n", content))?;
+    Ok(document)
+}
+
+pub fn resolve_active_pdf_profile(book_path: &Path) -> Result<PdfPageProfile> {
+    Ok(load_book_config(book_path)?
+        .unwrap_or_default()
+        .pdf
+        .active_profile)
+}
+
+pub fn set_active_pdf_profile(book_path: &Path, profile: PdfPageProfile) -> Result<BookConfig> {
+    let mut config = load_book_config(book_path)?.unwrap_or_default();
+    config.pdf.active_profile = profile;
+    save_book_config(book_path, &config)?;
+    materialize_pdf_profile(book_path, profile)?;
+    Ok(config)
+}
+
+pub fn resolve_pdf_cover_path(book_path: &Path, profile: PdfPageProfile) -> Result<Option<PathBuf>> {
+    let profile_cover = get_pdf_profile_file(book_path, profile, "cover.jpg")?;
+    if profile_cover.exists() {
+        return Ok(Some(profile_cover));
+    }
+
+    let root_cover = get_book_folder_file(book_path, "cover.jpg")?;
+    Ok(root_cover.exists().then_some(root_cover))
+}
+
+pub fn replace_pdf_profile_image(
+    book_path: &Path,
+    source_image: &Path,
+    profile: PdfPageProfile,
+    kind: PdfProfileImageKind,
+) -> Result<PathBuf> {
+    materialize_pdf_profile(book_path, profile)?;
+    let target_path = get_pdf_profile_image_file(book_path, profile, kind)?;
+    write_jpeg_image(source_image, &target_path)
 }
 
 /// Save metadata to metadata.yaml in book's root directory
@@ -486,26 +612,10 @@ pub fn get_file_modified_timestamp(path: &Path) -> Result<u64> {
 /// - Source file is not a valid image format
 /// - Insufficient permissions to write to book folder
 pub fn replace_cover_image(book_path: &Path, source_image: &Path) -> Result<PathBuf> {
-    // 1. Validate source exists
-    if !source_image.exists() {
-        anyhow::bail!("Source image does not exist: {}", source_image.display());
-    }
-
-    // 2. Validate source is a valid image and keep decoded result (optimization)
-    let img = image::ImageReader::open(source_image)
-        .with_context(|| format!("Failed to open source image: {}", source_image.display()))?
-        .decode()
-        .with_context(|| {
-            format!(
-                "Source file is not a valid image: {}",
-                source_image.display()
-            )
-        })?;
-
-    // 3. Get root folder cover.jpg path
+    // 1. Get root folder cover.jpg path
     let cover_path = get_book_folder_file(book_path, "cover.jpg")?;
 
-    // 4. Backup existing cover.jpg to irie/cover.jpg.bak (if exists)
+    // 2. Backup existing cover.jpg to irie/cover.jpg.bak (if exists)
     if cover_path.exists() {
         let backup_path = get_irie_folder_file(book_path, "cover.jpg.bak")?;
         fs::copy(&cover_path, &backup_path).with_context(|| {
@@ -516,26 +626,49 @@ pub fn replace_cover_image(book_path: &Path, source_image: &Path) -> Result<Path
         })?;
     }
 
-    // 5. Encode as JPEG to temp file (atomic write pattern)
-    let temp_path = cover_path.with_extension("jpg.tmp");
-    img.save_with_format(&temp_path, ImageFormat::Jpeg)
-        .with_context(|| format!("Failed to save image as JPEG to {}", temp_path.display()))?;
+    write_jpeg_image(source_image, &cover_path)?;
 
-    // 6. Atomic rename temp -> cover.jpg
-    fs::rename(&temp_path, &cover_path).with_context(|| {
-        format!(
-            "Failed to move file to final location: {}",
-            cover_path.display()
-        )
-    })?;
-
-    // 7. Invalidate thumbnail cache if it exists (thumbnail is in irie/)
+    // 3. Invalidate thumbnail cache if it exists (thumbnail is in irie/)
     let thumbnail_path = get_irie_folder_file(book_path, "thumbnail.jpg")?;
     if thumbnail_path.exists() {
         let _ = fs::remove_file(&thumbnail_path); // Ignore failure, non-critical
     }
 
     Ok(cover_path)
+}
+
+fn write_jpeg_image(source_image: &Path, target_path: &Path) -> Result<PathBuf> {
+    if !source_image.exists() {
+        anyhow::bail!("Source image does not exist: {}", source_image.display());
+    }
+
+    if let Some(parent) = target_path.parent() {
+        fs::create_dir_all(parent).with_context(|| {
+            format!("Failed to create image directory: {}", parent.display())
+        })?;
+    }
+
+    let img = image::ImageReader::open(source_image)
+        .with_context(|| format!("Failed to open source image: {}", source_image.display()))?
+        .decode()
+        .with_context(|| {
+            format!(
+                "Source file is not a valid image: {}",
+                source_image.display()
+            )
+        })?;
+
+    let temp_path = target_path.with_extension("jpg.tmp");
+    img.save_with_format(&temp_path, ImageFormat::Jpeg)
+        .with_context(|| format!("Failed to save image as JPEG to {}", temp_path.display()))?;
+    fs::rename(&temp_path, target_path).with_context(|| {
+        format!(
+            "Failed to move file to final location: {}",
+            target_path.display()
+        )
+    })?;
+
+    Ok(target_path.to_path_buf())
 }
 
 /// Extract book folder name from a markdown file path
@@ -636,7 +769,6 @@ pub fn add_book_to_workspace(workspace_root: &Path, source_md: &Path) -> Result<
             language: None,
             rights: None,
             cover_image: None,
-            replace_pairs: None,
             identifier: None,
         };
         save_metadata(&book_path, &default_metadata)?;
@@ -1028,6 +1160,49 @@ identifier:
     }
 
     #[test]
+    fn book_config_roundtrips_operational_settings() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let book_path = temp_dir.path().join("book.md");
+        fs::write(&book_path, "content")?;
+
+        let config = BookConfig {
+            replace_pairs: Some(vec![crate::utilities::types::ReplacePair {
+                source: "Rene".to_string(),
+                target: "René".to_string(),
+            }]),
+            pdf: crate::utilities::types::BookPdfConfig {
+                active_profile: PdfPageProfile::Bookbite,
+            },
+        };
+
+        save_book_config(&book_path, &config)?;
+        let loaded = load_book_config(&book_path)?.unwrap();
+
+        assert_eq!(loaded, config);
+        assert!(temp_dir.path().join("config.json").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn materialize_pdf_profile_writes_profile_directory() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let book_path = temp_dir.path().join("book.md");
+        fs::write(&book_path, "content")?;
+
+        let document = materialize_pdf_profile(&book_path, PdfPageProfile::Bookbite)?;
+
+        assert_eq!(document.id, PdfPageProfile::Bookbite);
+        assert_eq!(document.label, "Bookbite");
+        assert!(
+            temp_dir
+                .path()
+                .join("profiles/pdf/bookbite/profile.json")
+                .exists()
+        );
+        Ok(())
+    }
+
+    #[test]
     fn load_metadata_handles_frontmatter_delimiters() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let book_path = temp_dir.path().join("book.md");
@@ -1066,7 +1241,6 @@ identifier:
             language: None,
             rights: None,
             cover_image: None,
-            replace_pairs: None,
             identifier: None,
         };
 
@@ -1099,7 +1273,6 @@ identifier:
             language: None,
             rights: None,
             cover_image: None,
-            replace_pairs: None,
             identifier: None,
         };
 
@@ -1294,7 +1467,6 @@ identifier:
             language: Some("en-US".to_string()),
             rights: Some("© 2026 Jane Doe".to_string()),
             cover_image: Some("custom_cover.jpg".to_string()),
-            replace_pairs: None,
             identifier: None,
         };
         save_metadata(&book_path, &custom_metadata)?;

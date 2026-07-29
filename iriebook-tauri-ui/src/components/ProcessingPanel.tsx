@@ -1,20 +1,10 @@
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { commands } from "../bindings";
-import type { PdfPageProfile, PdfPageProfileInfo } from "../bindings";
-import { BookUp, Upload, RefreshCw, ChevronDown } from "lucide-react";
+import { BookUp, Upload, RefreshCw } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
 import { useAppContext } from "../contexts/AppContext";
 import {
   setBooks,
@@ -31,7 +21,6 @@ import { useGitOperations } from "../hooks/useGitOperations";
 export function ProcessingPanel() {
   const { t } = useTranslation();
   const { state, dispatch } = useAppContext();
-  const [pdfPageProfiles, setPdfPageProfiles] = useState<PdfPageProfileInfo[]>([]);
   const { targetBooks } = useActionTarget();
   const {
     commitMessage,
@@ -63,28 +52,6 @@ export function ProcessingPanel() {
     commands.setPublicationOptions(merged).catch((error) => {
       console.error("Failed to sync publication options to backend:", error);
     });
-  };
-
-  useEffect(() => {
-    commands.getPdfPageProfiles().then((result) => {
-      if (result.status === "ok") {
-        setPdfPageProfiles(result.data);
-      } else {
-        console.error("Failed to load PDF page profiles:", result.error);
-      }
-    }).catch((error) => {
-      console.error("Failed to load PDF page profiles:", error);
-    });
-  }, []);
-
-  const pdfPageProfile =
-    state.publicationOptions.pdf_page_profile ?? pdfPageProfiles[0]?.profile;
-  const activePdfPageProfile = pdfPageProfiles.find(
-    (profile) => profile.profile === pdfPageProfile
-  );
-
-  const updatePdfPageProfile = (profile: string) => {
-    updatePublicationOptions({ pdf_page_profile: profile as PdfPageProfile });
   };
 
   const handleBookUpdated = async () => {
@@ -192,40 +159,6 @@ export function ProcessingPanel() {
         >
           PDF
         </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="default"
-              variant="outline"
-              disabled={state.isProcessing}
-              className="min-w-max gap-2"
-              aria-label={t('processing.panel.pdfSize.label')}
-            >
-              <span className="text-muted-foreground">
-                {t('processing.panel.pdfSize.label')}:
-              </span>
-              <span>{activePdfPageProfile?.label ?? t('processing.panel.pdfSize.loading')}</span>
-              <ChevronDown className="h-4 w-4 opacity-70" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuLabel>{t('processing.panel.pdfSize.label')}</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={pdfPageProfile ?? ""}
-              onValueChange={updatePdfPageProfile}
-            >
-              {pdfPageProfiles.map((profile) => (
-                <DropdownMenuRadioItem
-                  key={profile.profile}
-                  value={profile.profile}
-                >
-                  {profile.label}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
         <Button
           type="button"
           size="default"

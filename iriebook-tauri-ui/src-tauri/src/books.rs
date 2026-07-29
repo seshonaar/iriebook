@@ -1,13 +1,17 @@
 //! Book-related commands: scanning, covers, metadata, processing, and CRUD operations
 
 use crate::state::AppStateHolder;
+use iriebook::utilities::types::{PdfPageProfile, PdfProfileImageKind};
 use iriebook_ui_common::ui_state::{BookInfo, PublishEnabled, WordStatsEnabled};
 use iriebook_ui_common::{
     AddBookResult, AnalysisResponse, BatchProcessor, BookListChangedEvent, BookMetadata,
-    BookOutputLink, ChangeBookResult, CoverReloadEvent, CoverStatus, ProcessingUpdateEvent,
+    BookConfig, BookOutputLink, ChangeBookResult, CoverReloadEvent, CoverStatus,
+    ProcessingUpdateEvent,
     add_book_with_rescan, book_scanner, change_book_with_rescan, check_for_duplicate,
     collect_distinct_authors, collect_distinct_series, delete_book_with_rescan,
-    get_available_book_outputs, get_or_compute_analysis, load_metadata, save_metadata,
+    get_available_book_outputs, get_or_compute_analysis, get_pdf_profile_state, load_metadata,
+    load_book_config, replace_pdf_profile_image_slot, save_book_config, save_metadata,
+    set_active_pdf_profile, PdfProfileState,
 };
 use std::path::PathBuf;
 use tauri::State;
@@ -88,6 +92,22 @@ pub fn save_book_metadata(book_path: String, metadata: BookMetadata) -> Result<(
 
 #[tauri::command]
 #[specta::specta]
+pub fn load_book_config_file(book_path: String) -> Result<BookConfig, String> {
+    let path = PathBuf::from(book_path);
+    load_book_config(&path)
+        .map_err(|e| e.to_string())
+        .map(|config| config.unwrap_or_default())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn save_book_config_file(book_path: String, config: BookConfig) -> Result<(), String> {
+    let path = PathBuf::from(book_path);
+    save_book_config(&path, &config).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn replace_cover_image(
     app: tauri::AppHandle,
     book_path: String,
@@ -105,6 +125,35 @@ pub fn replace_cover_image(
     book_ui_manager.replace_cover_image(&book, &source)?;
     let _ = BookListChangedEvent {}.emit(&app);
     Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_book_pdf_profile(book_path: String) -> Result<PdfProfileState, String> {
+    let path = PathBuf::from(book_path);
+    get_pdf_profile_state(&path)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_book_pdf_profile(
+    book_path: String,
+    profile: PdfPageProfile,
+) -> Result<PdfProfileState, String> {
+    let path = PathBuf::from(book_path);
+    set_active_pdf_profile(&path, profile)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn replace_book_pdf_profile_image(
+    book_path: String,
+    new_image_path: String,
+    kind: PdfProfileImageKind,
+) -> Result<PdfProfileState, String> {
+    let book = PathBuf::from(book_path);
+    let source = PathBuf::from(new_image_path);
+    replace_pdf_profile_image_slot(&book, &source, kind)
 }
 
 // ============= BOOK VIEWING =============

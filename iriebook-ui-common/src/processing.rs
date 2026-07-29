@@ -1,7 +1,7 @@
-use crate::load_metadata;
+use crate::load_book_config;
 use crate::ui_state::{PublishEnabled, WordStatsEnabled};
 use anyhow::Result;
-use iriebook::utilities::types::{PublicationOptions, ReplacePair};
+use iriebook::utilities::types::PublicationOptions;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::path::{Path, PathBuf};
@@ -322,10 +322,10 @@ pub fn process_single_book(
     );
 
     // Load metadata to get replace pairs
-    let replace_pairs: Option<Vec<ReplacePair>> = load_metadata(book_path)
+    let replace_pairs = load_book_config(book_path)
         .ok()
         .flatten()
-        .and_then(|m| m.replace_pairs);
+        .and_then(|config| config.replace_pairs);
 
     // Process the book
     let result = manager.publish(PublishArgs {

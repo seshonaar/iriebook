@@ -141,6 +141,22 @@ async saveBookMetadata(bookPath: string, metadata: BookMetadata) : Promise<Resul
     else return { status: "error", error: e  as any };
 }
 },
+async loadBookConfigFile(bookPath: string) : Promise<Result<BookConfig, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("load_book_config_file", { bookPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async saveBookConfigFile(bookPath: string, config: BookConfig) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_book_config_file", { bookPath, config }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getAutocompleteAuthors(books: BookInfo[]) : Promise<Result<string[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_autocomplete_authors", { books }) };
@@ -160,6 +176,30 @@ async getAutocompleteSeries(books: BookInfo[]) : Promise<Result<string[], string
 async replaceCoverImage(bookPath: string, newCoverPath: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("replace_cover_image", { bookPath, newCoverPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getBookPdfProfile(bookPath: string) : Promise<Result<PdfProfileState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_book_pdf_profile", { bookPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async setBookPdfProfile(bookPath: string, profile: PdfPageProfile) : Promise<Result<PdfProfileState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_book_pdf_profile", { bookPath, profile }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async replaceBookPdfProfileImage(bookPath: string, newImagePath: string, kind: PdfProfileImageKind) : Promise<Result<PdfProfileState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("replace_book_pdf_profile_image", { bookPath, newImagePath, kind }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -490,6 +530,10 @@ was_cached: boolean;
  */
 cache_timestamp: number }
 /**
+ * Book-local operational settings stored in config.json.
+ */
+export type BookConfig = { "replace-pairs"?: ReplacePair[] | null; pdf?: BookPdfConfig }
+/**
  * Information about a book file
  */
 export type BookInfo = { path: BookPath; display_name: string; selected: boolean; cover_image_path: string | null; metadata: BookMetadata | null; google_docs_sync_info: GoogleDocsSyncInfo | null; 
@@ -505,13 +549,14 @@ export type BookListChangedEvent = Record<string, never>
 /**
  * Book metadata from YAML frontmatter
  */
-export type BookMetadata = { title?: string; author?: string; "belongs-to-collection"?: string | null; "group-position"?: number | null; language?: string | null; rights?: string | null; "cover-image"?: string | null; "replace-pairs"?: ReplacePair[] | null; identifier?: Identifier[] | null }
+export type BookMetadata = { title?: string; author?: string; "belongs-to-collection"?: string | null; "group-position"?: number | null; language?: string | null; rights?: string | null; "cover-image"?: string | null; identifier?: Identifier[] | null }
 export type BookOutputFormat = "epub" | "pdf" | "azw3"
 export type BookOutputLink = { format: BookOutputFormat; path: string }
 /**
  * NewType wrapper for book file path
  */
 export type BookPath = string
+export type BookPdfConfig = { active_profile?: PdfPageProfile }
 export type BookSatelliteFile = { file_name: string; label: string }
 /**
  * Result of changing a book's source file
@@ -686,19 +731,22 @@ export type GoogleDocsSyncInfo = { "google-doc-id": string; "sync-status": strin
  * Book identifier (e.g., ISBN)
  */
 export type Identifier = { scheme?: string | null; text?: string | null }
+export type IdentifierDisplayMode = "simple" | "biblioteca_nationala_romaniei"
 /**
- * Named PDF trim sizes exposed in the UI.
+ * Read-only PDF output profiles exposed in the UI.
  */
 export type PdfPageProfile = 
 /**
- * 5.5in x 8.5in, commonly sold as Digest trim size.
+ * Draft2Digital-compatible 5.5in x 8.5in output.
  */
-"digest" | 
+"draft_2_digital" | 
 /**
- * ISO A5 trim size: 148mm x 210mm.
+ * Bookbite-compatible A5 output for Romanian print workflows.
  */
-"a5"
-export type PdfPageProfileInfo = { profile: PdfPageProfile; label: string; width: string; height: string }
+"bookbite"
+export type PdfPageProfileInfo = { profile: PdfPageProfile; label: string; width: string; height: string; identifier_display: IdentifierDisplayMode }
+export type PdfProfileImageKind = "cover" | "print_cover"
+export type PdfProfileState = { active_profile: PdfPageProfile; available_profiles: PdfPageProfileInfo[]; active_label: string; width: string; height: string; identifier_display: IdentifierDisplayMode; cover_path: string | null; print_cover_path: string | null }
 /**
  * Events emitted during book processing (serializable for Tauri events)
  */
@@ -722,7 +770,7 @@ export type ProcessingUpdateEvent = ProcessingEvent
 /**
  * Publication output options shared across UI and core processing flows.
  */
-export type PublicationOptions = { embed_cover: boolean; epub: boolean; pdf: boolean; azw3: boolean; pdf_page_profile?: PdfPageProfile }
+export type PublicationOptions = { embed_cover: boolean; epub: boolean; pdf: boolean; azw3: boolean }
 /**
  * A single word replacement pair (case-sensitive, whole-word)
  */

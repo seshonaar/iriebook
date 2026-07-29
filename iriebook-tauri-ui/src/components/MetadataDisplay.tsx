@@ -1,15 +1,26 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { commands, type BookMetadata, type BookOutputLink, type BookSatelliteFile, type ChangeBookResult } from "../bindings";
+import {
+  commands,
+  type BookMetadata,
+  type BookOutputLink,
+  type BookSatelliteFile,
+  type ChangeBookResult,
+  type PdfPageProfile,
+  type PdfProfileState,
+} from "../bindings";
 import { Button } from "./ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "./ui/dropdown-menu";
-import { MoreVertical, FileText, GitCompareArrows, FolderOpen } from "lucide-react";
+import { MoreVertical, FileText, GitCompareArrows, FolderOpen, ChevronDown } from "lucide-react";
 import { useAppContext } from "../contexts/AppContext";
 import { openDiffTab } from "../contexts/actions";
 import { CoverImage } from "./CoverImage";
@@ -38,6 +49,7 @@ export function MetadataDisplay({
   const [isChanging, setIsChanging] = useState(false);
   const [outputLinks, setOutputLinks] = useState<BookOutputLink[]>([]);
   const [satelliteFiles, setSatelliteFiles] = useState<BookSatelliteFile[]>([]);
+  const [pdfProfile, setPdfProfile] = useState<PdfProfileState | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,6 +100,29 @@ export function MetadataDisplay({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPdfProfile = async () => {
+      try {
+        const result = await commands.getBookPdfProfile(bookPath);
+        if (!cancelled && result.status === "ok") {
+          setPdfProfile(result.data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setPdfProfile(null);
+        }
+      }
+    };
+
+    loadPdfProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookPath]);
 
   const handleOpenOutput = async (path: string) => {
     try {
@@ -193,6 +228,50 @@ export function MetadataDisplay({
     }
   };
 
+  const handlePdfProfileChange = async (profile: string) => {
+    try {
+      const result = await commands.setBookPdfProfile(
+        bookPath,
+        profile as PdfPageProfile
+      );
+      if (result.status === "error") {
+        throw new Error(result.error);
+      }
+      setPdfProfile(result.data);
+    } catch (error) {
+      toast.error("Failed to update PDF profile", { description: String(error) });
+    }
+  };
+
+  const handleReplacePdfProfileImage = async (kind: "cover" | "print_cover") => {
+    try {
+      const selectResult = await commands.selectFile(
+        kind === "cover" ? "Select PDF Cover" : "Select Print Cover",
+        [["Images", ["jpg", "jpeg", "png", "gif", "webp"]]]
+      );
+      if (selectResult.status === "error") {
+        throw new Error(selectResult.error);
+      }
+      if (!selectResult.data) {
+        return;
+      }
+
+      const result = await commands.replaceBookPdfProfileImage(
+        bookPath,
+        selectResult.data,
+        kind
+      );
+      if (result.status === "error") {
+        throw new Error(result.error);
+      }
+      setPdfProfile(result.data);
+    } catch (error) {
+      toast.error("Failed to replace PDF profile image", {
+        description: String(error),
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex w-full flex-wrap items-center gap-2 mb-4">
@@ -258,44 +337,106 @@ export function MetadataDisplay({
         </DropdownMenu>
       </div>
 
-      <div className="flex flex-col gap-6 lg:flex-row">
-        <div className="flex-shrink-0">
-          <CoverImage
-            coverImagePath={coverImagePath}
-            onReplaceCover={onReplaceCover}
-          />
-        </div>
-        <div className="space-y-3">
-          <div>
-            <label className="text-sm font-medium text-gray-600">{t('metadata.editor.fields.title')}</label>
-            <p className="text-base mt-1">{metadata.title}</p>
-          </div>
+      <Tabs defaultValue="metadata" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="metadata">Metadata</TabsTrigger>
+          <TabsTrigger value="pdf-profile">PDF Profile</TabsTrigger>
+        </TabsList>
 
-          <div>
-            <label className="text-sm font-medium text-gray-600">{t('metadata.display.author')}</label>
-            <p className="text-base mt-1">{metadata.author}</p>
-          </div>
-
-          {metadata["belongs-to-collection"] && (
-            <div>
-              <label className="text-sm font-medium text-gray-600">
-                {t('metadata.editor.fields.collection')}
-              </label>
-              <p className="text-base mt-1">{metadata["belongs-to-collection"]}</p>
+        <TabsContent value="metadata">
+          <div className="flex flex-col gap-6 lg:flex-row">
+            <div className="flex-shrink-0">
+              <CoverImage
+                coverImagePath={coverImagePath}
+                onReplaceCover={onReplaceCover}
+              />
             </div>
-          )}
-
-          {metadata["group-position"] !== null &&
-            metadata["group-position"] !== undefined && (
+            <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-gray-600">
-                  {t('metadata.editor.fields.position')}
-                </label>
-                <p className="text-base mt-1">{metadata["group-position"]}</p>
+                <label className="text-sm font-medium text-gray-600">{t('metadata.editor.fields.title')}</label>
+                <p className="text-base mt-1">{metadata.title}</p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-600">{t('metadata.display.author')}</label>
+                <p className="text-base mt-1">{metadata.author}</p>
+              </div>
+
+              {metadata["belongs-to-collection"] && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600">
+                    {t('metadata.editor.fields.collection')}
+                  </label>
+                  <p className="text-base mt-1">{metadata["belongs-to-collection"]}</p>
+                </div>
+              )}
+
+              {metadata["group-position"] !== null &&
+                metadata["group-position"] !== undefined && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">
+                      {t('metadata.editor.fields.position')}
+                    </label>
+                    <p className="text-base mt-1">{metadata["group-position"]}</p>
+                  </div>
+                )}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="pdf-profile">
+          <div className="space-y-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline" className="gap-2">
+                  {pdfProfile
+                    ? `${pdfProfile.active_label} (${pdfProfile.width} x ${pdfProfile.height})`
+                    : "Loading PDF profile..."}
+                  <ChevronDown className="h-4 w-4 opacity-70" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuRadioGroup
+                  value={pdfProfile?.active_profile ?? ""}
+                  onValueChange={handlePdfProfileChange}
+                >
+                  {pdfProfile?.available_profiles.map((profile) => (
+                    <DropdownMenuRadioItem
+                      key={profile.profile}
+                      value={profile.profile}
+                    >
+                      {profile.label} ({profile.width} x {profile.height})
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {pdfProfile && (
+              <div className="rounded-md border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+                Identifier display: {pdfProfile.identifier_display}
               </div>
             )}
-        </div>
-      </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <h4 className="font-medium">PDF embedded cover</h4>
+                <CoverImage
+                  coverImagePath={pdfProfile?.cover_path ?? null}
+                  onReplaceCover={() => handleReplacePdfProfileImage("cover")}
+                />
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-medium">Print cover</h4>
+                <CoverImage
+                  coverImagePath={pdfProfile?.print_cover_path ?? null}
+                  onReplaceCover={() => handleReplacePdfProfileImage("print_cover")}
+                />
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

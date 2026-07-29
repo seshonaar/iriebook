@@ -247,7 +247,6 @@ impl MarkdownTransformEngine for MarkdownTransformer {
             })
             .unwrap_or_default();
 
-        // Include ISBN if present in metadata
         let isbn_line = if let Some(text) = metadata.identifier_display_text() {
             format!(r#"<p class="copyright-isbn">{}</p>"#, text)
         } else {

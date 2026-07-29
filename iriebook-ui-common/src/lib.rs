@@ -22,6 +22,7 @@ pub mod help_page;
 pub mod image_loading;
 pub mod managers;
 pub mod metadata_utils;
+pub mod pdf_profiles;
 pub mod processing;
 pub mod session;
 pub mod ui_state;
@@ -59,13 +60,19 @@ pub use help_page::write_help_page;
 pub use image_loading::{
     CoverImageData, THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH, load_cover_as_data_url, load_cover_data,
 };
-pub use iriebook::resource_access::file::{load_metadata, replace_cover_image, save_metadata};
-pub use iriebook::utilities::types::{BookMetadata, ReplacePair};
+pub use iriebook::resource_access::file::{
+    load_book_config, load_metadata, replace_cover_image, save_book_config, save_metadata,
+};
+pub use iriebook::utilities::types::{BookConfig, BookMetadata, ReplacePair};
 pub use managers::{
     BookUIManager, CoverLoadingEngine, CoverStatus, DefaultCoverLoadingEngine,
     MockCoverLoadingEngine, OnCoverLoaded,
 };
 pub use metadata_utils::{MetadataEditState, collect_distinct_authors, collect_distinct_series};
+pub use pdf_profiles::{
+    PdfProfileState, get_pdf_profile_state, replace_pdf_profile_image as replace_pdf_profile_image_slot,
+    set_active_pdf_profile,
+};
 pub use processing::{
     BookListChangedEvent, BookProcessingQueue, CoverReloadEvent, GitOperationProgressEvent,
     GoogleDocsBatchSyncEvent, GoogleDocsBatchSyncUpdateEvent, GoogleDocsProgressEvent,

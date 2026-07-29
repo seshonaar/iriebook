@@ -75,7 +75,6 @@ impl MetadataEditState {
             language: self.original.language.clone(),
             rights: self.original.rights.clone(),
             cover_image: self.original.cover_image.clone(),
-            replace_pairs: self.original.replace_pairs.clone(),
             identifier: self.original.identifier.clone(),
         };
 
@@ -101,7 +100,6 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
-            replace_pairs: None,
             identifier: None,
         }
     }

@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { commands, type BookMetadata, type BookInfo, type ReplacePair } from "../bindings";
+import {
+  commands,
+  type BookConfig,
+  type BookMetadata,
+  type BookInfo,
+  type ReplacePair,
+} from "../bindings";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -29,10 +35,8 @@ export function MetadataEditor({
   const [position, setPosition] = useState(
     metadata["group-position"]?.toString() || ""
   );
-  const [replacePairs, setReplacePairs] = useState<ReplacePair[]>(
-    metadata["replace-pairs"] || []
-  );
-
+  const [bookConfig, setBookConfig] = useState<BookConfig | null>(null);
+  const [replacePairs, setReplacePairs] = useState<ReplacePair[]>([]);
   const [authors, setAuthors] = useState<string[]>([]);
   const [series, setSeries] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -59,6 +63,28 @@ export function MetadataEditor({
 
     loadAutocomplete();
   }, [allBooks]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadConfig = async () => {
+      try {
+        const result = await commands.loadBookConfigFile(bookPath);
+        if (!cancelled && result.status === "ok") {
+          setBookConfig(result.data);
+          setReplacePairs(result.data["replace-pairs"] || []);
+        }
+      } catch (error) {
+        console.error("Failed to load book config:", error);
+      }
+    };
+
+    loadConfig();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookPath]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -95,12 +121,21 @@ export function MetadataEditor({
         language: metadata.language,
         rights: metadata.rights,
         "cover-image": metadata["cover-image"],
-        "replace-pairs": replacePairs.length > 0 ? replacePairs : null,
+        identifier: metadata.identifier,
       };
 
       const result = await commands.saveBookMetadata(bookPath, updatedMetadata);
       if (result.status === "error") {
         throw new Error(result.error);
+      }
+
+      const updatedConfig: BookConfig = {
+        ...(bookConfig ?? { pdf: { active_profile: "draft_2_digital" } }),
+        "replace-pairs": replacePairs.length > 0 ? replacePairs : null,
+      };
+      const configResult = await commands.saveBookConfigFile(bookPath, updatedConfig);
+      if (configResult.status === "error") {
+        throw new Error(configResult.error);
       }
 
       onSave(updatedMetadata);
@@ -217,7 +252,7 @@ export function MetadataEditor({
               {t('metadata.editor.fields.addPair')}
             </Button>
           </div>
-          
+
           {replacePairs.map((pair, index) => (
             <div key={index} className="flex items-center gap-2 mb-2">
               <Input
@@ -227,7 +262,7 @@ export function MetadataEditor({
                 className="flex-1"
                 style={{ height: '2.5rem', padding: '0.75rem 0.5rem' }}
               />
-              <span className="text-muted-foreground">→</span>
+              <span className="text-muted-foreground">-&gt;</span>
               <Input
                 placeholder={t('metadata.editor.fields.target')}
                 value={pair.target}
@@ -241,11 +276,11 @@ export function MetadataEditor({
                 size="sm"
                 onClick={() => removeReplacePair(index)}
               >
-                ✕
+                x
               </Button>
             </div>
           ))}
-          
+
           {replacePairs.length === 0 && (
             <p className="text-sm text-muted-foreground">{t('metadata.editor.fields.replacePairsHint')}</p>
           )}

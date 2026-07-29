@@ -104,10 +104,40 @@ pub struct BookMetadata {
     pub rights: Option<String>,
     #[serde(rename = "cover-image", default)]
     pub cover_image: Option<String>,
+    #[serde(default)]
+    pub identifier: Option<Vec<Identifier>>,
+}
+
+/// Book-local operational settings stored in config.json.
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, Type)]
+pub struct BookConfig {
     #[serde(rename = "replace-pairs", default)]
     pub replace_pairs: Option<Vec<ReplacePair>>,
     #[serde(default)]
-    pub identifier: Option<Vec<Identifier>>,
+    pub pdf: BookPdfConfig,
+}
+
+impl Default for BookConfig {
+    fn default() -> Self {
+        Self {
+            replace_pairs: None,
+            pdf: BookPdfConfig::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
+pub struct BookPdfConfig {
+    #[serde(default)]
+    pub active_profile: PdfPageProfile,
+}
+
+impl Default for BookPdfConfig {
+    fn default() -> Self {
+        Self {
+            active_profile: PdfPageProfile::default(),
+        }
+    }
 }
 
 /// Source control revision information for publication artifacts
@@ -166,39 +196,138 @@ pub struct PublicationOptions {
     pub epub: bool,
     pub pdf: bool,
     pub azw3: bool,
-    #[serde(default)]
-    pub pdf_page_profile: PdfPageProfile,
 }
 
-/// Named PDF trim sizes exposed in the UI.
+/// Read-only PDF output profiles exposed in the UI.
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum PdfPageProfile {
-    /// 5.5in x 8.5in, commonly sold as Digest trim size.
+    /// Draft2Digital-compatible 5.5in x 8.5in output.
+    #[serde(rename = "draft_2_digital")]
     #[default]
-    Digest,
-    /// ISO A5 trim size: 148mm x 210mm.
-    A5,
+    Draft2Digital,
+    /// Bookbite-compatible A5 output for Romanian print workflows.
+    Bookbite,
 }
 
 impl PdfPageProfile {
-    pub const ALL: [Self; 2] = [Self::Digest, Self::A5];
+    pub const ALL: [Self; 2] = [Self::Draft2Digital, Self::Bookbite];
+
+    pub fn output_profile(self) -> PdfOutputProfile {
+        match self {
+            Self::Draft2Digital => PdfOutputProfile {
+                id: self,
+                label: "Draft2Digital",
+                page: PdfPageSettings {
+                    width: "5.5in",
+                    height: "8.5in",
+                },
+                identifier_display: IdentifierDisplayMode::Simple,
+                cover: CoverProfile {
+                    embedded_pdf_cover: Some(ProfileCoverSource::MetadataCover),
+                    override_epub_cover: false,
+                },
+                print_cover: PrintCoverProfile::default(),
+            },
+            Self::Bookbite => PdfOutputProfile {
+                id: self,
+                label: "Bookbite",
+                page: PdfPageSettings {
+                    width: "148mm",
+                    height: "210mm",
+                },
+                identifier_display: IdentifierDisplayMode::BibliotecaNationalaRomaniei,
+                cover: CoverProfile {
+                    embedded_pdf_cover: Some(ProfileCoverSource::MetadataCover),
+                    override_epub_cover: false,
+                },
+                print_cover: PrintCoverProfile::default(),
+            },
+        }
+    }
 
     pub fn dimensions(self) -> (&'static str, &'static str) {
-        match self {
-            Self::Digest => ("5.5in", "8.5in"),
-            Self::A5 => ("148mm", "210mm"),
-        }
+        let page = self.output_profile().page;
+        (page.width, page.height)
     }
 
     pub fn label(self) -> &'static str {
-        match self {
-            Self::Digest => "Digest (5.5\" x 8.5\")",
-            Self::A5 => "A5 (148 x 210 mm)",
+        self.output_profile().label
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PdfOutputProfile {
+    pub id: PdfPageProfile,
+    pub label: &'static str,
+    pub page: PdfPageSettings,
+    pub identifier_display: IdentifierDisplayMode,
+    pub cover: CoverProfile,
+    pub print_cover: PrintCoverProfile,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
+pub struct PdfProfileDocument {
+    pub id: PdfPageProfile,
+    pub label: String,
+    pub page: PdfProfilePageDocument,
+    pub identifier_display: IdentifierDisplayMode,
+    pub readonly: bool,
+}
+
+impl From<PdfOutputProfile> for PdfProfileDocument {
+    fn from(profile: PdfOutputProfile) -> Self {
+        Self {
+            id: profile.id,
+            label: profile.label.to_string(),
+            page: PdfProfilePageDocument {
+                width: profile.page.width.to_string(),
+                height: profile.page.height.to_string(),
+            },
+            identifier_display: profile.identifier_display,
+            readonly: true,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
+pub struct PdfProfilePageDocument {
+    pub width: String,
+    pub height: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PdfPageSettings {
+    pub width: &'static str,
+    pub height: &'static str,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum IdentifierDisplayMode {
+    #[default]
+    Simple,
+    BibliotecaNationalaRomaniei,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CoverProfile {
+    pub embedded_pdf_cover: Option<ProfileCoverSource>,
+    pub override_epub_cover: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PrintCoverProfile {
+    pub front: Option<ProfileCoverSource>,
+    pub back: Option<ProfileCoverSource>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProfileCoverSource {
+    MetadataCover,
+    NamedFile(&'static str),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
@@ -207,18 +336,27 @@ pub struct PdfPageProfileInfo {
     pub label: String,
     pub width: String,
     pub height: String,
+    pub identifier_display: IdentifierDisplayMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum PdfProfileImageKind {
+    Cover,
+    PrintCover,
 }
 
 pub fn available_pdf_page_profiles() -> Vec<PdfPageProfileInfo> {
     PdfPageProfile::ALL
         .into_iter()
         .map(|profile| {
-            let (width, height) = profile.dimensions();
+            let output_profile = profile.output_profile();
             PdfPageProfileInfo {
                 profile,
-                label: profile.label().to_string(),
-                width: width.to_string(),
-                height: height.to_string(),
+                label: output_profile.label.to_string(),
+                width: output_profile.page.width.to_string(),
+                height: output_profile.page.height.to_string(),
+                identifier_display: output_profile.identifier_display,
             }
         })
         .collect()
@@ -231,7 +369,6 @@ impl Default for PublicationOptions {
             epub: true,
             pdf: true,
             azw3: true,
-            pdf_page_profile: PdfPageProfile::default(),
         }
     }
 }
@@ -276,7 +413,6 @@ impl BookMetadata {
             language: Some("ro-RO".to_string()),
             rights: Some(format!("© {} All Rights Reserved", current_year)),
             cover_image: Some("cover.jpg".to_string()),
-            replace_pairs: None,
             identifier: None,
         }
     }
@@ -562,7 +698,6 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
-            replace_pairs: None,
             identifier: None,
         };
         assert!(metadata.validate().is_err());
@@ -578,7 +713,6 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
-            replace_pairs: None,
             identifier: None,
         };
         assert!(metadata.validate().is_err());
@@ -594,7 +728,6 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
-            replace_pairs: None,
             identifier: None,
         };
         assert!(metadata.validate().is_ok());
@@ -610,10 +743,6 @@ mod tests {
             language: Some("ro-RO".to_string()),
             rights: Some("© 2025 All Rights Reserved".to_string()),
             cover_image: Some("cover.jpg".to_string()),
-            replace_pairs: Some(vec![ReplacePair {
-                source: "Rene".to_string(),
-                target: "René".to_string(),
-            }]),
             identifier: Some(vec![Identifier {
                 scheme: Some("ISBN-13".to_string()),
                 text: Some("978-0-123456-78-9".to_string()),
@@ -628,7 +757,6 @@ mod tests {
         assert_eq!(deserialized.language, metadata.language);
         assert_eq!(deserialized.rights, metadata.rights);
         assert_eq!(deserialized.cover_image, metadata.cover_image);
-        assert_eq!(deserialized.replace_pairs, metadata.replace_pairs);
         assert_eq!(
             deserialized.identifier_display_text(),
             metadata.identifier_display_text()
@@ -645,7 +773,6 @@ mod tests {
             language: None,
             rights: None,
             cover_image: None,
-            replace_pairs: None,
             identifier: None,
         };
 
@@ -673,10 +800,6 @@ mod tests {
             language: Some("en-US".to_string()),
             rights: Some("Custom rights".to_string()),
             cover_image: Some("custom.jpg".to_string()),
-            replace_pairs: Some(vec![ReplacePair {
-                source: "foo".to_string(),
-                target: "bar".to_string(),
-            }]),
             identifier: None,
         };
 
@@ -686,7 +809,6 @@ mod tests {
         assert_eq!(with_defaults.language, Some("en-US".to_string()));
         assert_eq!(with_defaults.rights, Some("Custom rights".to_string()));
         assert_eq!(with_defaults.cover_image, Some("custom.jpg".to_string()));
-        assert!(with_defaults.replace_pairs.as_ref().map(|p| p.len()) == Some(1));
     }
 
     #[test]
@@ -729,7 +851,6 @@ mod tests {
             epub: false,
             pdf: false,
             azw3: true,
-            pdf_page_profile: PdfPageProfile::Digest,
         }
         .normalized();
 
@@ -739,8 +860,35 @@ mod tests {
 
     #[test]
     fn pdf_page_profile_dimensions_match_trim_sizes() {
-        assert_eq!(PdfPageProfile::Digest.dimensions(), ("5.5in", "8.5in"));
-        assert_eq!(PdfPageProfile::A5.dimensions(), ("148mm", "210mm"));
+        assert_eq!(
+            PdfPageProfile::Draft2Digital.dimensions(),
+            ("5.5in", "8.5in")
+        );
+        assert_eq!(PdfPageProfile::Bookbite.dimensions(), ("148mm", "210mm"));
+    }
+
+    #[test]
+    fn pdf_output_profiles_capture_identifier_policy() {
+        assert_eq!(
+            PdfPageProfile::Draft2Digital.output_profile().identifier_display,
+            IdentifierDisplayMode::Simple
+        );
+        assert_eq!(
+            PdfPageProfile::Bookbite.output_profile().identifier_display,
+            IdentifierDisplayMode::BibliotecaNationalaRomaniei
+        );
+    }
+
+    #[test]
+    fn pdf_page_profile_serializes_with_binding_wire_names() {
+        assert_eq!(
+            serde_json::to_string(&PdfPageProfile::Draft2Digital).unwrap(),
+            r#""draft_2_digital""#
+        );
+        assert_eq!(
+            serde_json::to_string(&PdfPageProfile::Bookbite).unwrap(),
+            r#""bookbite""#
+        );
     }
 
     #[test]
@@ -748,10 +896,15 @@ mod tests {
         let profiles = available_pdf_page_profiles();
 
         assert_eq!(profiles.len(), 2);
-        assert_eq!(profiles[0].profile, PdfPageProfile::Digest);
-        assert_eq!(profiles[0].label, "Digest (5.5\" x 8.5\")");
-        assert_eq!(profiles[1].profile, PdfPageProfile::A5);
+        assert_eq!(profiles[0].profile, PdfPageProfile::Draft2Digital);
+        assert_eq!(profiles[0].label, "Draft2Digital");
+        assert_eq!(profiles[0].identifier_display, IdentifierDisplayMode::Simple);
+        assert_eq!(profiles[1].profile, PdfPageProfile::Bookbite);
         assert_eq!(profiles[1].width, "148mm");
         assert_eq!(profiles[1].height, "210mm");
+        assert_eq!(
+            profiles[1].identifier_display,
+            IdentifierDisplayMode::BibliotecaNationalaRomaniei
+        );
     }
 }
