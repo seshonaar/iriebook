@@ -551,7 +551,7 @@ export type BookListChangedEvent = Record<string, never>
  */
 export type BookMetadata = { title?: string; author?: string; "belongs-to-collection"?: string | null; "group-position"?: number | null; language?: string | null; rights?: string | null; "cover-image"?: string | null; identifier?: Identifier[] | null }
 export type BookOutputFormat = "epub" | "pdf" | "azw3"
-export type BookOutputLink = { format: BookOutputFormat; path: string }
+export type BookOutputLink = { format: BookOutputFormat; path: string; display_name: string }
 /**
  * NewType wrapper for book file path
  */

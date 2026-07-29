@@ -10,7 +10,7 @@
 //! 3. Output Generation (files, EPUB, Kindle)
 //! 4. Results Display
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -23,7 +23,9 @@ use crate::engines::traits::{
 use crate::resource_access::series_metadata::SeriesMetadataProvider;
 use crate::resource_access::traits::{ArchiveAccess, CalibreAccess, GitAccess, PandocAccess};
 use crate::resource_access::{config, file};
-use crate::utilities::types::{BookMetadata, BookRevisionInfo, PublicationOptions, ReplacePair};
+use crate::utilities::types::{
+    BookMetadata, BookRevisionInfo, PdfPageProfile, PublicationOptions, ReplacePair,
+};
 
 /// Result of the complete ebook publication process
 /// Contains all data produced by the pipeline for the Client to display
@@ -222,10 +224,6 @@ impl EbookPublicationManager {
 
         let current_dir = input_path.parent().unwrap_or(Path::new("."));
         let config_dir = config_root.unwrap_or(current_dir);
-        if let Err(error) = config::ensure_config_defaults(config_dir) {
-            command_outputs.push(format!("config: {}", error));
-        }
-
         let loaded_config = match config::load_config(config_dir) {
             Ok(config) => config,
             Err(error) => {
@@ -234,9 +232,20 @@ impl EbookPublicationManager {
             }
         };
         let mut effective_pdf_config = loaded_config.pdf.clone();
-        let pdf_output_profile = book_config.pdf.active_profile.output_profile();
-        effective_pdf_config.page_width = pdf_output_profile.page.width.to_string();
-        effective_pdf_config.page_height = pdf_output_profile.page.height.to_string();
+        let pdf_profile =
+            file::load_pdf_profile_document(input_path, book_config.pdf.active_profile)?;
+        effective_pdf_config.enabled = pdf_profile.render.enabled;
+        effective_pdf_config.page_width = pdf_profile.page.width.clone();
+        effective_pdf_config.page_height = pdf_profile.page.height.clone();
+        effective_pdf_config.font_family = pdf_profile.render.font_family.clone();
+        effective_pdf_config.font_size = pdf_profile.render.font_size.clone();
+        effective_pdf_config.line_spacing = pdf_profile.render.line_spacing;
+        effective_pdf_config.inner_margin = pdf_profile.render.inner_margin.clone();
+        effective_pdf_config.outer_margin = pdf_profile.render.outer_margin.clone();
+        effective_pdf_config.top_margin = pdf_profile.render.top_margin.clone();
+        effective_pdf_config.bottom_margin = pdf_profile.render.bottom_margin.clone();
+        effective_pdf_config.justified = pdf_profile.render.justified;
+        effective_pdf_config.pdf_engine = pdf_profile.render.pdf_engine.clone();
 
         // Conditionally analyze words based on enable_word_stats flag
         let word_analysis = match enable_word_stats {
@@ -295,12 +304,16 @@ impl EbookPublicationManager {
             let previous_books_page = self
                 .markdown_transformer
                 .generate_previous_books_page(book_folder, &previous_books)?;
+            let pdf_only_copyright_block = self
+                .markdown_transformer
+                .generate_pdf_only_copyright_block(&pdf_profile.copyright);
 
             // Prepend generated front matter before the manuscript content.
             let has_copyright_page = copyright_page.is_some();
             let content_with_front_matter = [
                 copyright_page.as_deref(),
                 previous_books_page.as_deref(),
+                pdf_only_copyright_block.as_deref(),
                 Some(replacement_result.content.as_str()),
             ]
             .into_iter()
@@ -372,7 +385,8 @@ impl EbookPublicationManager {
                     }
 
                     if publication_options.pdf && effective_pdf_config.enabled {
-                        let output_pdf = output_epub.with_extension("pdf");
+                        let output_pdf =
+                            profile_pdf_output_path(&output_epub, book_config.pdf.active_profile)?;
                         let metadata_for_pdf = match temp_metadata_path.as_deref() {
                             Some(path) => path.to_path_buf(),
                             None => file::get_book_folder_file(input_path, "metadata.yaml")?,
@@ -487,6 +501,22 @@ impl EbookPublicationManager {
 
         None
     }
+}
+
+fn profile_pdf_output_path(output_epub: &Path, profile: PdfPageProfile) -> Result<PathBuf> {
+    let output_dir = output_epub.parent().unwrap_or(Path::new("."));
+    let profile_dir = output_dir.join(file::pdf_profile_folder_name(profile));
+    std::fs::create_dir_all(&profile_dir).with_context(|| {
+        format!(
+            "Failed to create PDF profile output directory: {}",
+            profile_dir.display()
+        )
+    })?;
+
+    let file_name = output_epub.file_name().ok_or_else(|| {
+        anyhow::anyhow!("Missing EPUB output file name: {}", output_epub.display())
+    })?;
+    Ok(profile_dir.join(file_name).with_extension("pdf"))
 }
 
 fn prepare_pandoc_metadata(
@@ -759,6 +789,79 @@ mod tests {
             content.contains("<span class=\"previous-book-title\"><em>Primul volum</em></span>")
         );
         assert!(!content.contains("- I."));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_manager_inserts_bnr_box_after_previous_books() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let previous_dir = temp_dir.path().join("previous");
+        fs::create_dir_all(&previous_dir)?;
+        fs::write(
+            previous_dir.join("metadata.yaml"),
+            "---\ntitle: Oracolul\nauthor: Iulia Balint\nbelongs-to-collection: Cronicile Vampirilor\ngroup-position: 1\n---\n",
+        )?;
+
+        let current_dir = temp_dir.path().join("current");
+        fs::create_dir_all(&current_dir)?;
+        let input_path = current_dir.join("book.md");
+        let output_path = current_dir.join("fixed.md");
+        fs::write(&input_path, "## Capitolul 1\n\nContent.")?;
+        fs::write(current_dir.join("copyright.txt"), "All Rights Reserved")?;
+        fs::write(
+            current_dir.join("metadata.yaml"),
+            "---\ntitle: Războinicul\nauthor: Iulia Balint\nbelongs-to-collection: Cronicile Vampirilor\ngroup-position: 2\n---\n",
+        )?;
+
+        let mut book_config = crate::utilities::types::BookConfig::default();
+        book_config.pdf.active_profile = PdfPageProfile::Bookbite;
+        file::save_book_config(&input_path, &book_config)?;
+
+        let mut profile_document =
+            file::materialize_pdf_profile(&input_path, PdfPageProfile::Bookbite)?;
+        profile_document.copyright =
+            crate::utilities::types::CopyrightRenderingConfig::BibliotecaNationalaRomaniei {
+                author_heading: "BALINT, IULIA".to_string(),
+                title: "Războinicul".to_string(),
+                title_suffix: " / Iulia Balint. - Oradea : Celestium, 2026".to_string(),
+                isbn: "978-630-363-363-3".to_string(),
+                catalog_number: "821.135.1".to_string(),
+            };
+        let profile_path =
+            file::get_pdf_profile_file(&input_path, PdfPageProfile::Bookbite, "profile.json")?;
+        file::write_file(
+            &profile_path,
+            &format!("{}\n", serde_json::to_string_pretty(&profile_document)?),
+        )?;
+
+        let manager = create_test_manager_for_workspace(temp_dir.path().to_path_buf());
+        manager.publish(PublishArgs {
+            input_path: &input_path,
+            output_path: Some(&output_path),
+            enable_word_stats: false,
+            enable_publishing: true,
+            publication_options: PublicationOptions {
+                epub: false,
+                pdf: false,
+                azw3: false,
+                ..PublicationOptions::default()
+            },
+            config_root: None,
+            replace_pairs: None,
+        })?;
+
+        let content = fs::read_to_string(&output_path)?;
+        let copyright_index = content.find("All Rights Reserved").unwrap();
+        let previous_books_index = content.find("Cărțile anterioare").unwrap();
+        let bnr_index = content
+            .find("Descrierea CIP a Bibliotecii Naționale a României")
+            .unwrap();
+        let chapter_index = content.find("# Capitolul 1").unwrap();
+
+        assert!(copyright_index < previous_books_index);
+        assert!(previous_books_index < bnr_index);
+        assert!(bnr_index < chapter_index);
 
         Ok(())
     }

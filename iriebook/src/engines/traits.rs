@@ -4,7 +4,7 @@ use crate::engines::text_processing::whitespace_trimmer::TrimmingResult;
 use crate::resource_access::config::WordAnalysisConfig;
 use crate::utilities::error::IrieBookError;
 use crate::utilities::types::{
-    BookMetadata, BookRevisionInfo, DiffResult, ReplacePair, SeriesBook,
+    BookMetadata, BookRevisionInfo, CopyrightRenderingConfig, DiffResult, ReplacePair, SeriesBook,
 };
 
 /// Trait for quote validation engines
@@ -107,6 +107,13 @@ pub trait MarkdownTransformEngine: Send + Sync {
         metadata: &BookMetadata,
         revision_info: Option<&BookRevisionInfo>,
     ) -> Result<Option<String>, IrieBookError>;
+
+    /// Generates PDF-only copyright/profile blocks that must render after other copyright
+    /// front matter, such as the Biblioteca Nationala a Romaniei CIP box.
+    fn generate_pdf_only_copyright_block(
+        &self,
+        copyright_config: &CopyrightRenderingConfig,
+    ) -> Option<String>;
 
     /// Generates the editable previous-books front matter page for series books.
     fn generate_previous_books_page(

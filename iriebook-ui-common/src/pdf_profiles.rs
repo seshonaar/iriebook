@@ -30,7 +30,8 @@ pub fn set_active_pdf_profile(
     book_path: &Path,
     profile: PdfPageProfile,
 ) -> Result<PdfProfileState, String> {
-    let config = file::set_active_pdf_profile(book_path, profile).map_err(|error| error.to_string())?;
+    let config =
+        file::set_active_pdf_profile(book_path, profile).map_err(|error| error.to_string())?;
     pdf_profile_state_from_config(book_path, &config)
 }
 

@@ -19,8 +19,12 @@ const HELP_PAGE_FILENAME: &str = "authoring-guide.html";
 /// app is upgraded — the bundled guide may have changed). Returns the path
 /// that was written, for the caller to open.
 pub fn write_help_page(data_dir: &Path) -> Result<PathBuf> {
-    std::fs::create_dir_all(data_dir)
-        .with_context(|| format!("Failed to create help-page directory {}", data_dir.display()))?;
+    std::fs::create_dir_all(data_dir).with_context(|| {
+        format!(
+            "Failed to create help-page directory {}",
+            data_dir.display()
+        )
+    })?;
 
     let html = render_authoring_guide();
     let path = data_dir.join(HELP_PAGE_FILENAME);
@@ -91,6 +95,9 @@ mod tests {
         assert!(!content.contains("{{CHUNKY_PARAGRAPH_THRESHOLD}}"));
         assert!(!content.contains("{{FUZZY_PREFIX_MAX_EDIT_DISTANCE}}"));
         // The threshold value must appear in the rendered scene-break section.
-        assert!(content.contains(">10</strong>"), "threshold value 10 missing: {content}");
+        assert!(
+            content.contains(">10</strong>"),
+            "threshold value 10 missing: {content}"
+        );
     }
 }

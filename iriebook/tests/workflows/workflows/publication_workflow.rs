@@ -98,7 +98,7 @@ async fn test_complete_publication_workflow() {
     let pandoc_calls = mock_pandoc.get_calls();
     assert!(!pandoc_calls.is_empty(), "Pandoc should have been called");
 
-    // Verify Pandoc was called to create PDF from the library-root config
+    // Verify Pandoc was called to create PDF from the active profile settings.
     let pdf_calls = mock_pandoc.get_pdf_calls();
     assert!(!pdf_calls.is_empty(), "Pandoc PDF should have been called");
     assert_eq!(pdf_calls[0].pdf_config.font_family, "Liberation Serif");
@@ -111,9 +111,24 @@ async fn test_complete_publication_workflow() {
         publication_result.pdf_output_path.is_some(),
         "Expected PDF output path"
     );
+    let pdf_output_path = publication_result.pdf_output_path.as_ref().unwrap();
     assert!(
-        workspace.workspace_path.join("config.json").exists(),
-        "Expected editable root config.json to be created"
+        pdf_output_path
+            .components()
+            .any(|component| component.as_os_str() == "draft_2_digital"),
+        "Expected PDF output in yard/draft_2_digital, got {}",
+        pdf_output_path.display()
+    );
+    let book_folder = book_path.parent().unwrap();
+    assert!(
+        book_folder
+            .join("profiles/pdf/draft_2_digital/profile.json")
+            .exists(),
+        "Expected active PDF profile defaults to be created"
+    );
+    assert!(
+        !workspace.workspace_path.join("config.json").exists(),
+        "Publication should not create root config.json for PDF defaults"
     );
 
     // Verify Calibre was called to create Kindle version
@@ -353,6 +368,11 @@ cover-image: cover.jpg
 
     let pdf_calls = mock_pandoc.get_pdf_calls();
     assert_eq!(pdf_calls.len(), 1);
+    assert!(
+        pdf_calls[0].output_pdf.contains("/bookbite/"),
+        "Bookbite PDF should be written to yard/bookbite, got {}",
+        pdf_calls[0].output_pdf
+    );
     assert!(
         !pdf_calls[0].embed_cover,
         "PDF generation should receive cover embedding disabled"

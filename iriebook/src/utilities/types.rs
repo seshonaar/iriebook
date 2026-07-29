@@ -126,7 +126,7 @@ impl Default for BookConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
 pub struct BookPdfConfig {
     #[serde(default)]
     pub active_profile: PdfPageProfile,
@@ -138,6 +138,20 @@ impl Default for BookPdfConfig {
             active_profile: PdfPageProfile::default(),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Deserialize, serde::Serialize, Type)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum CopyrightRenderingConfig {
+    #[default]
+    Standard,
+    BibliotecaNationalaRomaniei {
+        author_heading: String,
+        title: String,
+        title_suffix: String,
+        isbn: String,
+        catalog_number: String,
+    },
 }
 
 /// Source control revision information for publication artifacts
@@ -268,11 +282,15 @@ pub struct PdfOutputProfile {
     pub print_cover: PrintCoverProfile,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, Type)]
 pub struct PdfProfileDocument {
     pub id: PdfPageProfile,
     pub label: String,
     pub page: PdfProfilePageDocument,
+    #[serde(default)]
+    pub render: PdfProfileRenderDocument,
+    #[serde(default)]
+    pub copyright: CopyrightRenderingConfig,
     pub identifier_display: IdentifierDisplayMode,
     pub readonly: bool,
 }
@@ -286,6 +304,8 @@ impl From<PdfOutputProfile> for PdfProfileDocument {
                 width: profile.page.width.to_string(),
                 height: profile.page.height.to_string(),
             },
+            render: PdfProfileRenderDocument::default(),
+            copyright: CopyrightRenderingConfig::default(),
             identifier_display: profile.identifier_display,
             readonly: true,
         }
@@ -298,13 +318,96 @@ pub struct PdfProfilePageDocument {
     pub height: String,
 }
 
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, Type)]
+pub struct PdfProfileRenderDocument {
+    #[serde(default = "default_pdf_profile_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_pdf_profile_font_family")]
+    pub font_family: String,
+    #[serde(default = "default_pdf_profile_font_size")]
+    pub font_size: String,
+    #[serde(default = "default_pdf_profile_line_spacing")]
+    pub line_spacing: f64,
+    #[serde(default = "default_pdf_profile_inner_margin")]
+    pub inner_margin: String,
+    #[serde(default = "default_pdf_profile_outer_margin")]
+    pub outer_margin: String,
+    #[serde(default = "default_pdf_profile_top_margin")]
+    pub top_margin: String,
+    #[serde(default = "default_pdf_profile_bottom_margin")]
+    pub bottom_margin: String,
+    #[serde(default = "default_pdf_profile_justified")]
+    pub justified: bool,
+    #[serde(default = "default_pdf_profile_engine")]
+    pub pdf_engine: String,
+}
+
+impl Default for PdfProfileRenderDocument {
+    fn default() -> Self {
+        Self {
+            enabled: default_pdf_profile_enabled(),
+            font_family: default_pdf_profile_font_family(),
+            font_size: default_pdf_profile_font_size(),
+            line_spacing: default_pdf_profile_line_spacing(),
+            inner_margin: default_pdf_profile_inner_margin(),
+            outer_margin: default_pdf_profile_outer_margin(),
+            top_margin: default_pdf_profile_top_margin(),
+            bottom_margin: default_pdf_profile_bottom_margin(),
+            justified: default_pdf_profile_justified(),
+            pdf_engine: default_pdf_profile_engine(),
+        }
+    }
+}
+
+fn default_pdf_profile_enabled() -> bool {
+    true
+}
+
+fn default_pdf_profile_font_family() -> String {
+    "Liberation Serif".to_string()
+}
+
+fn default_pdf_profile_font_size() -> String {
+    "11pt".to_string()
+}
+
+fn default_pdf_profile_line_spacing() -> f64 {
+    1.2
+}
+
+fn default_pdf_profile_inner_margin() -> String {
+    "2.2cm".to_string()
+}
+
+fn default_pdf_profile_outer_margin() -> String {
+    "1.8cm".to_string()
+}
+
+fn default_pdf_profile_top_margin() -> String {
+    "1.8cm".to_string()
+}
+
+fn default_pdf_profile_bottom_margin() -> String {
+    "1.8cm".to_string()
+}
+
+fn default_pdf_profile_justified() -> bool {
+    true
+}
+
+fn default_pdf_profile_engine() -> String {
+    "xelatex".to_string()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PdfPageSettings {
     pub width: &'static str,
     pub height: &'static str,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum IdentifierDisplayMode {
     #[default]
@@ -870,7 +973,9 @@ mod tests {
     #[test]
     fn pdf_output_profiles_capture_identifier_policy() {
         assert_eq!(
-            PdfPageProfile::Draft2Digital.output_profile().identifier_display,
+            PdfPageProfile::Draft2Digital
+                .output_profile()
+                .identifier_display,
             IdentifierDisplayMode::Simple
         );
         assert_eq!(
@@ -892,13 +997,42 @@ mod tests {
     }
 
     #[test]
+    fn copyright_rendering_config_serializes_as_tagged_union() {
+        let config = CopyrightRenderingConfig::BibliotecaNationalaRomaniei {
+            author_heading: "BALINT, IULIA".to_string(),
+            title: "Oracolul".to_string(),
+            title_suffix: " / Iulia Balint. - Oradea : Celestium, 2026".to_string(),
+            isbn: "978-630-363-362-6".to_string(),
+            catalog_number: "821.135.1".to_string(),
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+
+        assert!(json.contains(r#""type":"biblioteca_nationala_romaniei""#));
+        assert!(json.contains(r#""catalog_number":"821.135.1""#));
+    }
+
+    #[test]
+    fn pdf_profile_document_serializes_render_settings() {
+        let document = PdfProfileDocument::from(PdfPageProfile::Bookbite.output_profile());
+        let json = serde_json::to_string(&document).unwrap();
+
+        assert!(json.contains(r#""render""#));
+        assert!(json.contains(r#""font_family":"Liberation Serif""#));
+        assert!(json.contains(r#""pdf_engine":"xelatex""#));
+    }
+
+    #[test]
     fn available_pdf_page_profiles_exposes_catalog_metadata() {
         let profiles = available_pdf_page_profiles();
 
         assert_eq!(profiles.len(), 2);
         assert_eq!(profiles[0].profile, PdfPageProfile::Draft2Digital);
         assert_eq!(profiles[0].label, "Draft2Digital");
-        assert_eq!(profiles[0].identifier_display, IdentifierDisplayMode::Simple);
+        assert_eq!(
+            profiles[0].identifier_display,
+            IdentifierDisplayMode::Simple
+        );
         assert_eq!(profiles[1].profile, PdfPageProfile::Bookbite);
         assert_eq!(profiles[1].width, "148mm");
         assert_eq!(profiles[1].height, "210mm");

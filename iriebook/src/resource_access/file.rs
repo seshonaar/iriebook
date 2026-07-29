@@ -390,7 +390,10 @@ pub fn load_book_config(book_path: &Path) -> Result<Option<BookConfig>> {
                 format!("Failed to read book config file: {}", config_path.display())
             })?;
             let config = serde_json::from_str(&content).with_context(|| {
-                format!("Failed to parse book config JSON: {}", config_path.display())
+                format!(
+                    "Failed to parse book config JSON: {}",
+                    config_path.display()
+                )
             })?;
             Ok(Some(config))
         }
@@ -399,7 +402,8 @@ pub fn load_book_config(book_path: &Path) -> Result<Option<BookConfig>> {
 
 pub fn save_book_config(book_path: &Path, config: &BookConfig) -> Result<()> {
     let config_path = get_book_folder_file(book_path, "config.json")?;
-    let content = serde_json::to_string_pretty(config).context("Failed to serialize book config")?;
+    let content =
+        serde_json::to_string_pretty(config).context("Failed to serialize book config")?;
     write_file(&config_path, &format!("{}\n", content))
 }
 
@@ -415,12 +419,46 @@ pub fn materialize_pdf_profile(
         )
     })?;
 
-    let document = PdfProfileDocument::from(profile.output_profile());
     let profile_path = profile_dir.join("profile.json");
+    if profile_path.exists() {
+        let content = read_file(&profile_path)
+            .with_context(|| format!("Failed to read PDF profile: {}", profile_path.display()))?;
+        let value: serde_json::Value = serde_json::from_str(&content).with_context(|| {
+            format!(
+                "Failed to parse PDF profile JSON: {}",
+                profile_path.display()
+            )
+        })?;
+        let should_write_defaults =
+            value.get("render").is_none() || value.get("copyright").is_none();
+        let document: PdfProfileDocument = serde_json::from_value(value).with_context(|| {
+            format!(
+                "Failed to parse PDF profile JSON: {}",
+                profile_path.display()
+            )
+        })?;
+
+        if should_write_defaults {
+            let content = serde_json::to_string_pretty(&document)
+                .context("Failed to serialize PDF profile document")?;
+            write_file(&profile_path, &format!("{}\n", content))?;
+        }
+
+        return Ok(document);
+    }
+
+    let document = PdfProfileDocument::from(profile.output_profile());
     let content = serde_json::to_string_pretty(&document)
         .context("Failed to serialize PDF profile document")?;
     write_file(&profile_path, &format!("{}\n", content))?;
     Ok(document)
+}
+
+pub fn load_pdf_profile_document(
+    book_path: &Path,
+    profile: PdfPageProfile,
+) -> Result<PdfProfileDocument> {
+    materialize_pdf_profile(book_path, profile)
 }
 
 pub fn resolve_active_pdf_profile(book_path: &Path) -> Result<PdfPageProfile> {
@@ -438,7 +476,10 @@ pub fn set_active_pdf_profile(book_path: &Path, profile: PdfPageProfile) -> Resu
     Ok(config)
 }
 
-pub fn resolve_pdf_cover_path(book_path: &Path, profile: PdfPageProfile) -> Result<Option<PathBuf>> {
+pub fn resolve_pdf_cover_path(
+    book_path: &Path,
+    profile: PdfPageProfile,
+) -> Result<Option<PathBuf>> {
     let profile_cover = get_pdf_profile_file(book_path, profile, "cover.jpg")?;
     if profile_cover.exists() {
         return Ok(Some(profile_cover));
@@ -643,9 +684,8 @@ fn write_jpeg_image(source_image: &Path, target_path: &Path) -> Result<PathBuf> 
     }
 
     if let Some(parent) = target_path.parent() {
-        fs::create_dir_all(parent).with_context(|| {
-            format!("Failed to create image directory: {}", parent.display())
-        })?;
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create image directory: {}", parent.display()))?;
     }
 
     let img = image::ImageReader::open(source_image)
@@ -1172,6 +1212,7 @@ identifier:
             }]),
             pdf: crate::utilities::types::BookPdfConfig {
                 active_profile: PdfPageProfile::Bookbite,
+                ..Default::default()
             },
         };
 
@@ -1199,6 +1240,38 @@ identifier:
                 .join("profiles/pdf/bookbite/profile.json")
                 .exists()
         );
+        Ok(())
+    }
+
+    #[test]
+    fn materialize_pdf_profile_writes_missing_defaults_to_existing_profile() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let book_path = temp_dir.path().join("book.md");
+        fs::write(&book_path, "content")?;
+        let profile_dir = temp_dir.path().join("profiles/pdf/bookbite");
+        fs::create_dir_all(&profile_dir)?;
+        fs::write(
+            profile_dir.join("profile.json"),
+            r#"{
+  "id": "bookbite",
+  "label": "Bookbite",
+  "page": {
+    "width": "148mm",
+    "height": "210mm"
+  },
+  "identifier_display": "biblioteca_nationala_romaniei",
+  "readonly": true
+}
+"#,
+        )?;
+
+        let document = materialize_pdf_profile(&book_path, PdfPageProfile::Bookbite)?;
+
+        assert!(document.render.enabled);
+        let content = fs::read_to_string(profile_dir.join("profile.json"))?;
+        assert!(content.contains(r#""render""#));
+        assert!(content.contains(r#""copyright""#));
+        assert!(!temp_dir.path().join("config.json").exists());
         Ok(())
     }
 

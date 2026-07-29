@@ -207,7 +207,7 @@ fn convert_to_pdf_impl(
     let output = command::format_output(pandoc_output);
     if output.starts_with("Error:") || output.starts_with("Command failed") {
         return Err(IrieBookError::Validation(format!(
-            "PDF generation failed. Ensure Pandoc can run the configured PDF engine '{}' and the font '{}' is installed, or edit config.json pdf settings. Liberation Serif is available via the fonts-liberation package on Ubuntu. If fc-match still points to a manually installed variable font, remove that font and run fc-cache -r -f. {}",
+            "PDF generation failed. Ensure Pandoc can run the configured PDF engine '{}' and the font '{}' is installed, or edit the active profiles/pdf/<profile>/profile.json render settings. Liberation Serif is available via the fonts-liberation package on Ubuntu. If fc-match still points to a manually installed variable font, remove that font and run fc-cache -r -f. {}",
             pdf_config.pdf_engine, pdf_config.font_family, output
         )));
     }
@@ -400,6 +400,11 @@ fn write_pdf_latex_header(
 
 \setlength{{\parindent}}{{1.5em}}
 \setlength{{\parskip}}{{0pt}}
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\pretolerance=10000
+\tolerance=2000
+\emergencystretch=2em
 \pagestyle{{empty}}
 \raggedbottom
 
@@ -1423,6 +1428,9 @@ mod tests {
         assert!(include.contains("\\newenvironment{irieCopyright}"));
         assert!(include.contains("\\usepackage{indentfirst}"));
         assert!(include.contains("\\usepackage{scrlayer-scrpage}"));
+        assert!(include.contains("\\hyphenpenalty=10000"));
+        assert!(include.contains("\\exhyphenpenalty=10000"));
+        assert!(include.contains("\\emergencystretch=2em"));
         assert!(include.contains("\\newcommand{\\irieCenteredPageNumber}"));
         assert!(include.contains("\\cfoot*{\\irieCenteredPageNumber}"));
         assert!(include.contains("\\ifirieMainMatterStarted"));

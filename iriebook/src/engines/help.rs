@@ -56,14 +56,10 @@ mod tests {
 
     #[test]
     fn interpolate_replaces_known_tokens() {
-        let input =
-            "Scene breaks need {{CHUNKY_PARAGRAPH_THRESHOLD}} lines, typos allow \
+        let input = "Scene breaks need {{CHUNKY_PARAGRAPH_THRESHOLD}} lines, typos allow \
              edit distance {{FUZZY_PREFIX_MAX_EDIT_DISTANCE}}.";
         let out = interpolate(input);
-        assert!(
-            !out.contains("{{"),
-            "unresolved token left behind: {out}"
-        );
+        assert!(!out.contains("{{"), "unresolved token left behind: {out}");
         assert!(out.contains("need 10 lines"));
         assert!(out.contains("edit distance 2."));
     }

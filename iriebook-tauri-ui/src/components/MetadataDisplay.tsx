@@ -293,7 +293,7 @@ export function MetadataDisplay({
                 className="h-auto px-0 text-base lowercase text-sky-300 hover:text-sky-200"
                 onClick={() => handleOpenOutput(output.path)}
               >
-                {output.format}
+                {output.display_name}
               </Button>
             ))}
           </div>
@@ -411,12 +411,6 @@ export function MetadataDisplay({
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            {pdfProfile && (
-              <div className="rounded-md border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
-                Identifier display: {pdfProfile.identifier_display}
-              </div>
-            )}
 
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">

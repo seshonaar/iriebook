@@ -8,7 +8,9 @@
 
 use crate::engines::traits::MarkdownTransformEngine;
 use crate::utilities::error::IrieBookError;
-use crate::utilities::types::{BookMetadata, BookRevisionInfo, SeriesBook};
+use crate::utilities::types::{
+    BookMetadata, BookRevisionInfo, CopyrightRenderingConfig, SeriesBook,
+};
 use chrono::Datelike;
 use nom::{
     IResult,
@@ -22,6 +24,79 @@ use std::path::Path;
 
 const PREVIOUS_BOOKS_TEMPLATE_FILE: &str = "previous-books-template.md";
 const DEFAULT_PREVIOUS_BOOKS_TEMPLATE: &str = "# Cărțile anterioare {.previous-books-page .unnumbered .unlisted}\n\n<div class=\"previous-books-list\">\n\n{{#books}}\n<p class=\"previous-book-entry\"><span class=\"previous-book-number\">{{roman}}.</span> <span class=\"previous-book-title\"><em>{{title}}</em></span></p>\n{{/books}}\n\n</div>\n";
+
+fn render_pdf_only_copyright_block(config: &CopyrightRenderingConfig) -> Option<String> {
+    match config {
+        CopyrightRenderingConfig::Standard => None,
+        CopyrightRenderingConfig::BibliotecaNationalaRomaniei {
+            author_heading,
+            title,
+            title_suffix,
+            isbn,
+            catalog_number,
+        } => {
+            if author_heading.trim().is_empty() || title.trim().is_empty() || isbn.trim().is_empty()
+            {
+                return None;
+            }
+
+            let catalog_line = match catalog_number.trim().is_empty() {
+                true => String::new(),
+                false => format!(
+                    r#"\vspace{{1.2em}}
+{{\fontsize{{11.2}}{{13.4}}\selectfont {}\par}}"#,
+                    escape_latex_text(catalog_number)
+                ),
+            };
+
+            Some(format!(
+                r#"
+
+```{{=latex}}
+\par\vfill
+\noindent\begin{{minipage}}{{\linewidth}}
+\noindent\fboxsep=2pt\fbox{{\fbox{{%
+\begin{{minipage}}{{0.96\linewidth}}
+{{\fontsize{{11.2}}{{13.4}}\selectfont\bfseries Descrierea CIP a Bibliotecii Naționale a României\par}}
+{{\fontsize{{11.2}}{{13.4}}\selectfont\bfseries {}\par}}
+\hspace*{{1.5em}}{{\fontsize{{11.2}}{{13.4}}\selectfont\bfseries {}}}{{\fontsize{{11.2}}{{13.4}}\selectfont {}\par}}
+{{\fontsize{{11.2}}{{13.4}}\selectfont ISBN {}\par}}
+{}
+\end{{minipage}}% 
+}}}}
+\par\vspace{{0.6em}}
+{{\fontsize{{10}}{{12}}\selectfont Responsabilitatea pentru conținut și tehnoredactare aparține exclusiv autorului.\par}}
+\end{{minipage}}
+```
+"#,
+                escape_latex_text(author_heading),
+                escape_latex_text(title),
+                escape_latex_text(title_suffix),
+                escape_latex_text(isbn),
+                catalog_line
+            ))
+        }
+    }
+}
+
+fn escape_latex_text(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| match ch {
+            '&' => r#"\&"#.to_string(),
+            '%' => r#"\%"#.to_string(),
+            '$' => r#"\$"#.to_string(),
+            '#' => r#"\#"#.to_string(),
+            '_' => r#"\_"#.to_string(),
+            '{' => r#"\{"#.to_string(),
+            '}' => r#"\}"#.to_string(),
+            '~' => r#"\textasciitilde{}"#.to_string(),
+            '^' => r#"\textasciicircum{}"#.to_string(),
+            '\\' => r#"\textbackslash{}"#.to_string(),
+            _ => ch.to_string(),
+        })
+        .collect()
+}
 
 /// Token representing a single line with metadata
 #[derive(Debug, Clone, PartialEq)]
@@ -277,6 +352,13 @@ impl MarkdownTransformEngine for MarkdownTransformer {
         );
 
         Ok(Some(copyright_page))
+    }
+
+    fn generate_pdf_only_copyright_block(
+        &self,
+        copyright_config: &CopyrightRenderingConfig,
+    ) -> Option<String> {
+        render_pdf_only_copyright_block(copyright_config)
     }
 
     fn generate_previous_books_page(
@@ -710,8 +792,7 @@ fn merge_dedications(items: Vec<ContentItem>) -> Vec<ContentItem> {
                         j += 1;
                     }
                     ContentItem::BlankLine => {
-                        if j + 1 < items.len()
-                            && matches!(items[j + 1], ContentItem::Dedication(_))
+                        if j + 1 < items.len() && matches!(items[j + 1], ContentItem::Dedication(_))
                         {
                             j += 1;
                         } else {
@@ -868,7 +949,7 @@ fn strip_one_leading_blank_line(markdown: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utilities::types::Identifier;
+    use crate::utilities::types::{CopyrightRenderingConfig, Identifier};
     use std::fs;
     use tempfile::TempDir;
 
@@ -1705,9 +1786,16 @@ More text.
         let transformer = MarkdownTransformer;
         let result = transformer.transform(input).unwrap();
 
-        let page_count = result.matches("# {.dedication-page .unnumbered .unlisted}").count();
-        assert_eq!(page_count, 1, "should have exactly one dedication page, got:\n{result}");
-        assert!(result.contains("<em>Pentru acele inimi cititoare.</em></p>\n<p><em>Si, apropo, altceva.</em>"));
+        let page_count = result
+            .matches("# {.dedication-page .unnumbered .unlisted}")
+            .count();
+        assert_eq!(
+            page_count, 1,
+            "should have exactly one dedication page, got:\n{result}"
+        );
+        assert!(result.contains(
+            "<em>Pentru acele inimi cititoare.</em></p>\n<p><em>Si, apropo, altceva.</em>"
+        ));
     }
 
     #[test]
@@ -1889,6 +1977,51 @@ More text.
 
         assert!(page.contains("ISBN-13: 978-0-123456-78-9"));
         assert!(page.contains("IrieBook revision: abc123 (2026-03-04)"));
+    }
+
+    #[test]
+    fn generate_copyright_page_includes_pdf_only_bnr_cip_box_when_configured() {
+        let transformer = MarkdownTransformer;
+        let copyright_config = CopyrightRenderingConfig::BibliotecaNationalaRomaniei {
+            author_heading: "BALINT, IULIA".to_string(),
+            title: "Oracolul".to_string(),
+            title_suffix: " / Iulia Balint. - Oradea : Celestium, 2026".to_string(),
+            isbn: "978-630-363-362-6".to_string(),
+            catalog_number: "821.135.1".to_string(),
+        };
+
+        let page = transformer
+            .generate_pdf_only_copyright_block(&copyright_config)
+            .unwrap();
+
+        assert!(page.contains("```{=latex}"));
+        assert!(page.contains("Descrierea CIP a Bibliotecii Naționale a României"));
+        assert!(page.contains("BALINT, IULIA"));
+        assert!(page.contains("Oracolul"));
+        assert!(page.contains("/ Iulia Balint. - Oradea : Celestium, 2026"));
+        assert!(page.contains("ISBN 978-630-363-362-6"));
+        assert!(page.contains("821.135.1"));
+        assert!(page.contains(r"\par\vfill"));
+        assert!(page.contains(r"\fontsize{11.2}{13.4}"));
+        assert!(page.contains(
+            "Responsabilitatea pentru conținut și tehnoredactare aparține exclusiv autorului."
+        ));
+    }
+
+    #[test]
+    fn generate_copyright_page_skips_bnr_box_when_required_bnr_fields_are_blank() {
+        let transformer = MarkdownTransformer;
+        let copyright_config = CopyrightRenderingConfig::BibliotecaNationalaRomaniei {
+            author_heading: String::new(),
+            title: String::new(),
+            title_suffix: String::new(),
+            isbn: String::new(),
+            catalog_number: String::new(),
+        };
+
+        let page = transformer.generate_pdf_only_copyright_block(&copyright_config);
+
+        assert!(page.is_none());
     }
 
     #[test]

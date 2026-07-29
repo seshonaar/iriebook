@@ -70,8 +70,8 @@ pub use managers::{
 };
 pub use metadata_utils::{MetadataEditState, collect_distinct_authors, collect_distinct_series};
 pub use pdf_profiles::{
-    PdfProfileState, get_pdf_profile_state, replace_pdf_profile_image as replace_pdf_profile_image_slot,
-    set_active_pdf_profile,
+    PdfProfileState, get_pdf_profile_state,
+    replace_pdf_profile_image as replace_pdf_profile_image_slot, set_active_pdf_profile,
 };
 pub use processing::{
     BookListChangedEvent, BookProcessingQueue, CoverReloadEvent, GitOperationProgressEvent,

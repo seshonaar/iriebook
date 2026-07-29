@@ -4,14 +4,13 @@ use crate::state::AppStateHolder;
 use iriebook::utilities::types::{PdfPageProfile, PdfProfileImageKind};
 use iriebook_ui_common::ui_state::{BookInfo, PublishEnabled, WordStatsEnabled};
 use iriebook_ui_common::{
-    AddBookResult, AnalysisResponse, BatchProcessor, BookListChangedEvent, BookMetadata,
-    BookConfig, BookOutputLink, ChangeBookResult, CoverReloadEvent, CoverStatus,
-    ProcessingUpdateEvent,
-    add_book_with_rescan, book_scanner, change_book_with_rescan, check_for_duplicate,
-    collect_distinct_authors, collect_distinct_series, delete_book_with_rescan,
-    get_available_book_outputs, get_or_compute_analysis, get_pdf_profile_state, load_metadata,
-    load_book_config, replace_pdf_profile_image_slot, save_book_config, save_metadata,
-    set_active_pdf_profile, PdfProfileState,
+    AddBookResult, AnalysisResponse, BatchProcessor, BookConfig, BookListChangedEvent,
+    BookMetadata, BookOutputLink, ChangeBookResult, CoverReloadEvent, CoverStatus, PdfProfileState,
+    ProcessingUpdateEvent, add_book_with_rescan, book_scanner, change_book_with_rescan,
+    check_for_duplicate, collect_distinct_authors, collect_distinct_series,
+    delete_book_with_rescan, get_available_book_outputs, get_or_compute_analysis,
+    get_pdf_profile_state, load_book_config, load_metadata, replace_pdf_profile_image_slot,
+    save_book_config, save_metadata, set_active_pdf_profile,
 };
 use std::path::PathBuf;
 use tauri::State;
