@@ -45,7 +45,7 @@ async fn test_get_commit_history() {
 
     // Get commit log
     let history = repo_manager
-        .get_history(&workspace.workspace_path, 10)
+        .get_history(&workspace.workspace_path, 10, None)
         .unwrap();
 
     assert_eq!(history.len(), 3);
@@ -70,10 +70,55 @@ async fn test_empty_commit_history() {
     let repo_manager = app_state.repository_manager();
 
     let history = repo_manager
-        .get_history(&workspace.workspace_path, 10)
+        .get_history(&workspace.workspace_path, 10, None)
         .unwrap();
 
     assert!(history.is_empty());
+}
+
+/// Test: Commit history can be filtered by a since timestamp
+#[tokio::test]
+async fn test_get_commit_history_since_timestamp() {
+    let workspace = TestWorkspace::new().unwrap();
+
+    let commits = vec![
+        GitCommit {
+            hash: "newest".to_string(),
+            message: "Recent update".to_string(),
+            author: "Author Name".to_string(),
+            timestamp: "300".to_string(),
+        },
+        GitCommit {
+            hash: "middle".to_string(),
+            message: "Boundary update".to_string(),
+            author: "Author Name".to_string(),
+            timestamp: "200".to_string(),
+        },
+        GitCommit {
+            hash: "oldest".to_string(),
+            message: "Old update".to_string(),
+            author: "Author Name".to_string(),
+            timestamp: "100".to_string(),
+        },
+    ];
+
+    let mock_git = Arc::new(MockGitAccess::new().with_commits(commits));
+
+    let app_state = AppStateBuilder::new()
+        .workspace_path(workspace.workspace_path.clone())
+        .with_git_access(mock_git)
+        .with_defaults_for_remaining()
+        .build();
+
+    let repo_manager = app_state.repository_manager();
+
+    let history = repo_manager
+        .get_history(&workspace.workspace_path, 10, Some(200))
+        .unwrap();
+
+    assert_eq!(history.len(), 2);
+    assert_eq!(history[0].hash, "newest");
+    assert_eq!(history[1].hash, "middle");
 }
 
 /// Test: DiffManager is accessible from AppState

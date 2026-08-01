@@ -237,8 +237,10 @@ impl RepositoryManager {
         &self,
         workspace_path: &Path,
         limit: usize,
+        since_timestamp: Option<u32>,
     ) -> Result<Vec<GitCommit>, IrieBookError> {
-        self.git_access.get_log(workspace_path, limit)
+        self.git_access
+            .get_log(workspace_path, limit, since_timestamp)
     }
 
     /// Get repository sync status
@@ -360,6 +362,7 @@ mod tests {
             &self,
             _repo_path: &Path,
             _limit: usize,
+            _since_timestamp: Option<u32>,
         ) -> Result<Vec<GitCommit>, IrieBookError> {
             Ok(vec![])
         }
@@ -550,6 +553,7 @@ mod tests {
             &self,
             _repo_path: &Path,
             _limit: usize,
+            _since_timestamp: Option<u32>,
         ) -> Result<Vec<GitCommit>, IrieBookError> {
             Ok(vec![])
         }
@@ -704,6 +708,7 @@ mod tests {
             &self,
             _repo_path: &Path,
             _limit: usize,
+            _since_timestamp: Option<u32>,
         ) -> Result<Vec<GitCommit>, IrieBookError> {
             Ok(vec![])
         }

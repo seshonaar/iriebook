@@ -105,6 +105,12 @@ vi.mock("../bindings", () => ({
     gitSave: vi.fn(() =>
       Promise.resolve({ status: "ok" as const, data: "Saved successfully" })
     ),
+    gitGetLog: vi.fn(() =>
+      Promise.resolve({ status: "ok" as const, data: [] })
+    ),
+    gitGetRevisionDiffs: vi.fn(() =>
+      Promise.resolve({ status: "ok" as const, data: [] })
+    ),
     // Google auth commands
     googleCheckAuth: vi.fn(() =>
       Promise.resolve({ status: "ok" as const, data: false })

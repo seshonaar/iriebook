@@ -233,11 +233,17 @@ pub trait GitAccess: Send + Sync {
     /// # Arguments
     /// * `repo_path` - Path to the git repository
     /// * `limit` - Maximum number of commits to retrieve
+    /// * `since_timestamp` - Optional Unix timestamp lower bound for commits
     ///
     /// # Returns
     /// * `Ok(Vec<GitCommit>)` with commit history
     /// * `Err(IrieBookError)` if operation fails
-    fn get_log(&self, repo_path: &Path, limit: usize) -> Result<Vec<GitCommit>, IrieBookError>;
+    fn get_log(
+        &self,
+        repo_path: &Path,
+        limit: usize,
+        since_timestamp: Option<u32>,
+    ) -> Result<Vec<GitCommit>, IrieBookError>;
 
     /// Check repository status (clean, ahead, behind, etc.)
     ///

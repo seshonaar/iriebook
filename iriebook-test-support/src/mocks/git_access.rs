@@ -38,6 +38,7 @@ pub enum GitCall {
     GetLog {
         path: PathBuf,
         limit: usize,
+        since_timestamp: Option<u32>,
     },
     GetStatus {
         path: PathBuf,
@@ -237,13 +238,32 @@ impl GitAccess for MockGitAccess {
         self.maybe_fail()
     }
 
-    fn get_log(&self, repo_path: &Path, limit: usize) -> Result<Vec<GitCommit>, IrieBookError> {
+    fn get_log(
+        &self,
+        repo_path: &Path,
+        limit: usize,
+        since_timestamp: Option<u32>,
+    ) -> Result<Vec<GitCommit>, IrieBookError> {
         self.record(GitCall::GetLog {
             path: repo_path.to_path_buf(),
             limit,
+            since_timestamp,
         });
         self.maybe_fail()?;
-        Ok(self.commits.clone())
+        Ok(self
+            .commits
+            .iter()
+            .filter(|commit| {
+                since_timestamp.is_none_or(|since| {
+                    commit
+                        .timestamp
+                        .parse::<u32>()
+                        .is_ok_and(|timestamp| timestamp >= since)
+                })
+            })
+            .take(limit)
+            .cloned()
+            .collect())
     }
 
     fn get_status(&self, repo_path: &Path) -> Result<GitStatus, IrieBookError> {

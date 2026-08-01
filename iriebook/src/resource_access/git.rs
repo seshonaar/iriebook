@@ -435,7 +435,12 @@ impl GitAccess for GitClient {
         Ok(())
     }
 
-    fn get_log(&self, repo_path: &Path, limit: usize) -> Result<Vec<GitCommit>, IrieBookError> {
+    fn get_log(
+        &self,
+        repo_path: &Path,
+        limit: usize,
+        since_timestamp: Option<u32>,
+    ) -> Result<Vec<GitCommit>, IrieBookError> {
         let repo = gix::open(repo_path)
             .map_err(|e| IrieBookError::Git(format!("Failed to open repository: {}", e)))?;
 
@@ -452,16 +457,28 @@ impl GitAccess for GitClient {
                 break;
             }
 
+            // Get author information
+            let author = commit
+                .author()
+                .map_err(|e| IrieBookError::Git(format!("Invalid commit author: {}", e)))?;
+
+            let commit_timestamp = author
+                .time
+                .to_string()
+                .split_whitespace()
+                .next()
+                .unwrap_or("0")
+                .parse::<i64>()
+                .unwrap_or(0);
+            if since_timestamp.is_some_and(|since| commit_timestamp < i64::from(since)) {
+                break;
+            }
+
             // Get commit message (simple string conversion)
             let message_ref = commit
                 .message_raw()
                 .map_err(|e| IrieBookError::Git(format!("Invalid commit message: {}", e)))?;
             let message = String::from_utf8_lossy(message_ref.as_bytes()).to_string();
-
-            // Get author information
-            let author = commit
-                .author()
-                .map_err(|e| IrieBookError::Git(format!("Invalid commit author: {}", e)))?;
 
             let author_name = String::from_utf8_lossy(author.name.as_bytes()).to_string();
 
@@ -469,13 +486,7 @@ impl GitAccess for GitClient {
                 hash: commit.id.to_string(),
                 message: message.trim().to_string(),
                 author: author_name,
-                timestamp: author
-                    .time
-                    .to_string()
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or("0")
-                    .to_string(),
+                timestamp: commit_timestamp.to_string(),
             });
 
             // Get parent commit
@@ -907,7 +918,7 @@ mod tests {
         let git_client = GitClient;
 
         // Empty repo should fail to get log (no HEAD commit)
-        let result = git_client.get_log(temp_dir.path(), 10);
+        let result = git_client.get_log(temp_dir.path(), 10, None);
         assert!(result.is_err());
     }
 
@@ -1601,7 +1612,7 @@ mod tests {
         );
 
         // Verify our commit still exists
-        let log = git_client.get_log(work_dir.path(), 1).unwrap();
+        let log = git_client.get_log(work_dir.path(), 1, None).unwrap();
         assert_eq!(log.len(), 1);
         assert_eq!(log[0].message, "initial");
     }
@@ -1728,7 +1739,7 @@ mod tests {
         git_client.commit(temp_dir.path(), message).unwrap();
 
         // Verify message is stored correctly
-        let log = git_client.get_log(temp_dir.path(), 1).unwrap();
+        let log = git_client.get_log(temp_dir.path(), 1, None).unwrap();
         assert_eq!(log.len(), 1);
         assert_eq!(log[0].message, message);
     }
@@ -1756,7 +1767,7 @@ mod tests {
         assert_ne!(hash1, hash2);
 
         // Verify log shows both commits in correct order
-        let log = git_client.get_log(temp_dir.path(), 10).unwrap();
+        let log = git_client.get_log(temp_dir.path(), 10, None).unwrap();
         assert_eq!(log.len(), 2);
         assert_eq!(log[0].message, "Second commit");
         assert_eq!(log[1].message, "First commit");
@@ -1776,7 +1787,7 @@ mod tests {
         let hash1 = git_client.commit(temp_dir.path(), "First").unwrap();
 
         // Get log - HEAD should point to first commit
-        let log1 = git_client.get_log(temp_dir.path(), 1).unwrap();
+        let log1 = git_client.get_log(temp_dir.path(), 1, None).unwrap();
         assert_eq!(log1[0].hash, hash1);
 
         // Create second commit
@@ -1786,7 +1797,7 @@ mod tests {
         let hash2 = git_client.commit(temp_dir.path(), "Second").unwrap();
 
         // Get log - HEAD should now point to second commit
-        let log2 = git_client.get_log(temp_dir.path(), 1).unwrap();
+        let log2 = git_client.get_log(temp_dir.path(), 1, None).unwrap();
         assert_eq!(log2[0].hash, hash2);
     }
 

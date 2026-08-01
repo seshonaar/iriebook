@@ -129,14 +129,20 @@ pub async fn git_get_log(
     app_state_holder: State<'_, AppStateHolder>,
     workspace_path: String,
     limit: u32,
+    since_timestamp: Option<u32>,
 ) -> Result<Vec<GitCommit>, String> {
     let path = PathBuf::from(workspace_path);
     let app_state = app_state_holder
         .get()
         .ok_or_else(|| "App state not initialized".to_string())?;
 
-    iriebook_ui_common::get_commit_history(&path, &app_state.repository_manager(), limit as usize)
-        .await
+    iriebook_ui_common::get_commit_history(
+        &path,
+        &app_state.repository_manager(),
+        limit as usize,
+        since_timestamp,
+    )
+    .await
 }
 
 #[tauri::command]

@@ -472,7 +472,7 @@ impl EbookPublicationManager {
 
             let Some(commit) = self
                 .git_access
-                .get_log(repo_candidate, 1)
+                .get_log(repo_candidate, 1, None)
                 .ok()
                 .and_then(|mut commits| commits.drain(..).next())
             else {

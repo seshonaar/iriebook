@@ -421,9 +421,9 @@ async gitResetLocalChanges(workspacePath: string) : Promise<Result<string, strin
     else return { status: "error", error: e  as any };
 }
 },
-async gitGetLog(workspacePath: string, limit: number) : Promise<Result<GitCommit[], string>> {
+async gitGetLog(workspacePath: string, limit: number, sinceTimestamp: number | null) : Promise<Result<GitCommit[], string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("git_get_log", { workspacePath, limit }) };
+    return { status: "ok", data: await TAURI_INVOKE("git_get_log", { workspacePath, limit, sinceTimestamp }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

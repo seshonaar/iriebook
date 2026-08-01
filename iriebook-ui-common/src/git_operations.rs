@@ -97,9 +97,10 @@ pub async fn get_commit_history(
     workspace_path: &Path,
     repo_manager: &RepositoryManager,
     limit: usize,
+    since_timestamp: Option<u32>,
 ) -> Result<Vec<GitCommit>, String> {
     repo_manager
-        .get_history(workspace_path, limit)
+        .get_history(workspace_path, limit, since_timestamp)
         .map_err(|e| format!("Failed to get commit history: {}", e))
 }
 

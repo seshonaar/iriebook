@@ -313,7 +313,7 @@ async fn test_get_commit_history() {
     let repo_manager = app_state.repository_manager();
 
     let history = repo_manager
-        .get_history(&workspace.workspace_path, 10)
+        .get_history(&workspace.workspace_path, 10, None)
         .unwrap();
 
     assert_eq!(history.len(), 2);

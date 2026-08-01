@@ -7,24 +7,48 @@ import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { RefreshCw, History, FileText, Loader2 } from "lucide-react";
 
+const COMMIT_HISTORY_LIMIT = 1000;
+type HistoryRange = "threeMonths" | "year" | "beginning";
+
+function defaultHistoryRange(): HistoryRange {
+  return "threeMonths";
+}
+
+function timestampMonthsAgo(months: number) {
+  const date = new Date();
+  date.setMonth(date.getMonth() - months);
+  date.setHours(0, 0, 0, 0);
+  return Math.floor(date.getTime() / 1000);
+}
+
+function historyRangeToTimestamp(range: HistoryRange) {
+  if (range === "beginning") return null;
+  return timestampMonthsAgo(range === "year" ? 12 : 3);
+}
+
 export function GitHistoryPanel() {
   const { t } = useTranslation();
   const { state, dispatch } = useAppContext();
   const [hoveredCommit, setHoveredCommit] = useState<string | null>(null);
   const [loadingCommit, setLoadingCommit] = useState<string | null>(null);
+  const [historyRange, setHistoryRange] = useState<HistoryRange>(defaultHistoryRange);
 
   // Load commit history when folder changes or after git operations
   useEffect(() => {
     if (state.selectedFolder && state.gitSyncStatus.status !== "Uninitialized") {
       loadCommitHistory();
     }
-  }, [state.selectedFolder, state.gitSyncStatus]);
+  }, [state.selectedFolder, state.gitSyncStatus, historyRange]);
 
   const loadCommitHistory = async () => {
     if (!state.selectedFolder) return;
 
     try {
-      const result = await commands.gitGetLog(state.selectedFolder, 10);
+      const result = await commands.gitGetLog(
+        state.selectedFolder,
+        COMMIT_HISTORY_LIMIT,
+        historyRangeToTimestamp(historyRange)
+      );
       if (result.status === "error") {
         throw new Error(result.error);
       }
@@ -88,7 +112,26 @@ export function GitHistoryPanel() {
 
   return (
     <div className="flex flex-col h-full space-y-2">
-      <div className="flex justify-end px-1">
+      <div className="flex justify-between items-center gap-2 px-1">
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{t('git.history.range.label')}</span>
+          <select
+            value={historyRange}
+            onChange={(event) => setHistoryRange(event.target.value as HistoryRange)}
+            className="h-7 rounded-md border border-input bg-popover px-2 text-xs text-popover-foreground [color-scheme:light] dark:[color-scheme:dark]"
+            aria-label={t('git.history.range.label')}
+          >
+            <option className="bg-popover text-popover-foreground" value="threeMonths">
+              {t('git.history.range.threeMonths')}
+            </option>
+            <option className="bg-popover text-popover-foreground" value="year">
+              {t('git.history.range.year')}
+            </option>
+            <option className="bg-popover text-popover-foreground" value="beginning">
+              {t('git.history.range.beginning')}
+            </option>
+          </select>
+        </label>
         <Button 
           variant="ghost" 
           size="icon" 
@@ -157,4 +200,3 @@ export function GitHistoryPanel() {
     </div>
   );
 }
-
