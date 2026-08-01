@@ -185,14 +185,34 @@ export function GitSyncPanel() {
       <div className="flex flex-col gap-4 p-1">
         {!state.deviceFlowInfo ? (
            <div className="flex items-center gap-3">
-             <div className="flex-1 flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 rounded-md border border-amber-200 dark:border-amber-900 text-sm">
-                <AlertCircle className="h-4 w-4" />
-                <p className="font-medium">{t('git.auth.notConnected')}</p>
-             </div>
-             <Button
-                onClick={handleAuthenticate}
-                disabled={isAuthenticating}
-                size="sm"
+              <div className="flex-1 flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 rounded-md border border-amber-200 dark:border-amber-900 text-sm">
+                 <AlertCircle className="h-4 w-4" />
+                 <p className="font-medium">{t('git.auth.notConnected')}</p>
+              </div>
+              {state.selectedFolder && isUninitialized && (
+                <Button
+                  onClick={handleAuthenticate}
+                  disabled={isAuthenticating}
+                  size="sm"
+                  variant="outline"
+                >
+                  {isAuthenticating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t('git.auth.authenticating')}
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      {t('git.sync.actions.clone')}
+                    </>
+                  )}
+                </Button>
+              )}
+              <Button
+                 onClick={handleAuthenticate}
+                 disabled={isAuthenticating}
+                 size="sm"
               >
                 {isAuthenticating ? (
                   <>

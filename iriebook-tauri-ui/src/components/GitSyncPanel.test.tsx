@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GitSyncPanel } from "./GitSyncPanel";
-import { AppProvider } from "../contexts/AppContext";
+import { AppProvider, useAppContext } from "../contexts/AppContext";
+import { setFolder } from "../contexts/actions";
 import { commands } from "../bindings";
-import React from "react";
+import React, { useEffect } from "react";
 
 // Get the mocked commands
 const mockedCommands = vi.mocked(commands);
@@ -12,6 +13,24 @@ const mockedCommands = vi.mocked(commands);
 // Wrapper with AppProvider
 function renderWithProvider(ui: React.ReactElement) {
   return render(<AppProvider>{ui}</AppProvider>);
+}
+
+function SelectedFolder({ children }: { children: React.ReactNode }) {
+  const { dispatch } = useAppContext();
+
+  useEffect(() => {
+    dispatch(setFolder("/tmp/empty-workspace"));
+  }, [dispatch]);
+
+  return <>{children}</>;
+}
+
+function renderWithSelectedFolder(ui: React.ReactElement) {
+  return render(
+    <AppProvider>
+      <SelectedFolder>{ui}</SelectedFolder>
+    </AppProvider>
+  );
 }
 
 describe("GitSyncPanel", () => {
@@ -116,6 +135,48 @@ describe("GitSyncPanel", () => {
           "https://github.com/login/device"
         );
       });
+    });
+
+    it("should start device flow from clone button for unauthenticated empty workspaces", async () => {
+      const user = userEvent.setup();
+
+      mockedCommands.githubCheckAuth.mockResolvedValueOnce({
+        status: "ok",
+        data: false,
+      });
+      mockedCommands.gitCheckInitialized.mockResolvedValueOnce({
+        status: "ok",
+        data: false,
+      });
+      mockedCommands.githubDeviceFlowStart.mockResolvedValueOnce({
+        status: "ok",
+        data: {
+          deviceCode: "test-device",
+          userCode: "WDJB-MJHT",
+          verificationUri: "https://github.com/login/device",
+          expiresIn: 900,
+        },
+      });
+      mockedCommands.openBrowser.mockResolvedValueOnce({
+        status: "ok",
+        data: null,
+      });
+      mockedCommands.githubDeviceFlowPoll.mockImplementation(
+        () => new Promise(() => {})
+      );
+
+      renderWithSelectedFolder(<GitSyncPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByText("git.sync.actions.clone")).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText("git.sync.actions.clone"));
+
+      await waitFor(() => {
+        expect(mockedCommands.githubDeviceFlowStart).toHaveBeenCalledTimes(1);
+      });
+      expect(mockedCommands.gitCloneRepository).not.toHaveBeenCalled();
     });
 
     it("should display user code during device flow", async () => {
