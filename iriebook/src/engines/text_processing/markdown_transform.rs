@@ -110,12 +110,13 @@ struct Token {
 #[derive(Debug, Clone, PartialEq)]
 #[allow(clippy::enum_variant_names)]
 enum TokenKind {
-    H2Line,     // Lines starting with "## "
-    H1Line,     // Lines starting with "# "
-    H3Line,     // Lines starting with "### "
-    ItalicLine, // Lines matching *text*
-    BlankLine,  // Empty or whitespace-only
-    TextLine,   // Everything else
+    H2Line,           // Lines starting with "## "
+    H1Line,           // Lines starting with "# "
+    H3Line,           // Lines starting with "### "
+    ItalicLine,       // Lines matching *text*
+    SceneBreakMarker, // A line containing only an escaped "#" from Google Docs export
+    BlankLine,        // Empty or whitespace-only
+    TextLine,         // Everything else
 }
 
 /// AST node representing different content types in the markdown document
@@ -567,7 +568,9 @@ fn tokenize(content: &str) -> Vec<Token> {
         .lines()
         .enumerate()
         .map(|(idx, line)| {
-            let kind = if line.starts_with("### ") {
+            let kind = if is_scene_break_marker(line) {
+                TokenKind::SceneBreakMarker
+            } else if line.starts_with("### ") {
                 TokenKind::H3Line
             } else if line.starts_with("## ") {
                 TokenKind::H2Line
@@ -588,6 +591,10 @@ fn tokenize(content: &str) -> Vec<Token> {
             }
         })
         .collect()
+}
+
+fn is_scene_break_marker(line: &str) -> bool {
+    line.trim() == r"\#"
 }
 
 /// Parse tokens into ContentItems (AST)
@@ -635,6 +642,10 @@ fn parse_tokens(tokens: Vec<Token>) -> Vec<ContentItem> {
             }
             TokenKind::ItalicLine => {
                 items.push(ContentItem::ItalicLine(token.content.clone()));
+                i += 1;
+            }
+            TokenKind::SceneBreakMarker => {
+                items.push(ContentItem::SceneBreak);
                 i += 1;
             }
             TokenKind::TextLine => {
@@ -1456,6 +1467,28 @@ More text.
         let result = transformer.transform(input).unwrap();
 
         // With chunky threshold, short prose does NOT get scene breaks
+        assert!(!result.contains("<div class='scene-break'></div>"));
+    }
+
+    #[test]
+    fn escaped_hash_marker_from_google_docs_inserts_scene_break() {
+        let input = "First paragraph\n\\#\nSecond paragraph";
+        let transformer = MarkdownTransformer;
+        let result = transformer.transform(input).unwrap();
+
+        assert_eq!(result.matches("<div class='scene-break'></div>").count(), 1);
+        assert!(!result.contains("\\#"));
+    }
+
+    #[test]
+    fn raw_hash_marker_is_preserved_as_markdown() {
+        let input = "# Chapter 1\n\n#\n\nA # sign appears here.";
+        let transformer = MarkdownTransformer;
+        let result = transformer.transform(input).unwrap();
+
+        assert!(result.contains("# Chapter 1"));
+        assert!(result.contains("\n#\n"));
+        assert!(result.contains("A # sign appears here."));
         assert!(!result.contains("<div class='scene-break'></div>"));
     }
 

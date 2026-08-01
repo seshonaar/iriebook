@@ -296,7 +296,27 @@ Strigoi refers to a restless spirit in old village stories.</code></pre>
 
 <h2 id="scene-breaks">4. Scene Breaks</h2>
 <p>A scene break renders as a centered ornament, the floral heart glyph <strong>❦</strong>, sitting between two prose passages.</p>
-<p><strong>You do not insert scene breaks yourself.</strong> IrieBook decides for you, based on the rhythm of the prose:</p>
+<p><strong>Explicit marker:</strong> to force a scene break from Google Docs, put a single <code>#</code> on its own paragraph line:</p>
+<div class="example-pair">
+    <div class="source-card">
+        <p class="example-label">In your Google Doc</p>
+        <pre><code>The first scene ends.
+
+#
+
+The next scene begins.</code></pre>
+    </div>
+    <div class="rendering-example">
+        <p class="example-label">Rendered in the ebook</p>
+        <section class="ebook-page">
+            <p>The first scene ends.</p>
+            <p class="ebook-scene-break">❦</p>
+            <p>The next scene begins.</p>
+        </section>
+    </div>
+</div>
+<p class="note">Google Docs exports that line as <code>\#</code> in Markdown. IrieBook recognizes that escaped export form. A raw Markdown <code>#</code> is preserved as Markdown, so existing Markdown headings and text are not changed.</p>
+<p><strong>Automatic scene breaks still exist.</strong> IrieBook can also decide for you, based on the rhythm of the prose:</p>
 <ul>
     <li>A blank line is promoted to a scene break <strong>only when</strong> there are at least <strong>{{CHUNKY_PARAGRAPH_THRESHOLD}}</strong> consecutive paragraph lines immediately before it and at least <strong>{{CHUNKY_PARAGRAPH_THRESHOLD}}</strong> consecutive paragraph lines immediately after it.</li>
     <li>Both neighbours must be ordinary prose paragraphs, not italics and not headings.</li>
@@ -322,7 +342,7 @@ Ten or more prose paragraphs...</code></pre>
         </section>
     </div>
 </div>
-<p><strong>In practice:</strong> long, chunky scenes separated by a blank line get a ❦. Short passages, poems, and dialogue clusters do not. If you want a guaranteed visual gap inside a short scene, write it as two separate chapters instead.</p>
+<p><strong>In practice:</strong> use a standalone <code>#</code> in Google Docs when you want full control. Long, chunky scenes separated by a blank line may still get a ❦ automatically. Short passages, poems, and dialogue clusters do not.</p>
 
 <h2 id="dedications">5. Dedications</h2>
 <p>A dedication becomes its own centered, unnumbered page, vertically centered on the screen, in italics, and hidden from the table of contents.</p>
@@ -596,7 +616,7 @@ identifier:
         <tr><td>Chapter with subtitle</td><td><code>[H2] Chapter 1 - Title</code></td></tr>
         <tr><td>Prologue / Epilogue</td><td><code>[H2] Prologue</code> or <code>[H2] Epilogue</code> (no number)</td></tr>
         <tr><td>Dedication page</td><td><code>[H3] For someone</code>, with the whole H3 italicized in Google Docs</td></tr>
-        <tr><td>Scene break</td><td>automatic, at long-prose boundaries</td></tr>
+        <tr><td>Scene break</td><td><code>#</code> on its own line in Google Docs; automatic at long-prose boundaries</td></tr>
         <tr><td>Poetry (no scene breaks)</td><td>one italic paragraph line per poem line</td></tr>
         <tr><td>Dialogue</td><td><code>"hello"</code> (straight double quotes)</td></tr>
         <tr><td>Apostrophes</td><td><code>it's</code>, <code>John's</code>, <code>'70s</code> (auto-curled)</td></tr>
