@@ -381,11 +381,11 @@ fn write_pdf_latex_header(
     let include = format!(
         r#"\usepackage{{graphicx}}
 \usepackage{{geometry}}
-\usepackage{{titlesec}}
 \usepackage{{fontspec}}
 \usepackage{{etoolbox}}
 \usepackage{{indentfirst}}
 \usepackage{{scrlayer-scrpage}}
+\usepackage{{eso-pic}}
 
 \clearpairofpagestyles
 \newcommand{{\irieCenteredPageNumber}}{{%
@@ -412,12 +412,21 @@ fn write_pdf_latex_header(
 
 {}
 
-\titleformat{{\chapter}}
-  {{\normalfont\Large\bfseries\centering}}
-  {{}}
-  {{0pt}}
-  {{\MakeUppercase}}
-\titlespacing*{{\chapter}}{{0pt}}{{0.15\textheight}}{{4em}}
+\addtokomafont{{chapter}}{{\normalfont\Large\bfseries\centering}}
+\renewcommand{{\chapterheadstartvskip}}{{\vspace{{0.15\textheight}}}}
+\renewcommand{{\chapterheadendvskip}}{{\vspace{{4em}}}}
+
+\addtokomafont{{section}}{{\normalfont\large\bfseries}}
+\RedeclareSectionCommand[
+  beforeskip=2em,
+  afterskip=1em,
+]{{section}}
+
+\addtokomafont{{subsection}}{{\normalfont\normalsize\bfseries}}
+\RedeclareSectionCommand[
+  beforeskip=1.5em,
+  afterskip=0.5em,
+]{{subsection}}
 
 \newif\ifirieMainMatterStarted
 \newif\ifirieInToc
@@ -530,13 +539,13 @@ fn build_pdf_cover_command(
 
     Ok(format!(
         r#"\newcommand{{\irieCoverPage}}{{%
+  \thispagestyle{{empty}}%
+  \AddToShipoutPictureBG*{{%
+    \AtPageLowerLeft{{\includegraphics[{}]{{{}}}}}%
+  }}%
+  \null
   \clearpage
-  \thispagestyle{{empty}}
-  \newgeometry{{margin=0pt}}
-  \noindent\makebox[\paperwidth][c]{{\includegraphics[{}]{{{}}}}}
-  \restoregeometry
-  \clearpage
-  \pagestyle{{empty}}
+  \pagestyle{{empty}}%
 }}
 \AtBeginDocument{{\irieCoverPage}}
 "#,
@@ -1401,10 +1410,14 @@ mod tests {
         let include = std::fs::read_to_string(include_path).unwrap();
 
         assert!(include.contains("\\AtBeginDocument{\\irieCoverPage}"));
+        assert!(!include.contains("\\clearpage\n  \\thispagestyle{empty}"));
+        assert!(include.contains("\\usepackage{eso-pic}"));
+        assert!(include.contains("\\AddToShipoutPictureBG*"));
+        assert!(include.contains("\\AtPageLowerLeft"));
         assert!(include.contains("\\includegraphics"));
         assert!(include.contains("cover.jpg"));
         assert!(include.contains("\\thispagestyle{empty}"));
-        assert!(include.contains("\\newgeometry{margin=0pt}"));
+        assert!(!include.contains("\\newgeometry{margin=0pt}"));
         assert!(include.contains("clip"));
     }
 
@@ -1436,7 +1449,9 @@ mod tests {
         assert!(include.contains("\\ifirieMainMatterStarted"));
         assert!(include.contains("\\pretocmd{\\chapter}"));
         assert!(include.contains("\\cleardoublepage"));
-        assert!(include.contains("\\titleformat{\\chapter}"));
+        assert!(include.contains("\\addtokomafont{chapter}"));
+        assert!(include.contains("\\chapterheadstartvskip"));
+        assert!(include.contains("\\chapterheadendvskip"));
         assert!(include.contains("\\MakeUppercase"));
         assert!(include.contains("\\renewcommand{\\maketitle}"));
         assert!(!include.contains("\\setcounter{page}"));
