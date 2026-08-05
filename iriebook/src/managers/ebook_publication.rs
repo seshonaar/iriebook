@@ -301,9 +301,11 @@ impl EbookPublicationManager {
             let previous_books = self
                 .series_metadata_provider
                 .previous_books_for(input_path, &metadata)?;
-            let previous_books_page = self
-                .markdown_transformer
-                .generate_previous_books_page(book_folder, &previous_books)?;
+            let previous_books_page = self.markdown_transformer.generate_previous_books_page(
+                book_folder,
+                &metadata,
+                &previous_books,
+            )?;
             let pdf_only_copyright_block = self
                 .markdown_transformer
                 .generate_pdf_only_copyright_block(&pdf_profile.copyright);
@@ -779,7 +781,7 @@ mod tests {
 
         let content = fs::read_to_string(&output_path)?;
         let copyright_index = content.find("All Rights Reserved").unwrap();
-        let previous_books_index = content.find("Cărțile anterioare").unwrap();
+        let previous_books_index = content.find("Cartea anterioară").unwrap();
         let chapter_index = content.find("# Capitolul 1").unwrap();
 
         assert!(copyright_index < previous_books_index);
@@ -853,7 +855,7 @@ mod tests {
 
         let content = fs::read_to_string(&output_path)?;
         let copyright_index = content.find("All Rights Reserved").unwrap();
-        let previous_books_index = content.find("Cărțile anterioare").unwrap();
+        let previous_books_index = content.find("Cartea anterioară").unwrap();
         let bnr_index = content
             .find("Descrierea CIP a Bibliotecii Naționale a României")
             .unwrap();

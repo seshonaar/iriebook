@@ -23,7 +23,15 @@ use regex::Regex;
 use std::path::Path;
 
 const PREVIOUS_BOOKS_TEMPLATE_FILE: &str = "previous-books-template.md";
-const DEFAULT_PREVIOUS_BOOKS_TEMPLATE: &str = "# Cărțile anterioare {.previous-books-page .unnumbered .unlisted}\n\n<div class=\"previous-books-list\">\n\n{{#books}}\n<p class=\"previous-book-entry\"><span class=\"previous-book-number\">{{roman}}.</span> <span class=\"previous-book-title\"><em>{{title}}</em></span></p>\n{{/books}}\n\n</div>\n";
+const DEFAULT_PREVIOUS_BOOKS_TEMPLATE: &str = "{{#single_previous_book}}\n# {{previous_books_heading_singular}} {.previous-books-page .unnumbered .unlisted}\n{{/single_previous_book}}\n{{#multiple_previous_books}}\n# {{previous_books_heading_plural}} {.previous-books-page .unnumbered .unlisted}\n{{/multiple_previous_books}}\n\n<div class=\"previous-books-list\">\n\n{{#books}}\n<p class=\"previous-book-entry\"><span class=\"previous-book-number\">{{roman}}.</span> <span class=\"previous-book-title\"><em>{{title}}</em></span></p>\n{{/books}}\n\n</div>\n";
+const PREVIOUS_BOOKS_HEADING_SINGULAR_RO: &str =
+    include_str!("../../../assets/i18n/ro-RO/previous-books-heading-singular.txt");
+const PREVIOUS_BOOKS_HEADING_PLURAL_RO: &str =
+    include_str!("../../../assets/i18n/ro-RO/previous-books-heading-plural.txt");
+const PREVIOUS_BOOKS_HEADING_SINGULAR_EN: &str =
+    include_str!("../../../assets/i18n/en-US/previous-books-heading-singular.txt");
+const PREVIOUS_BOOKS_HEADING_PLURAL_EN: &str =
+    include_str!("../../../assets/i18n/en-US/previous-books-heading-plural.txt");
 
 fn render_pdf_only_copyright_block(config: &CopyrightRenderingConfig) -> Option<String> {
     match config {
@@ -365,6 +373,7 @@ impl MarkdownTransformEngine for MarkdownTransformer {
     fn generate_previous_books_page(
         &self,
         book_folder: &Path,
+        metadata: &BookMetadata,
         previous_books: &[SeriesBook],
     ) -> Result<Option<String>, IrieBookError> {
         if previous_books.is_empty() {
@@ -373,11 +382,13 @@ impl MarkdownTransformEngine for MarkdownTransformer {
 
         let template_path = book_folder.join(PREVIOUS_BOOKS_TEMPLATE_FILE);
         if !template_path.exists() {
-            std::fs::write(&template_path, DEFAULT_PREVIOUS_BOOKS_TEMPLATE).map_err(|source| {
-                IrieBookError::FileWrite {
-                    path: template_path.to_string_lossy().to_string(),
-                    source,
-                }
+            std::fs::write(
+                &template_path,
+                default_previous_books_template(metadata.language.as_deref()),
+            )
+            .map_err(|source| IrieBookError::FileWrite {
+                path: template_path.to_string_lossy().to_string(),
+                source,
             })?;
         }
 
@@ -394,12 +405,33 @@ impl MarkdownTransformEngine for MarkdownTransformer {
     }
 }
 
+fn default_previous_books_template(language: Option<&str>) -> String {
+    let (singular, plural) = previous_books_headings(language);
+    DEFAULT_PREVIOUS_BOOKS_TEMPLATE
+        .replace("{{previous_books_heading_singular}}", singular)
+        .replace("{{previous_books_heading_plural}}", plural)
+}
+
+fn previous_books_headings(language: Option<&str>) -> (&'static str, &'static str) {
+    match language.and_then(|language| language.split(['-', '_']).next()) {
+        Some("en") => (
+            PREVIOUS_BOOKS_HEADING_SINGULAR_EN.trim(),
+            PREVIOUS_BOOKS_HEADING_PLURAL_EN.trim(),
+        ),
+        _ => (
+            PREVIOUS_BOOKS_HEADING_SINGULAR_RO.trim(),
+            PREVIOUS_BOOKS_HEADING_PLURAL_RO.trim(),
+        ),
+    }
+}
+
 fn render_previous_books_template(template: &str, previous_books: &[SeriesBook]) -> String {
+    let template = render_previous_books_conditionals(template, previous_books.len());
     let Some(block_start) = template.find("{{#books}}") else {
-        return template.to_string();
+        return template;
     };
     let Some(relative_block_end) = template[block_start..].find("{{/books}}") else {
-        return template.to_string();
+        return template;
     };
 
     let block_content_start = block_start + "{{#books}}".len();
@@ -417,6 +449,35 @@ fn render_previous_books_template(template: &str, previous_books: &[SeriesBook])
         rendered_books,
         &template[block_end + "{{/books}}".len()..]
     )
+}
+
+fn render_previous_books_conditionals(template: &str, count: usize) -> String {
+    let rendered = render_conditional_section(template, "single_previous_book", count == 1);
+    render_conditional_section(&rendered, "multiple_previous_books", count > 1)
+}
+
+fn render_conditional_section(template: &str, section_name: &str, include: bool) -> String {
+    let start_marker = format!("{{{{#{section_name}}}}}");
+    let end_marker = format!("{{{{/{section_name}}}}}");
+    let mut rendered = String::new();
+    let mut rest = template;
+
+    while let Some(start) = rest.find(&start_marker) {
+        rendered.push_str(&rest[..start]);
+        let after_start = &rest[start + start_marker.len()..];
+        let Some(end) = after_start.find(&end_marker) else {
+            rendered.push_str(&rest[start..]);
+            return rendered;
+        };
+
+        if include {
+            rendered.push_str(&after_start[..end]);
+        }
+        rest = &after_start[end + end_marker.len()..];
+    }
+
+    rendered.push_str(rest);
+    rendered
 }
 
 fn render_previous_book_block(template: &str, book: &SeriesBook) -> String {
@@ -2069,15 +2130,46 @@ More text.
         }];
 
         let page = transformer
-            .generate_previous_books_page(book_folder, &previous_books)
+            .generate_previous_books_page(book_folder, &BookMetadata::default(), &previous_books)
             .unwrap()
             .unwrap();
 
         assert!(book_folder.join(PREVIOUS_BOOKS_TEMPLATE_FILE).exists());
-        assert!(page.contains("Cărțile anterioare"));
+        assert!(page.contains("Cartea anterioară"));
         assert!(page.contains("<span class=\"previous-book-number\">I.</span>"));
         assert!(page.contains("<span class=\"previous-book-title\"><em>Primul volum</em></span>"));
         assert!(!page.contains("- I."));
+    }
+
+    #[test]
+    fn generate_previous_books_page_uses_english_default_template_for_english_metadata() {
+        let transformer = MarkdownTransformer;
+        let temp_dir = TempDir::new().unwrap();
+        let book_folder = temp_dir.path();
+        let metadata = BookMetadata {
+            language: Some("en-US".to_string()),
+            ..Default::default()
+        };
+        let previous_books = vec![
+            SeriesBook {
+                title: "First volume".to_string(),
+                roman_position: "I".to_string(),
+                ..Default::default()
+            },
+            SeriesBook {
+                title: "Second volume".to_string(),
+                roman_position: "II".to_string(),
+                ..Default::default()
+            },
+        ];
+
+        let page = transformer
+            .generate_previous_books_page(book_folder, &metadata, &previous_books)
+            .unwrap()
+            .unwrap();
+
+        assert!(page.contains("Previous books"));
+        assert!(!page.contains("Cărțile anterioare"));
     }
 
     #[test]
@@ -2106,12 +2198,45 @@ More text.
         ];
 
         let page = transformer
-            .generate_previous_books_page(book_folder, &previous_books)
+            .generate_previous_books_page(book_folder, &BookMetadata::default(), &previous_books)
             .unwrap()
             .unwrap();
 
         assert!(page.contains("## Previous volumes"));
         assert!(page.contains("II. Al doilea volum de Iulia Balint"));
         assert!(!page.contains("Cărțile anterioare"));
+    }
+
+    #[test]
+    fn generate_previous_books_page_renders_template_plural_branch_for_multiple_books() {
+        let transformer = MarkdownTransformer;
+        let temp_dir = TempDir::new().unwrap();
+        let book_folder = temp_dir.path();
+        fs::write(
+            book_folder.join(PREVIOUS_BOOKS_TEMPLATE_FILE),
+            "{{#single_previous_book}}\n# One previous book\n{{/single_previous_book}}\n{{#multiple_previous_books}}\n# Many previous books\n{{/multiple_previous_books}}\n\n{{#books}}\n{{roman}}. {{title}}\n{{/books}}",
+        )
+        .unwrap();
+        let previous_books = vec![
+            SeriesBook {
+                title: "Primul volum".to_string(),
+                roman_position: "I".to_string(),
+                ..Default::default()
+            },
+            SeriesBook {
+                title: "Al doilea volum".to_string(),
+                roman_position: "II".to_string(),
+                ..Default::default()
+            },
+        ];
+
+        let page = transformer
+            .generate_previous_books_page(book_folder, &BookMetadata::default(), &previous_books)
+            .unwrap()
+            .unwrap();
+
+        assert!(page.contains("# Many previous books"));
+        assert!(!page.contains("# One previous book"));
+        assert!(page.contains("II. Al doilea volum"));
     }
 }

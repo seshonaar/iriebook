@@ -119,6 +119,7 @@ pub trait MarkdownTransformEngine: Send + Sync {
     fn generate_previous_books_page(
         &self,
         book_folder: &std::path::Path,
+        metadata: &BookMetadata,
         previous_books: &[SeriesBook],
     ) -> Result<Option<String>, IrieBookError>;
 }
