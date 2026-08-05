@@ -122,7 +122,7 @@ enum TokenKind {
     H1Line,           // Lines starting with "# "
     H3Line,           // Lines starting with "### "
     ItalicLine,       // Lines matching *text*
-    SceneBreakMarker, // A line containing only an escaped "#" from Google Docs export
+    SceneBreakMarker, // A line containing a scene break marker (\# or \#content#)
     BlankLine,        // Empty or whitespace-only
     TextLine,         // Everything else
 }
@@ -140,7 +140,7 @@ enum ContentItem {
     },
     Paragraph(String),
     ItalicLine(String),
-    SceneBreak,
+    SceneBreak(Option<String>),
     BlankLine,
     Dedication(String), // H3 that is entirely italic (dedication page)
 }
@@ -655,7 +655,38 @@ fn tokenize(content: &str) -> Vec<Token> {
 }
 
 fn is_scene_break_marker(line: &str) -> bool {
-    line.trim() == r"\#"
+    parse_scene_break_marker(line).is_some()
+}
+
+fn parse_scene_break_marker(line: &str) -> Option<Option<String>> {
+    let trimmed = line.trim();
+
+    if trimmed == r"\#" {
+        return Some(None);
+    }
+
+    let marker = trimmed
+        .strip_prefix(r"\#")
+        .or_else(|| trimmed.strip_prefix('#'))?;
+    marker
+        .strip_suffix(r"\#")
+        .or_else(|| marker.strip_suffix('#'))
+        .filter(|content| !content.is_empty())
+        .map(|content| Some(content.to_string()))
+}
+
+fn escape_html_text(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| match ch {
+            '&' => "&amp;".to_string(),
+            '<' => "&lt;".to_string(),
+            '>' => "&gt;".to_string(),
+            '"' => "&quot;".to_string(),
+            '\'' => "&#39;".to_string(),
+            _ => ch.to_string(),
+        })
+        .collect()
 }
 
 /// Parse tokens into ContentItems (AST)
@@ -706,7 +737,9 @@ fn parse_tokens(tokens: Vec<Token>) -> Vec<ContentItem> {
                 i += 1;
             }
             TokenKind::SceneBreakMarker => {
-                items.push(ContentItem::SceneBreak);
+                items.push(ContentItem::SceneBreak(
+                    parse_scene_break_marker(&token.content).flatten(),
+                ));
                 i += 1;
             }
             TokenKind::TextLine => {
@@ -809,20 +842,20 @@ fn transform_items(items: Vec<ContentItem>) -> Vec<ContentItem> {
                 };
 
                 if should_add_scene_break {
-                    result.push(ContentItem::SceneBreak);
+                    result.push(ContentItem::SceneBreak(None));
                 } else {
                     result.push(ContentItem::BlankLine);
                 }
 
                 i += 1;
             }
-            ContentItem::SceneBreak => {
+            ContentItem::SceneBreak(_) => {
                 // Remove scene breaks adjacent to headers/chapters
                 let prev_is_header = i > 0 && is_header_or_chapter(&items[i - 1]);
                 let next_is_header = i + 1 < items.len() && is_header_or_chapter(&items[i + 1]);
 
                 if !prev_is_header && !next_is_header {
-                    result.push(ContentItem::SceneBreak);
+                    result.push(item.clone());
                 }
 
                 i += 1;
@@ -897,7 +930,7 @@ fn render_items(items: Vec<ContentItem>) -> String {
                 if i > 0
                     && !matches!(
                         items[i - 1],
-                        ContentItem::BlankLine | ContentItem::SceneBreak
+                        ContentItem::BlankLine | ContentItem::SceneBreak(_)
                     )
                 {
                     lines.push(String::new());
@@ -914,7 +947,7 @@ fn render_items(items: Vec<ContentItem>) -> String {
                 if i > 0
                     && !matches!(
                         items[i - 1],
-                        ContentItem::BlankLine | ContentItem::SceneBreak
+                        ContentItem::BlankLine | ContentItem::SceneBreak(_)
                     )
                 {
                     lines.push(String::new());
@@ -930,9 +963,16 @@ fn render_items(items: Vec<ContentItem>) -> String {
             ContentItem::ItalicLine(text) => {
                 lines.push(text.clone());
             }
-            ContentItem::SceneBreak => {
+            ContentItem::SceneBreak(content) => {
                 lines.push(String::new()); // Blank line before scene break (for Pandoc to close preceding paragraph)
-                lines.push("<div class='scene-break'></div>".to_string());
+                if let Some(content) = content {
+                    lines.push(format!(
+                        "<div class='scene-break custom-scene-break'>{}</div>",
+                        escape_html_text(content)
+                    ));
+                } else {
+                    lines.push("<div class='scene-break'></div>".to_string());
+                }
                 lines.push(String::new()); // Blank line after scene break
             }
             ContentItem::BlankLine => {
@@ -1539,6 +1579,28 @@ More text.
 
         assert_eq!(result.matches("<div class='scene-break'></div>").count(), 1);
         assert!(!result.contains("\\#"));
+    }
+
+    #[test]
+    fn escaped_hash_marker_with_content_inserts_custom_scene_break() {
+        let input = "First paragraph\n\\#***#\nSecond paragraph";
+        let transformer = MarkdownTransformer;
+        let result = transformer.transform(input).unwrap();
+
+        assert!(result.contains("<div class='scene-break custom-scene-break'>***</div>"));
+        assert!(!result.contains("<div class='scene-break'></div>"));
+        assert!(!result.contains("\\#***#"));
+    }
+
+    #[test]
+    fn custom_scene_break_content_preserves_unicode_and_escapes_html() {
+        let input = "First paragraph\n#❧ <>&#\nSecond paragraph";
+        let transformer = MarkdownTransformer;
+        let result = transformer.transform(input).unwrap();
+
+        assert!(
+            result.contains("<div class='scene-break custom-scene-break'>❧ &lt;&gt;&amp;</div>")
+        );
     }
 
     #[test]

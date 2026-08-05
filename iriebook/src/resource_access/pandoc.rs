@@ -448,9 +448,9 @@ fn write_pdf_latex_header(
   {{\begin{{center}}\vspace{{-3.2em}}\itshape\large}}
   {{\par\end{{center}}\vspace{{2em}}}}
 
-\newcommand{{\irieSceneBreak}}{{%
+\newcommand{{\irieSceneBreak}}[1]{{%
   \par\vspace{{1em}}%
-  \begin{{center}}{{\iriesymbolfont\Large ❦}}\end{{center}}%
+  \begin{{center}}{{\iriesymbolfont\Large \ifstrempty{{#1}}{{❦}}{{#1}}}}\end{{center}}%
   \vspace{{1em}}\par%
 }}
 
@@ -598,6 +598,24 @@ local function has_class(el, class)
   return false
 end
 
+local function escape_latex_text(text)
+  local replacements = {
+    ['\\'] = '\\textbackslash{}',
+    ['{'] = '\\{',
+    ['}'] = '\\}',
+    ['&'] = '\\&',
+    ['%'] = '\\%',
+    ['$'] = '\\$',
+    ['#'] = '\\#',
+    ['_'] = '\\_',
+    ['~'] = '\\textasciitilde{}',
+    ['^'] = '\\textasciicircum{}',
+  }
+  return text:gsub('[\\{}&%%$#_~^]', function(character)
+    return replacements[character]
+  end)
+end
+
 function Header(el)
   if has_class(el, 'previous-books-page') then
     local heading = pandoc.utils.stringify(el.content)
@@ -625,7 +643,8 @@ end
 
 function Div(el)
   if has_class(el, 'scene-break') then
-    return pandoc.RawBlock('latex', '\\irieSceneBreak{}')
+    local content = escape_latex_text(pandoc.utils.stringify(el.content))
+    return pandoc.RawBlock('latex', '\\irieSceneBreak{' .. content .. '}')
   end
 
   if has_class(el, 'dedication') then
@@ -1439,6 +1458,8 @@ mod tests {
 
         assert!(include.contains("\\newenvironment{irieSubtitle}"));
         assert!(include.contains("\\newcommand{\\irieSceneBreak}"));
+        assert!(include.contains("\\newcommand{\\irieSceneBreak}[1]"));
+        assert!(include.contains("\\ifstrempty{#1}{❦}{#1}"));
         assert!(include.contains("\\newenvironment{irieDedication}"));
         assert!(include.contains("\\newenvironment{irieCopyright}"));
         assert!(include.contains("\\usepackage{indentfirst}"));
@@ -1499,6 +1520,9 @@ mod tests {
 
         assert!(filter.contains("irieSubtitle"));
         assert!(filter.contains("irieSceneBreak"));
+        assert!(filter.contains("escape_latex_text(pandoc.utils.stringify(el.content))"));
+        assert!(filter.contains("'\\\\irieSceneBreak{' .. content .. '}'"));
+        assert!(filter.contains("['#'] = '\\\\#'"));
         assert!(filter.contains("irieDedication"));
         assert!(filter.contains("irieCopyright"));
         assert!(filter.contains("previous-books-page"));

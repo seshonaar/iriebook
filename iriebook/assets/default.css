@@ -79,6 +79,16 @@ section > h1:first-child {
     color: #888;
 }
 
+.custom-scene-break {
+    font-family: 'DejaVu Sans', 'Segoe UI Symbol', 'Arial Unicode MS', 'Apple Symbols', sans-serif;
+    font-size: 1.2em;
+    color: #888;
+}
+
+.custom-scene-break::after {
+    content: "";
+}
+
 /* Hide symbol and reduce space at chapter starts */
 h1 + .scene-break::after,
 h2 + .scene-break::after,

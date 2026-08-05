@@ -316,6 +316,7 @@ The next scene begins.</code></pre>
     </div>
 </div>
 <p class="note">Google Docs exports that line as <code>\#</code> in Markdown. IrieBook recognizes that escaped export form. A raw Markdown <code>#</code> is preserved as Markdown, so existing Markdown headings and text are not changed.</p>
+<p><strong>Custom ornament:</strong> put content between the two hashes to render that content instead of the default ❦. For example, write <code>#***#</code> in Google Docs to render <strong>***</strong>, or <code>#❧#</code> to render <strong>❧</strong>. Google Docs exports these as <code>\#***#</code> or <code>\#❧#</code>, and IrieBook recognizes both forms.</p>
 <p><strong>Automatic scene breaks still exist.</strong> IrieBook can also decide for you, based on the rhythm of the prose:</p>
 <ul>
     <li>A blank line is promoted to a scene break <strong>only when</strong> there are at least <strong>{{CHUNKY_PARAGRAPH_THRESHOLD}}</strong> consecutive paragraph lines immediately before it and at least <strong>{{CHUNKY_PARAGRAPH_THRESHOLD}}</strong> consecutive paragraph lines immediately after it.</li>
@@ -616,7 +617,7 @@ identifier:
         <tr><td>Chapter with subtitle</td><td><code>[H2] Chapter 1 - Title</code></td></tr>
         <tr><td>Prologue / Epilogue</td><td><code>[H2] Prologue</code> or <code>[H2] Epilogue</code> (no number)</td></tr>
         <tr><td>Dedication page</td><td><code>[H3] For someone</code>, with the whole H3 italicized in Google Docs</td></tr>
-        <tr><td>Scene break</td><td><code>#</code> on its own line in Google Docs; automatic at long-prose boundaries</td></tr>
+        <tr><td>Scene break</td><td><code>#</code> on its own line in Google Docs; <code>#***#</code> or <code>#❧#</code> for a custom ornament; automatic at long-prose boundaries</td></tr>
         <tr><td>Poetry (no scene breaks)</td><td>one italic paragraph line per poem line</td></tr>
         <tr><td>Dialogue</td><td><code>"hello"</code> (straight double quotes)</td></tr>
         <tr><td>Apostrophes</td><td><code>it's</code>, <code>John's</code>, <code>'70s</code> (auto-curled)</td></tr>
