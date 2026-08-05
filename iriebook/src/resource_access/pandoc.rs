@@ -412,6 +412,8 @@ fn write_pdf_latex_header(
 
 {}
 
+\renewcommand{{\raggedchapter}}{{\centering}}
+\renewcommand{{\chapterlinesformat}}[3]{{#2\MakeUppercase{{#3}}}}
 \addtokomafont{{chapter}}{{\normalfont\Large\bfseries\centering}}
 \renewcommand{{\chapterheadstartvskip}}{{\vspace{{0.15\textheight}}}}
 \renewcommand{{\chapterheadendvskip}}{{\vspace{{4em}}}}
@@ -1450,9 +1452,10 @@ mod tests {
         assert!(include.contains("\\pretocmd{\\chapter}"));
         assert!(include.contains("\\cleardoublepage"));
         assert!(include.contains("\\addtokomafont{chapter}"));
+        assert!(include.contains("\\renewcommand{\\raggedchapter}{\\centering}"));
+        assert!(include.contains("\\renewcommand{\\chapterlinesformat}[3]{#2\\MakeUppercase{#3}}"));
         assert!(include.contains("\\chapterheadstartvskip"));
         assert!(include.contains("\\chapterheadendvskip"));
-        assert!(include.contains("\\MakeUppercase"));
         assert!(include.contains("\\renewcommand{\\maketitle}"));
         assert!(!include.contains("\\setcounter{page}"));
         assert!(include.contains("\\pagestyle{scrheadings}"));
