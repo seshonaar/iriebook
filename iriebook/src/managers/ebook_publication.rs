@@ -237,6 +237,7 @@ impl EbookPublicationManager {
         effective_pdf_config.enabled = pdf_profile.render.enabled;
         effective_pdf_config.page_width = pdf_profile.page.width.clone();
         effective_pdf_config.page_height = pdf_profile.page.height.clone();
+        effective_pdf_config.title_page = pdf_profile.title_page.clone();
         effective_pdf_config.font_family = pdf_profile.render.font_family.clone();
         effective_pdf_config.font_size = pdf_profile.render.font_size.clone();
         effective_pdf_config.line_spacing = pdf_profile.render.line_spacing;

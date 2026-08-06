@@ -746,7 +746,7 @@ export type PdfPageProfile =
 "bookbite"
 export type PdfPageProfileInfo = { profile: PdfPageProfile; label: string; width: string; height: string; identifier_display: IdentifierDisplayMode }
 export type PdfProfileImageKind = "cover" | "print_cover"
-export type PdfProfileState = { active_profile: PdfPageProfile; available_profiles: PdfPageProfileInfo[]; active_label: string; width: string; height: string; identifier_display: IdentifierDisplayMode; cover_path: string | null; print_cover_path: string | null }
+export type PdfProfileState = { active_profile: PdfPageProfile; available_profiles: PdfPageProfileInfo[]; active_label: string; width: string; height: string; identifier_display: IdentifierDisplayMode; profile_path: string; cover_path: string | null; print_cover_path: string | null }
 /**
  * Events emitted during book processing (serializable for Tauri events)
  */

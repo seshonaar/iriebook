@@ -376,7 +376,8 @@ fn write_pdf_latex_header(
         Some(path) => build_pdf_cover_command(path, pdf_config)?,
         None => String::new(),
     };
-    let title_page_commands = build_pdf_title_page_commands(title_page_metadata);
+    let title_page_commands =
+        build_pdf_title_page_commands(title_page_metadata, &pdf_config.title_page);
 
     let include = format!(
         r#"\usepackage{{graphicx}}
@@ -479,6 +480,7 @@ fn write_pdf_latex_header(
   \vspace{{2.6em}}
   {{\irieTitlePageAuthorStyle\MakeUppercase{{\@author}}\par}}
   \vfill
+  \irieRenderTitlePageBottom
   \endgroup
   \pagestyle{{empty}}
 }}
@@ -785,7 +787,10 @@ fn read_pdf_title_page_metadata(
     })
 }
 
-fn build_pdf_title_page_commands(metadata: &PdfTitlePageMetadata) -> String {
+fn build_pdf_title_page_commands(
+    metadata: &PdfTitlePageMetadata,
+    title_page: &crate::utilities::types::PdfProfileTitlePageDocument,
+) -> String {
     let style = metadata.style.as_deref().unwrap_or("classic");
     let (title_style, author_style, series_style) = match style {
         "minimal" => (
@@ -827,15 +832,31 @@ fn build_pdf_title_page_commands(metadata: &PdfTitlePageMetadata) -> String {
         String::new()
     };
 
+    let bottom_lines = title_page
+        .bottom_lines
+        .iter()
+        .map(|line| line.text.trim())
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            format!(
+                "{{\\irieTitlePageBottomStyle {}\\par}}",
+                escape_latex_text(line)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\\vspace{0.25em}");
+
     format!(
         r#"\newcommand{{\irieTitlePageTitleStyle}}{{{}}}
 \newcommand{{\irieTitlePageAuthorStyle}}{{{}}}
 \newcommand{{\irieTitlePageTopStarsStyle}}{{\normalsize\iriesymbolfont\addfontfeatures{{LetterSpace=18}}}}
 \newcommand{{\irieTitlePageSeriesStyle}}{{{}}}
+\newcommand{{\irieTitlePageBottomStyle}}{{\normalsize}}
 \newcommand{{\irieRenderTitlePageTopStars}}{{{}}}
 \newcommand{{\irieRenderTitlePageSeries}}{{{}}}
+\newcommand{{\irieRenderTitlePageBottom}}{{{}}}
 "#,
-        title_style, author_style, series_style, render_top_stars, render_series
+        title_style, author_style, series_style, render_top_stars, render_series, bottom_lines
     )
 }
 
@@ -1485,6 +1506,33 @@ mod tests {
             "\\clearpage\n  \\thispagestyle{empty}\n  \\pagestyle{empty}\n  \\begingroup"
         ));
         assert!(!include.contains("\\AtBeginDocument{\\irieCoverPage}"));
+    }
+
+    #[test]
+    fn write_pdf_latex_header_renders_profile_title_page_bottom_lines() {
+        let temp_dir = TempDir::new().unwrap();
+        let output_pdf = temp_dir.path().join("book.pdf");
+        let mut config = PdfConfig::default();
+        config.title_page.bottom_lines = vec![
+            crate::utilities::types::PdfProfileTitlePageLine {
+                text: "Editura Celestium".to_string(),
+                style: None,
+            },
+            crate::utilities::types::PdfProfileTitlePageLine {
+                text: "Oradea|2026".to_string(),
+                style: None,
+            },
+        ];
+
+        let include_path =
+            write_pdf_latex_header(&output_pdf, None, &config, &PdfTitlePageMetadata::default())
+                .unwrap();
+        let include = std::fs::read_to_string(include_path).unwrap();
+
+        assert!(include.contains("\\irieRenderTitlePageBottom"));
+        assert!(include.contains("Editura Celestium"));
+        assert!(include.contains("Oradea|2026"));
+        assert!(include.contains("\\vfill\n  \\irieRenderTitlePageBottom"));
     }
 
     #[test]

@@ -15,6 +15,7 @@ pub struct PdfProfileState {
     pub width: String,
     pub height: String,
     pub identifier_display: IdentifierDisplayMode,
+    pub profile_path: String,
     pub cover_path: Option<String>,
     pub print_cover_path: Option<String>,
 }
@@ -56,6 +57,8 @@ fn pdf_profile_state_from_config(
     let profile = config.pdf.active_profile;
     file::materialize_pdf_profile(book_path, profile).map_err(|error| error.to_string())?;
     let output_profile = profile.output_profile();
+    let profile_path = file::get_pdf_profile_file(book_path, profile, "profile.json")
+        .map_err(|error| error.to_string())?;
     let cover_path = existing_profile_image_path(book_path, profile, PdfProfileImageKind::Cover)?;
     let print_cover_path =
         existing_profile_image_path(book_path, profile, PdfProfileImageKind::PrintCover)?;
@@ -67,6 +70,7 @@ fn pdf_profile_state_from_config(
         width: output_profile.page.width.to_string(),
         height: output_profile.page.height.to_string(),
         identifier_display: output_profile.identifier_display,
+        profile_path: path_to_string(profile_path),
         cover_path: cover_path.map(path_to_string),
         print_cover_path: print_cover_path.map(path_to_string),
     })

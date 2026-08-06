@@ -288,6 +288,8 @@ pub struct PdfProfileDocument {
     pub label: String,
     pub page: PdfProfilePageDocument,
     #[serde(default)]
+    pub title_page: PdfProfileTitlePageDocument,
+    #[serde(default)]
     pub render: PdfProfileRenderDocument,
     #[serde(default)]
     pub copyright: CopyrightRenderingConfig,
@@ -304,6 +306,7 @@ impl From<PdfOutputProfile> for PdfProfileDocument {
                 width: profile.page.width.to_string(),
                 height: profile.page.height.to_string(),
             },
+            title_page: default_pdf_profile_title_page(profile.id),
             render: PdfProfileRenderDocument::default(),
             copyright: CopyrightRenderingConfig::default(),
             identifier_display: profile.identifier_display,
@@ -316,6 +319,37 @@ impl From<PdfOutputProfile> for PdfProfileDocument {
 pub struct PdfProfilePageDocument {
     pub width: String,
     pub height: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
+pub struct PdfProfileTitlePageDocument {
+    #[serde(default)]
+    pub bottom_lines: Vec<PdfProfileTitlePageLine>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, Type)]
+pub struct PdfProfileTitlePageLine {
+    pub text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style: Option<String>,
+}
+
+pub fn default_pdf_profile_title_page(profile: PdfPageProfile) -> PdfProfileTitlePageDocument {
+    match profile {
+        PdfPageProfile::Bookbite => PdfProfileTitlePageDocument {
+            bottom_lines: vec![
+                PdfProfileTitlePageLine {
+                    text: "Editura Celestium".to_string(),
+                    style: None,
+                },
+                PdfProfileTitlePageLine {
+                    text: format!("Oradea | {}", chrono::Local::now().year()),
+                    style: None,
+                },
+            ],
+        },
+        PdfPageProfile::Draft2Digital => PdfProfileTitlePageDocument::default(),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, Type)]
@@ -1017,6 +1051,15 @@ mod tests {
         let document = PdfProfileDocument::from(PdfPageProfile::Bookbite.output_profile());
         let json = serde_json::to_string(&document).unwrap();
 
+        assert_eq!(
+            document.title_page.bottom_lines[0].text,
+            "Editura Celestium"
+        );
+        assert_eq!(
+            document.title_page.bottom_lines[1].text,
+            format!("Oradea | {}", chrono::Local::now().year())
+        );
+        assert!(json.contains(r#""title_page""#));
         assert!(json.contains(r#""render""#));
         assert!(json.contains(r#""font_family":"Liberation Serif""#));
         assert!(json.contains(r#""pdf_engine":"xelatex""#));

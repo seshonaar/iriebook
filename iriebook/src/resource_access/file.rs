@@ -4,7 +4,7 @@
 
 use crate::utilities::types::{
     BookConfig, BookMetadata, GoogleDocsSyncInfo, PdfPageProfile, PdfProfileDocument,
-    PdfProfileImageKind,
+    PdfProfileImageKind, default_pdf_profile_title_page,
 };
 use anyhow::{Context, Result};
 use image::ImageFormat;
@@ -423,14 +423,19 @@ pub fn materialize_pdf_profile(
     if profile_path.exists() {
         let content = read_file(&profile_path)
             .with_context(|| format!("Failed to read PDF profile: {}", profile_path.display()))?;
-        let value: serde_json::Value = serde_json::from_str(&content).with_context(|| {
+        let mut value: serde_json::Value = serde_json::from_str(&content).with_context(|| {
             format!(
                 "Failed to parse PDF profile JSON: {}",
                 profile_path.display()
             )
         })?;
-        let should_write_defaults =
-            value.get("render").is_none() || value.get("copyright").is_none();
+        let should_write_defaults = value.get("title_page").is_none()
+            || value.get("render").is_none()
+            || value.get("copyright").is_none();
+        if value.get("title_page").is_none() {
+            value["title_page"] = serde_json::to_value(default_pdf_profile_title_page(profile))
+                .context("Failed to serialize PDF profile title page defaults")?;
+        }
         let document: PdfProfileDocument = serde_json::from_value(value).with_context(|| {
             format!(
                 "Failed to parse PDF profile JSON: {}",
@@ -1234,6 +1239,15 @@ identifier:
 
         assert_eq!(document.id, PdfPageProfile::Bookbite);
         assert_eq!(document.label, "Bookbite");
+        assert_eq!(
+            document.title_page.bottom_lines[0].text,
+            "Editura Celestium"
+        );
+        assert!(
+            document.title_page.bottom_lines[1]
+                .text
+                .starts_with("Oradea | ")
+        );
         assert!(
             temp_dir
                 .path()
@@ -1268,7 +1282,12 @@ identifier:
         let document = materialize_pdf_profile(&book_path, PdfPageProfile::Bookbite)?;
 
         assert!(document.render.enabled);
+        assert_eq!(
+            document.title_page.bottom_lines[0].text,
+            "Editura Celestium"
+        );
         let content = fs::read_to_string(profile_dir.join("profile.json"))?;
+        assert!(content.contains(r#""title_page""#));
         assert!(content.contains(r#""render""#));
         assert!(content.contains(r#""copyright""#));
         assert!(!temp_dir.path().join("config.json").exists());

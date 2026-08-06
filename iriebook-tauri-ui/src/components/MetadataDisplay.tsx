@@ -272,6 +272,23 @@ export function MetadataDisplay({
     }
   };
 
+  const handleEditPdfProfile = async () => {
+    if (!pdfProfile?.profile_path) {
+      return;
+    }
+
+    try {
+      const result = await commands.openFile(pdfProfile.profile_path);
+      if (result.status === "error") {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      toast.error("Failed to open PDF profile", {
+        description: String(error),
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex w-full flex-wrap items-center gap-2 mb-4">
@@ -411,6 +428,16 @@ export function MetadataDisplay({
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleEditPdfProfile}
+              disabled={!pdfProfile?.profile_path}
+            >
+              Edit profile.json
+            </Button>
 
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">

@@ -2,6 +2,7 @@
 //!
 //! Loads config from: local config.json → global ~/.iriebook/config.json → defaults
 
+use crate::utilities::types::PdfProfileTitlePageDocument;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -34,6 +35,8 @@ pub struct PdfConfig {
     pub page_width: String,
     #[serde(default = "default_pdf_page_height")]
     pub page_height: String,
+    #[serde(default)]
+    pub title_page: PdfProfileTitlePageDocument,
     #[serde(default = "default_pdf_font_family")]
     pub font_family: String,
     #[serde(default = "default_pdf_font_size")]
@@ -68,6 +71,7 @@ impl Default for PdfConfig {
             enabled: default_pdf_enabled(),
             page_width: default_pdf_page_width(),
             page_height: default_pdf_page_height(),
+            title_page: PdfProfileTitlePageDocument::default(),
             font_family: default_pdf_font_family(),
             font_size: default_pdf_font_size(),
             line_spacing: default_pdf_line_spacing(),
